@@ -15,9 +15,9 @@ From this point on you can access your admin panel at `/admin` of your app URL, 
 
 This project uses the following services integrated into Vercel which you will need to click "Add" and "Connect" for:
 
-Neon Database - Postgres-based cloud database used to host your data
+Turso (libSQL) - globally-distributed SQLite used to host your data. After provisioning, grab the `libsql://` connection URL and a scoped auth token.
 
-Vercel Blob Storage - object storage used to host your files such as images and videos
+Cloudflare R2 - object storage used to host your files such as images and videos. Create an R2 bucket, enable S3 API access, and generate an access key / secret pair with the appropriate permissions.
 
 The connection variables will automatically be setup for you on Vercel when these services are connected.
 
@@ -38,9 +38,7 @@ After you click the `Deploy` button above, you'll want to have standalone copy o
 ### Development
 
 1. First [clone the repo](#clone) if you have not done so already
-2. `cd my-project && cp .env.example .env` to copy the example environment variables. You'll need to add the `POSTGRES_URL` and `BLOB_READ_WRITE_TOKEN` from your Vercel project to your `.env` if you want to use Vercel Blob and the Neon database that was created for you.
-
-   > _NOTE: If the connection string value includes `localhost` or `127.0.0.1`, the code will automatically use a normal postgres adapter instead of Vercel._. You can override this functionality by setting `forceUseVercelPostgres: true` if desired.
+2. `cd my-project && cp .env.example .env` to copy the example environment variables. You'll need to add the `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`, `PAYLOAD_SECRET`, plus your `R2_ENDPOINT`, `R2_BUCKET_NAME`, `R2_ACCESS_KEY_ID`, and `R2_SECRET_ACCESS_KEY` values so the app can connect to Turso and Cloudflare R2. If the Turso variables are omitted during local development, Payload falls back to a local SQLite file in `.payload/data.sqlite`, and if the R2 variables are omitted Payload stores media on the local filesystem instead.
 
 3. `pnpm install && pnpm dev` to install dependencies and start the dev server
 4. open `http://localhost:3000` to open the app in your browser
@@ -75,37 +73,35 @@ See the [Collections](https://payloadcms.com/docs/configuration/collections) doc
 
   This is the uploads enabled collection. It features pre-configured sizes, focal point and manual resizing to help you manage your pictures.
 
-## Working with Postgres
+## Working with SQLite / Turso
 
-Postgres and other SQL-based databases follow a strict schema for managing your data. In comparison to our MongoDB adapter, this means that there's a few extra steps to working with Postgres.
-
-Note that often times when making big schema changes you can run the risk of losing data if you're not manually migrating it.
+SQLite (and the hosted Turso libSQL edge network) still follows a strict schema, so the same care applies when making schema changes.
 
 ### Local development
 
-Ideally we recommend running a local copy of your database so that schema updates are as fast as possible. By default the Postgres adapter has `push: true` for development environments. This will let you add, modify and remove fields and collections without needing to run any data migrations.
+By default the SQLite adapter uses `push: true` while `NODE_ENV !== 'production'`, which lets Payload automatically sync schema changes to your local SQLite file without running migrations manually. If you're pointing at Turso during local development you may prefer to leave `push` enabled so schema updates propagate automatically.
 
-If your database is pointed to production you will want to set `push: false` otherwise you will risk losing data or having your migrations out of sync.
+If you connect to your production Turso instance from a local machine, set `PUSH` to `false` for safety—otherwise you risk schema drift.
 
 #### Migrations
 
-[Migrations](https://payloadcms.com/docs/database/migrations) are essentially SQL code versions that keeps track of your schema. When deploy with Postgres you will need to make sure you create and then run your migrations.
+[Migrations](https://payloadcms.com/docs/database/migrations) are essentially SQL code versions that keep track of your schema. With Turso you should create a migration any time you make a schema change that needs to land in production.
 
-Locally create a migration
+Locally create a migration:
 
 ```bash
-pnpm payload migrate:create
+PAYLOAD_SECRET=dev-secret TURSO_DATABASE_URL="libsql://..." TURSO_AUTH_TOKEN="..." pnpm payload migrate:create
 ```
 
-This creates the migration files you will need to push alongside with your new configuration.
+This creates the migration files you will need to push alongside your configuration. Commit both the `.ts` and `.json` artifacts that are generated in `src/migrations`.
 
-On the server after building and before running `pnpm start` you will want to run your migrations
+On the server after building and before running `pnpm start` you will want to run your migrations:
 
 ```bash
 pnpm payload migrate
 ```
 
-This command will check for any migrations that have not yet been run and try to run them and it will keep a record of migrations that have been run in the database.
+This command checks for any migrations that have not yet been run, executes the outstanding migrations, and keeps a record in the database. Turso provides point-in-time snapshots, so consider taking one before running production migrations.
 
 ### Docker
 

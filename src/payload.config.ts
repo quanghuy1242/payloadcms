@@ -1,5 +1,5 @@
-import { vercelBlobStorage } from '@payloadcms/storage-vercel-blob'
-import { vercelPostgresAdapter } from '@payloadcms/db-vercel-postgres'
+import { sqliteAdapter } from '@payloadcms/db-sqlite'
+import { r2Storage } from '@payloadcms/storage-r2'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
 import path from 'path'
 import { buildConfig } from 'payload'
@@ -7,9 +7,44 @@ import { fileURLToPath } from 'url'
 
 import { Users } from './collections/Users'
 import { Media } from './collections/Media'
+import { createR2BucketFromEnv } from './lib/r2Bucket'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
+const isProduction = process.env.NODE_ENV === 'production'
+const isNextBuild = process.env.NEXT_PHASE === 'phase-production-build'
+const tursoDatabaseURL = process.env.TURSO_DATABASE_URL
+const tursoAuthToken = process.env.TURSO_AUTH_TOKEN
+const fallbackSQLiteFile = path.resolve(dirname, '../.payload/data.sqlite')
+const r2Bucket = createR2BucketFromEnv({ strict: !isNextBuild })
+
+if (!tursoDatabaseURL && isProduction && !isNextBuild) {
+  throw new Error('TURSO_DATABASE_URL must be set in production to connect to Turso.')
+}
+
+if (!tursoDatabaseURL && !isNextBuild) {
+  console.warn(
+    `TURSO_DATABASE_URL is not set. Falling back to local SQLite file at ${fallbackSQLiteFile}.`,
+  )
+}
+
+const databaseAdapter = sqliteAdapter({
+  client: {
+    url: tursoDatabaseURL ?? `file:${fallbackSQLiteFile}`,
+    authToken: tursoDatabaseURL ? tursoAuthToken : undefined,
+  },
+  push: !isProduction || isNextBuild,
+})
+const storagePlugins = r2Bucket
+  ? [
+      r2Storage({
+        bucket: r2Bucket,
+        collections: {
+          media: true,
+        },
+      }),
+    ]
+  : []
 
 export default buildConfig({
   admin: {
@@ -24,17 +59,7 @@ export default buildConfig({
   typescript: {
     outputFile: path.resolve(dirname, 'payload-types.ts'),
   },
-  db: vercelPostgresAdapter({
-    pool: {
-      connectionString: process.env.POSTGRES_URL || '',
-    },
-  }),
-  plugins: [
-    vercelBlobStorage({
-      collections: {
-        media: true,
-      },
-      token: process.env.BLOB_READ_WRITE_TOKEN || '',
-    }),
-  ],
+  // @ts-ignore
+  db: databaseAdapter,
+  plugins: [...storagePlugins],
 })
