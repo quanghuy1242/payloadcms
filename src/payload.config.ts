@@ -5,9 +5,12 @@ import path from 'path'
 import { buildConfig } from 'payload'
 import { fileURLToPath } from 'url'
 
+import { Categories } from './collections/Categories'
+import { Posts } from './collections/Posts'
 import { Users } from './collections/Users'
 import { Media } from './collections/Media'
 import { createR2BucketFromEnv } from './lib/r2Bucket'
+import { Homepage } from './globals/Homepage'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -53,7 +56,7 @@ export default buildConfig({
       baseDir: path.resolve(dirname),
     },
   },
-  collections: [Users, Media],
+  collections: [Users, Media, Posts, Categories],
   editor: lexicalEditor(),
   secret: process.env.PAYLOAD_SECRET || '',
   typescript: {
@@ -61,5 +64,6 @@ export default buildConfig({
   },
   // @ts-ignore
   db: databaseAdapter,
+  globals: [Homepage],
   plugins: [...storagePlugins],
 })
