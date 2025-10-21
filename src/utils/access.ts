@@ -164,16 +164,20 @@ export const publishedMediaReadAccess: Access = async ({ req, data, id }) => {
   }
 
   const mediaIdString = toNullableString(mediaId)
+  const mediaIdVariants = [
+    mediaId,
+    ...(mediaIdString && mediaIdString !== String(mediaId) ? [mediaIdString] : []),
+  ]
 
   const postReferenceConditions = [
     {
       coverImage: {
-        equals: mediaId,
+        in: mediaIdVariants,
       },
     },
     {
       'meta.image': {
-        equals: mediaId,
+        in: mediaIdVariants,
       },
     },
     mediaIdString
@@ -197,10 +201,7 @@ export const publishedMediaReadAccess: Access = async ({ req, data, id }) => {
     depth: 0,
     limit: 1,
     overrideAccess: false,
-    where: {
-      // @ts-ignore
-      or: postReferenceConditions,
-    },
+    where: { or: postReferenceConditions } as never,
   })
 
   if (isReferencedByPosts.docs.length > 0) {
@@ -214,7 +215,7 @@ export const publishedMediaReadAccess: Access = async ({ req, data, id }) => {
     overrideAccess: false,
     where: {
       image: {
-        equals: mediaId,
+        in: mediaIdVariants,
       },
     },
   })
