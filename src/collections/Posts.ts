@@ -39,6 +39,7 @@ export const Posts: CollectionConfig = {
     drafts: {
       autosave: {
         interval: 30000,
+        showSaveDraftButton: true,
       },
     },
   },
