@@ -1,10 +1,11 @@
 import type { CollectionConfig } from 'payload'
 import { createSlugHook, validateImmutableSlug } from './utils/slug'
+import { publicReadAccess } from './utils/access'
 
 export const Categories: CollectionConfig = {
   slug: 'categories',
   access: {
-    read: () => true,
+    read: publicReadAccess,
   },
   admin: {
     useAsTitle: 'name',

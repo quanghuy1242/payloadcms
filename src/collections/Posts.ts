@@ -1,4 +1,4 @@
-import type { Access, CollectionConfig } from 'payload'
+import type { CollectionConfig } from 'payload'
 import {
   lexicalEditor,
   FixedToolbarFeature,
@@ -11,18 +11,7 @@ import {
   UnderlineFeature,
 } from '@payloadcms/richtext-lexical'
 import { createSlugHook, validateImmutableSlug } from './utils/slug'
-
-const publishedPostsReadAccess: Access = ({ req: { user } }) => {
-  if (user) {
-    return true
-  }
-
-  return {
-    _status: {
-      equals: 'published',
-    },
-  }
-}
+import { publishedPostsReadAccess } from './utils/access'
 
 export const Posts: CollectionConfig = {
   slug: 'posts',
