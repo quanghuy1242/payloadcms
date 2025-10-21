@@ -16,7 +16,8 @@
     "start": "cross-env NODE_OPTIONS=--no-deprecation next start",
     "test": "pnpm run test:int && pnpm run test:e2e",
     "test:e2e": "cross-env NODE_OPTIONS=\"--no-deprecation --no-experimental-strip-types\" pnpm exec playwright test",
-    "test:int": "cross-env NODE_OPTIONS=--no-deprecation vitest run --config ./vitest.config.mts"
+    "test:int": "cross-env NODE_OPTIONS=--no-deprecation vitest run --config ./vitest.config.mts",
+    "promote:admin": "tsx scripts/promote-user.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.913.0",
@@ -27,6 +28,7 @@
     "@payloadcms/richtext-lexical": "3.60.0",
     "@payloadcms/storage-r2": "3.60.0",
     "@payloadcms/ui": "3.60.0",
+    "@libsql/client": "^0.13.0",
     "cross-env": "^7.0.3",
     "graphql": "^16.11.0",
     "libsql": "^0.5.22",
@@ -50,6 +52,7 @@
     "playwright": "1.54.1",
     "playwright-core": "1.54.1",
     "prettier": "^3.6.2",
+    "tsx": "^4.19.1",
     "typescript": "5.7.3",
     "vite-tsconfig-paths": "5.1.4",
     "vitest": "3.2.3"

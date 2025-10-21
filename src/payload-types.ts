@@ -127,6 +127,11 @@ export interface UserAuthOperations {
  */
 export interface User {
   id: number;
+  fullName: string;
+  /**
+   * Controls access within the Payload admin. Defaults to User.
+   */
+  role: 'admin' | 'user';
   updatedAt: string;
   createdAt: string;
   email: string;
@@ -152,6 +157,7 @@ export interface User {
 export interface Media {
   id: number;
   alt: string;
+  owner: number | User;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -231,6 +237,7 @@ export interface Category {
   slug?: string | null;
   description: string;
   image: number | Media;
+  createdBy: number | User;
   updatedAt: string;
   createdAt: string;
 }
@@ -304,6 +311,8 @@ export interface PayloadMigration {
  * via the `definition` "users_select".
  */
 export interface UsersSelect<T extends boolean = true> {
+  fullName?: T;
+  role?: T;
   updatedAt?: T;
   createdAt?: T;
   email?: T;
@@ -327,6 +336,7 @@ export interface UsersSelect<T extends boolean = true> {
  */
 export interface MediaSelect<T extends boolean = true> {
   alt?: T;
+  owner?: T;
   updatedAt?: T;
   createdAt?: T;
   url?: T;
@@ -378,6 +388,7 @@ export interface CategoriesSelect<T extends boolean = true> {
   slug?: T;
   description?: T;
   image?: T;
+  createdBy?: T;
   updatedAt?: T;
   createdAt?: T;
 }

@@ -10,13 +10,18 @@ import {
   ParagraphFeature,
   UnderlineFeature,
 } from '@payloadcms/richtext-lexical'
+
+import { authenticatedAccess, ownerAccess, postsReadAccess } from '../utils/access'
+import { enforceOwnershipHook, validateRelationshipOwnership } from '../utils/ownership'
 import { createSlugHook, validateImmutableSlug } from '../utils/slug'
-import { publishedPostsReadAccess } from '../utils/access'
 
 export const Posts: CollectionConfig = {
   slug: 'posts',
   access: {
-    read: publishedPostsReadAccess,
+    create: authenticatedAccess,
+    read: postsReadAccess,
+    update: ownerAccess('author'),
+    delete: ownerAccess('author'),
   },
   admin: {
     useAsTitle: 'title',
@@ -33,7 +38,16 @@ export const Posts: CollectionConfig = {
     },
   },
   hooks: {
-    beforeValidate: [createSlugHook('title')],
+    beforeValidate: [
+      enforceOwnershipHook('author'),
+      validateRelationshipOwnership({
+        collection: 'categories',
+        field: 'category',
+        ownerField: 'createdBy',
+        unauthorizedMessage: 'You can only assign categories you created.',
+      }),
+      createSlugHook('title'),
+    ],
   },
   fields: [
     {
