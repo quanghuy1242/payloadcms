@@ -1,16 +1,23 @@
 import { sqliteAdapter } from '@payloadcms/db-sqlite'
 import { r2Storage } from '@payloadcms/storage-r2'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
+import { seoPlugin } from '@payloadcms/plugin-seo'
 import path from 'path'
 import { buildConfig } from 'payload'
 import { fileURLToPath } from 'url'
 
+import type {
+  GenerateDescription,
+  GenerateImage,
+  GenerateTitle,
+} from '@payloadcms/plugin-seo/types'
 import { Categories } from './collections/Categories'
 import { Posts } from './collections/Posts'
 import { Users } from './collections/Users'
 import { Media } from './collections/Media'
 import { createR2BucketFromEnv } from './lib/r2Bucket'
 import { Homepage } from './globals/Homepage'
+import type { Post } from './payload-types'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -49,6 +56,42 @@ const storagePlugins = r2Bucket
     ]
   : []
 
+const generatePostTitle: GenerateTitle<Post> = ({ doc }) => {
+  if (typeof doc?.title === 'string') {
+    return doc.title.trim()
+  }
+
+  return ''
+}
+
+const generatePostDescription: GenerateDescription<Post> = ({ doc }) => {
+  if (typeof doc?.excerpt === 'string') {
+    return doc.excerpt
+  }
+
+  return ''
+}
+
+const generatePostImage: GenerateImage<Post> = ({ doc }) => {
+  const { coverImage } = doc ?? {}
+
+  if (coverImage && typeof coverImage === 'object') {
+    if ('id' in coverImage && coverImage.id) {
+      return coverImage.id as string | number
+    }
+  }
+
+  return (coverImage ?? '') as string | number
+}
+
+const seo = seoPlugin({
+  collections: ['posts'],
+  uploadsCollection: 'media',
+  generateTitle: generatePostTitle,
+  generateDescription: generatePostDescription,
+  generateImage: generatePostImage,
+})
+
 export default buildConfig({
   admin: {
     user: Users.slug,
@@ -65,5 +108,6 @@ export default buildConfig({
   // @ts-ignore
   db: databaseAdapter,
   globals: [Homepage],
-  plugins: [...storagePlugins],
+  // @ts-ignore
+  plugins: [...storagePlugins, seo],
 })

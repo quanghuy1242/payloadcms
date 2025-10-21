@@ -23,6 +23,7 @@
     "@payloadcms/db-sqlite": "3.60.0",
     "@payloadcms/next": "3.60.0",
     "@payloadcms/payload-cloud": "3.60.0",
+    "@payloadcms/plugin-seo": "3.60.0",
     "@payloadcms/richtext-lexical": "3.60.0",
     "@payloadcms/storage-r2": "3.60.0",
     "@payloadcms/ui": "3.60.0",
