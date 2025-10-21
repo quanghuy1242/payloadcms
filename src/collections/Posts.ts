@@ -12,8 +12,8 @@ import {
 } from '@payloadcms/richtext-lexical'
 
 import { authenticatedAccess, ownerAccess, postsReadAccess } from '../utils/access'
-import { enforceOwnershipHook, validateRelationshipOwnership } from '../utils/ownership'
-import { createSlugHook, validateImmutableSlug } from '../utils/slug'
+import { enforceOwnershipHook } from '../utils/ownership'
+import { createRandomizedSlugHook, validateImmutableSlug } from '../utils/slug'
 
 export const Posts: CollectionConfig = {
   slug: 'posts',
@@ -38,16 +38,7 @@ export const Posts: CollectionConfig = {
     },
   },
   hooks: {
-    beforeValidate: [
-      enforceOwnershipHook('author'),
-      validateRelationshipOwnership({
-        collection: 'categories',
-        field: 'category',
-        ownerField: 'createdBy',
-        unauthorizedMessage: 'You can only assign categories you created.',
-      }),
-      createSlugHook('title'),
-    ],
+    beforeValidate: [enforceOwnershipHook('author'), createRandomizedSlugHook('title')],
   },
   fields: [
     {
@@ -61,7 +52,7 @@ export const Posts: CollectionConfig = {
       unique: true,
       index: true,
       admin: {
-        description: 'Automatically generated from the title on first save.',
+        description: 'Automatically generated with a unique suffix on first save.',
         position: 'sidebar',
       },
       // @ts-ignore

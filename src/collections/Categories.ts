@@ -1,6 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
-import { authenticatedAccess, categoriesReadAccess, ownerAccess } from '../utils/access'
+import { authenticatedAccess, ownerAccess, publicReadAccess } from '../utils/access'
 import { enforceOwnershipHook } from '../utils/ownership'
 import { createSlugHook, validateImmutableSlug } from '../utils/slug'
 
@@ -8,7 +8,7 @@ export const Categories: CollectionConfig = {
   slug: 'categories',
   access: {
     create: authenticatedAccess,
-    read: categoriesReadAccess,
+    read: publicReadAccess,
     update: ownerAccess('createdBy'),
     delete: ownerAccess('createdBy'),
   },
