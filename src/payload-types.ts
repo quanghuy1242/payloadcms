@@ -180,7 +180,7 @@ export interface Post {
   id: number;
   title: string;
   /**
-   * Automatically generated from the title on first save.
+   * Automatically generated with a unique suffix on first save.
    */
   slug?: string | null;
   excerpt?: string | null;

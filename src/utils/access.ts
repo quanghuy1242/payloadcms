@@ -138,28 +138,43 @@ export const publishedMediaReadAccess: Access = async ({ req, data, id }) => {
   }
 
   const userId = getUserId(req.user)
-
-  const mediaIdRaw = data?.id ?? id
-  const mediaId = normalizeEntityId(mediaIdRaw)
-
-  if (mediaId == null) {
-    return false
+  if (data == null && id == null) {
+    return true
   }
+
+  const candidateId = normalizeEntityId(data?.id ?? id)
 
   const mediaRecord =
     data ??
-    (await req.payload
-      .findByID({
-        collection: 'media',
-        id: mediaId,
-        depth: 0,
-        overrideAccess: true,
-      })
-      .catch(() => null))
+    (candidateId != null
+      ? await req.payload
+          .findByID({
+            collection: 'media',
+            id: candidateId,
+            depth: 0,
+            overrideAccess: true,
+          })
+          .catch(() => null)
+      : null)
 
-  const ownerId = normalizeEntityId(mediaRecord?.owner)
+  if (!mediaRecord) {
+    return userId != null
+      ? {
+          owner: {
+            equals: userId,
+          },
+        }
+      : false
+  }
+
+  const mediaId = normalizeEntityId(mediaRecord.id ?? candidateId)
+  const ownerId = normalizeEntityId(mediaRecord.owner)
 
   if (userId != null && ownerId != null && String(ownerId) === String(userId)) {
+    return true
+  }
+
+  if (mediaId == null) {
     return true
   }
 
