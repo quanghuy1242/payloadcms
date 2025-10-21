@@ -110,4 +110,7 @@ export default buildConfig({
   globals: [Homepage],
   // @ts-ignore
   plugins: [...storagePlugins, seo],
+  graphQL: {
+    disablePlaygroundInProduction: false,
+  },
 })
