@@ -1,15 +1,64 @@
-import { vercelBlobStorage } from '@payloadcms/storage-vercel-blob'
-import { vercelPostgresAdapter } from '@payloadcms/db-vercel-postgres'
+import { sqliteAdapter } from '@payloadcms/db-sqlite'
+import { r2Storage } from '@payloadcms/storage-r2'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
+import { seoPlugin } from '@payloadcms/plugin-seo'
 import path from 'path'
 import { buildConfig } from 'payload'
 import { fileURLToPath } from 'url'
 
+import { Categories } from './collections/Categories'
+import { Posts } from './collections/Posts'
 import { Users } from './collections/Users'
 import { Media } from './collections/Media'
+import { createQueriesExtension } from './graphql/queries'
+import { getCloudflareImageConfig } from './lib/env'
+import { generatePostDescription, generatePostImage, generatePostTitle } from './lib/postsSeo'
+import { createR2BucketFromEnv } from './lib/r2Bucket'
+import { Homepage } from './globals/Homepage'
+import { resolveTursoConnection } from './lib/turso'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
+const isProduction = process.env.NODE_ENV === 'production'
+const isNextBuild = process.env.NEXT_PHASE === 'phase-production-build'
+const fallbackSQLiteFile = path.resolve(dirname, '../.payload/data.sqlite')
+const r2Bucket = createR2BucketFromEnv({ strict: !isNextBuild })
+const cloudflareImageConfig = getCloudflareImageConfig()
+
+const tursoConnection = resolveTursoConnection({
+  authToken: process.env.TURSO_AUTH_TOKEN,
+  fallbackSQLiteFile,
+  isNextBuild,
+  isProduction,
+  tursoDatabaseURL: process.env.TURSO_DATABASE_URL,
+})
+
+const databaseAdapter = sqliteAdapter({
+  client: {
+    url: tursoConnection.connectionString,
+    authToken: tursoConnection.authToken,
+  },
+  push: tursoConnection.shouldSync,
+})
+
+const storagePlugins = r2Bucket
+  ? [
+      r2Storage({
+        bucket: r2Bucket,
+        collections: {
+          media: true,
+        },
+      }),
+    ]
+  : []
+
+const seo = seoPlugin({
+  collections: ['posts'],
+  uploadsCollection: 'media',
+  generateTitle: generatePostTitle,
+  generateDescription: generatePostDescription,
+  generateImage: generatePostImage,
+})
 
 export default buildConfig({
   admin: {
@@ -18,23 +67,19 @@ export default buildConfig({
       baseDir: path.resolve(dirname),
     },
   },
-  collections: [Users, Media],
-  editor: lexicalEditor(),
+  collections: [Users, Media, Posts, Categories],
+  editor: lexicalEditor({}),
   secret: process.env.PAYLOAD_SECRET || '',
   typescript: {
     outputFile: path.resolve(dirname, 'payload-types.ts'),
   },
-  db: vercelPostgresAdapter({
-    pool: {
-      connectionString: process.env.POSTGRES_URL || '',
-    },
-  }),
-  plugins: [
-    vercelBlobStorage({
-      collections: {
-        media: true,
-      },
-      token: process.env.BLOB_READ_WRITE_TOKEN || '',
-    }),
-  ],
+  // @ts-ignore
+  db: databaseAdapter,
+  globals: [Homepage],
+  // @ts-ignore
+  plugins: [...storagePlugins, seo],
+  graphQL: {
+    disablePlaygroundInProduction: false,
+    queries: createQueriesExtension(cloudflareImageConfig),
+  },
 })
