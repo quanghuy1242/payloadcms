@@ -5,22 +5,10 @@ import {
   normalizeCloudflareImageFit,
   resolveMediaAssetPath,
   type CloudflareImageFit,
+  type MediaWithStorageMeta,
 } from '../../../lib/cloudflareImages'
-import type { Media as MediaDocument, Post } from '../../../payload-types'
-
-const parsePositiveInt = (value: string | undefined, fallback: number): number => {
-  if (!value) {
-    return fallback
-  }
-
-  const parsed = Number.parseInt(value, 10)
-
-  if (Number.isNaN(parsed) || parsed <= 0) {
-    return fallback
-  }
-
-  return parsed
-}
+import type { CloudflareImageConfig } from '../../../lib/env'
+import type { Post } from '../../../payload-types'
 
 export type PostsCoverImageTransformsArgs = {
   fit?: string | null
@@ -33,32 +21,6 @@ export type PostsCoverImageTransformsArgs = {
 
 export type PostsCoverImageTransformsContext = {
   req: PayloadRequest
-}
-
-type CloudflareDefaults = {
-  baseUrl: string
-  defaultFit: CloudflareImageFit
-  defaultFormat: string
-  defaultQuality: number
-  defaultWidth: number
-}
-
-const DEFAULT_PREVIEW_WIDTH = parsePositiveInt(process.env.CLOUDFLARE_IMAGE_PREVIEW_WIDTH, 32)
-const DEFAULT_PREVIEW_QUALITY = Math.min(
-  100,
-  Math.max(10, parsePositiveInt(process.env.CLOUDFLARE_IMAGE_PREVIEW_QUALITY, 60)),
-)
-const DEFAULT_PREVIEW_FORMAT = process.env.CLOUDFLARE_IMAGE_PREVIEW_FORMAT || 'webp'
-const DEFAULT_PREVIEW_FIT =
-  normalizeCloudflareImageFit(process.env.CLOUDFLARE_IMAGE_PREVIEW_FIT) ?? 'cover'
-const CLOUDFLARE_IMAGE_BASE_URL = process.env.CLOUDFLARE_IMAGE_BASE_URL ?? ''
-
-export const cloudflareImageDefaults: CloudflareDefaults = {
-  baseUrl: CLOUDFLARE_IMAGE_BASE_URL,
-  defaultFit: DEFAULT_PREVIEW_FIT,
-  defaultFormat: DEFAULT_PREVIEW_FORMAT,
-  defaultQuality: DEFAULT_PREVIEW_QUALITY,
-  defaultWidth: DEFAULT_PREVIEW_WIDTH,
 }
 
 const toNullableString = (value: unknown): string | null => {
@@ -88,16 +50,12 @@ const sanitizeIds = (ids: (string | number)[]): string[] => {
 }
 
 export const createPostsCoverImageTransformsResolver =
-  (defaults: CloudflareDefaults) =>
+  (defaults: CloudflareImageConfig) =>
   async (
     _parent: unknown,
     args: PostsCoverImageTransformsArgs,
     context: PostsCoverImageTransformsContext,
   ) => {
-    if (!defaults.baseUrl) {
-      throw new Error('CLOUDFLARE_IMAGE_BASE_URL must be set to use postsCoverImageTransforms.')
-    }
-
     const { req } = context
 
     if (!req?.payload) {
@@ -177,7 +135,7 @@ export const createPostsCoverImageTransformsResolver =
 
       const coverImageData =
         typeof postDoc.coverImage === 'object' && postDoc.coverImage !== null
-          ? (postDoc.coverImage as MediaDocument & { prefix?: string | null; bucket?: string | null })
+          ? (postDoc.coverImage as MediaWithStorageMeta)
           : null
 
       if (!coverImageData) {
@@ -240,4 +198,3 @@ export const createPostsCoverImageTransformsResolver =
       }
     })
   }
-

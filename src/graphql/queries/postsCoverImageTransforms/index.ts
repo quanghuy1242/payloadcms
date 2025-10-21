@@ -1,8 +1,7 @@
 import type { GraphQLObjectType } from 'graphql'
 
-import type { CloudflareImageFit } from '../../../lib/cloudflareImages'
+import type { CloudflareImageConfig } from '../../../lib/env'
 import {
-  cloudflareImageDefaults,
   createPostsCoverImageTransformsResolver,
   type PostsCoverImageTransformsArgs,
   type PostsCoverImageTransformsContext,
@@ -50,11 +49,12 @@ type PostsCoverImageQueryConfig = Record<
 
 export const createPostsCoverImageTransformsQuery = (
   GraphQL: typeof import('graphql'),
+  defaults: CloudflareImageConfig,
 ): PostsCoverImageQueryConfig => {
   const { GraphQLID, GraphQLInt, GraphQLList, GraphQLNonNull, GraphQLString } = GraphQL
 
   const type = getPostsCoverImageTransformType(GraphQL)
-  const resolver = createPostsCoverImageTransformsResolver(cloudflareImageDefaults)
+  const resolver = createPostsCoverImageTransformsResolver(defaults)
 
   return {
     postsCoverImageTransforms: {
@@ -65,26 +65,25 @@ export const createPostsCoverImageTransformsQuery = (
         },
         width: {
           type: GraphQLInt,
-          defaultValue: cloudflareImageDefaults.defaultWidth,
+          defaultValue: defaults.defaultWidth,
         },
         height: {
           type: GraphQLInt,
         },
         format: {
           type: GraphQLString,
-          defaultValue: cloudflareImageDefaults.defaultFormat,
+          defaultValue: defaults.defaultFormat,
         },
         quality: {
           type: GraphQLInt,
-          defaultValue: cloudflareImageDefaults.defaultQuality,
+          defaultValue: defaults.defaultQuality,
         },
         fit: {
           type: GraphQLString,
-          defaultValue: cloudflareImageDefaults.defaultFit as CloudflareImageFit,
+          defaultValue: defaults.defaultFit,
         },
       },
       resolve: resolver,
     },
   }
 }
-

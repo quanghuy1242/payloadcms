@@ -11,36 +11,36 @@ import { Posts } from './collections/Posts'
 import { Users } from './collections/Users'
 import { Media } from './collections/Media'
 import { createQueriesExtension } from './graphql/queries'
+import { getCloudflareImageConfig } from './lib/env'
 import { generatePostDescription, generatePostImage, generatePostTitle } from './lib/postsSeo'
 import { createR2BucketFromEnv } from './lib/r2Bucket'
 import { Homepage } from './globals/Homepage'
+import { resolveTursoConnection } from './lib/turso'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
 const isProduction = process.env.NODE_ENV === 'production'
 const isNextBuild = process.env.NEXT_PHASE === 'phase-production-build'
-const tursoDatabaseURL = process.env.TURSO_DATABASE_URL
-const tursoAuthToken = process.env.TURSO_AUTH_TOKEN
 const fallbackSQLiteFile = path.resolve(dirname, '../.payload/data.sqlite')
 const r2Bucket = createR2BucketFromEnv({ strict: !isNextBuild })
+const cloudflareImageConfig = getCloudflareImageConfig()
 
-if (!tursoDatabaseURL && isProduction && !isNextBuild) {
-  throw new Error('TURSO_DATABASE_URL must be set in production to connect to Turso.')
-}
-
-if (!tursoDatabaseURL && !isNextBuild) {
-  console.warn(
-    `TURSO_DATABASE_URL is not set. Falling back to local SQLite file at ${fallbackSQLiteFile}.`,
-  )
-}
+const tursoConnection = resolveTursoConnection({
+  authToken: process.env.TURSO_AUTH_TOKEN,
+  fallbackSQLiteFile,
+  isNextBuild,
+  isProduction,
+  tursoDatabaseURL: process.env.TURSO_DATABASE_URL,
+})
 
 const databaseAdapter = sqliteAdapter({
   client: {
-    url: tursoDatabaseURL ?? `file:${fallbackSQLiteFile}`,
-    authToken: tursoDatabaseURL ? tursoAuthToken : undefined,
+    url: tursoConnection.connectionString,
+    authToken: tursoConnection.authToken,
   },
-  push: !isProduction || isNextBuild,
+  push: tursoConnection.shouldSync,
 })
+
 const storagePlugins = r2Bucket
   ? [
       r2Storage({
@@ -80,6 +80,6 @@ export default buildConfig({
   plugins: [...storagePlugins, seo],
   graphQL: {
     disablePlaygroundInProduction: false,
-    queries: createQueriesExtension,
+    queries: createQueriesExtension(cloudflareImageConfig),
   },
 })

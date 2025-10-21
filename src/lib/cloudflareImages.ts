@@ -118,8 +118,13 @@ const sanitizeFormat = (value?: string | null): string | null => {
   return normalized === 'jpg' ? 'jpeg' : normalized
 }
 
+export type MediaWithStorageMeta = Partial<Media> & {
+  bucket?: string | null
+  prefix?: string | null
+}
+
 export const resolveMediaAssetPath = (
-  media: Partial<Media> & { prefix?: string | null; bucket?: string | null } | null | undefined,
+  media: MediaWithStorageMeta | null | undefined,
   baseUrl: string,
 ): string | null => {
   if (!media) {
