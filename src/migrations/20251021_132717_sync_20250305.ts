@@ -1,11 +1,11 @@
 import { MigrateUpArgs, MigrateDownArgs, sql } from '@payloadcms/db-sqlite'
 
 export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
-  await db.run(sql`ALTER TABLE \`users\` ADD \`full_name\` text NOT NULL;`)
+  await db.run(sql`ALTER TABLE \`users\` ADD \`full_name\` text DEFAULT '' NOT NULL;`)
   await db.run(sql`ALTER TABLE \`users\` ADD \`role\` text DEFAULT 'user' NOT NULL;`)
-  await db.run(sql`ALTER TABLE \`media\` ADD \`owner_id\` integer NOT NULL REFERENCES users(id);`)
+  await db.run(sql`ALTER TABLE \`media\` ADD \`owner_id\` integer REFERENCES users(id);`)
   await db.run(sql`CREATE INDEX \`media_owner_idx\` ON \`media\` (\`owner_id\`);`)
-  await db.run(sql`ALTER TABLE \`categories\` ADD \`created_by_id\` integer NOT NULL REFERENCES users(id);`)
+  await db.run(sql`ALTER TABLE \`categories\` ADD \`created_by_id\` integer REFERENCES users(id);`)
   await db.run(sql`CREATE INDEX \`categories_created_by_idx\` ON \`categories\` (\`created_by_id\`);`)
 }
 
