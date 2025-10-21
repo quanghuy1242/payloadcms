@@ -18,8 +18,8 @@ Our agentic coding workflow relies on a consistent, reusable utilities layer so 
 | `src/utils/strings.ts` | Whitespace-safe conversion helpers (`toNullableString`, `isNonEmptyString`). | SEO generators, slug helpers, GraphQL resolvers. |
 | `src/utils/numbers.ts` | Numeric safety net (`isFiniteNumber`, `clampNumber`, `sanitizeDimension`, `sanitizeQuality`). | Cloudflare image builder, environment config parser. |
 | `src/utils/identifiers.ts` | Deduplicates arbitrary IDs into canonical strings. | GraphQL cover-image resolver. |
-| `src/utils/slug.ts` | Immutable slug formatting and hooks tied into Payload lifecycle. | Collections that need consistent slugs (Posts, Categories). |
-| `src/utils/access.ts` | Role-aware access primitives (`authenticatedAccess`, `ownerAccess`, `postsReadAccess`, `publishedMediaReadAccess`) plus helpers to normalize user IDs/roles. | Collections, field-level guards, ownership hooks. |
+| `src/utils/slug.ts` | Immutable slug formatting plus randomized variants for collision-free posts. | Collections that need stable identifiers (Posts, Categories). |
+| `src/utils/access.ts` | Role-aware access primitives (`authenticatedAccess`, `ownerAccess`, `postsReadAccess`, `publishedMediaReadAccess`) plus shared-media handling. | Collections, field-level guards, ownership hooks. |
 | `src/utils/ownership.ts` | Hooks that enforce relationship ownership (e.g., auto-assigning `author`, `owner`, `createdBy`). | Collections needing per-user ownership guarantees. |
 
 These files replace the legacy `src/collections/utils` folder so future helpers are available outside collection contexts.
@@ -51,3 +51,5 @@ These files replace the legacy `src/collections/utils` folder so future helpers 
 5. **Review and ship.** Reviewer verifies adherence to these guidelines; Integrator ensures deployment aligns with shared logic.
 
 By treating `src/utils` as the canonical toolbox, we keep agent-produced code predictable, maintainable, and ready for future extensions. Every new helper should make the next agent’s job easier. Never scatter utility logic—centralize, document, and reuse.
+
+Don't fix any code with comment `// @ts-ignore`

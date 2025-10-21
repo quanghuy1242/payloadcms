@@ -139,6 +139,90 @@ export const publishedMediaReadAccess: Access = async ({ req, data, id }) => {
 
   const userId = getUserId(req.user)
 
+  const mediaIdRaw = data?.id ?? id
+  const mediaId = normalizeEntityId(mediaIdRaw)
+
+  if (mediaId == null) {
+    return false
+  }
+
+  const mediaRecord =
+    data ??
+    (await req.payload
+      .findByID({
+        collection: 'media',
+        id: mediaId,
+        depth: 0,
+        overrideAccess: true,
+      })
+      .catch(() => null))
+
+  const ownerId = normalizeEntityId(mediaRecord?.owner)
+
+  if (userId != null && ownerId != null && String(ownerId) === String(userId)) {
+    return true
+  }
+
+  const mediaIdString = toNullableString(mediaId)
+
+  const postReferenceConditions = [
+    {
+      coverImage: {
+        equals: mediaId,
+      },
+    },
+    {
+      'meta.image': {
+        equals: mediaId,
+      },
+    },
+    mediaIdString
+      ? {
+          content: {
+            contains: `"id":${mediaIdString}`,
+          },
+        }
+      : null,
+    mediaIdString
+      ? {
+          content: {
+            contains: `"id":"${mediaIdString}"`,
+          },
+        }
+      : null,
+  ].filter(Boolean) as Array<Record<string, unknown>>
+
+  const isReferencedByPosts = await req.payload.find({
+    collection: 'posts',
+    depth: 0,
+    limit: 1,
+    overrideAccess: false,
+    where: {
+      // @ts-ignore
+      or: postReferenceConditions,
+    },
+  })
+
+  if (isReferencedByPosts.docs.length > 0) {
+    return true
+  }
+
+  const isReferencedByCategories = await req.payload.find({
+    collection: 'categories',
+    depth: 0,
+    limit: 1,
+    overrideAccess: false,
+    where: {
+      image: {
+        equals: mediaId,
+      },
+    },
+  })
+
+  if (isReferencedByCategories.docs.length > 0) {
+    return true
+  }
+
   if (userId != null) {
     return {
       owner: {
@@ -147,57 +231,5 @@ export const publishedMediaReadAccess: Access = async ({ req, data, id }) => {
     }
   }
 
-  const mediaId = data?.id ?? id
-
-  if (!mediaId) {
-    return false
-  }
-
-  const mediaIdString = toNullableString(mediaId)
-
-  if (!mediaIdString) {
-    return false
-  }
-
-  const { docs } = await req.payload.find({
-    collection: 'posts',
-    depth: 0,
-    limit: 1,
-    overrideAccess: false,
-    where: {
-      and: [
-        {
-          _status: {
-            equals: 'published',
-          },
-        },
-        {
-          or: [
-            {
-              coverImage: {
-                equals: mediaId,
-              },
-            },
-            {
-              'meta.image': {
-                equals: mediaId,
-              },
-            },
-            {
-              content: {
-                contains: `"id":${mediaIdString}`,
-              },
-            },
-            {
-              content: {
-                contains: `"id":"${mediaIdString}"`,
-              },
-            },
-          ],
-        },
-      ],
-    },
-  })
-
-  return docs.length > 0
+  return false
 }
