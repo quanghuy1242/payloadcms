@@ -10,10 +10,9 @@ const nextConfig = {
       '.js': ['.ts', '.tsx', '.js', '.jsx'],
       '.mjs': ['.mts', '.mjs'],
     }
-    webpackConfig.optimization.minimize = false
 
     return webpackConfig
   },
 }
 
-export default withPayload(nextConfig, { devBundleServerPackages: true })
+export default withPayload(nextConfig, { devBundleServerPackages: false })
