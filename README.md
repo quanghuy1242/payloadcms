@@ -1,118 +1,506 @@
-# Payload Blank Starter
+# PayloadCMS with Next.js
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/payloadcms/payload/tree/main/templates/with-vercel-postgres&project-name=payload-project&env=PAYLOAD_SECRET&build-command=pnpm%20run%20ci&stores=%5B%7B%22type%22:%22postgres%22%7D,%7B%22type%22:%22blob%22%7D%5D)
+A modern headless CMS built with PayloadCMS 3.0 and Next.js 15, featuring Turso (libSQL) database, Cloudflare R2 storage, and comprehensive GraphQL API support.
 
-This template comes configured with the bare minimum to get started on anything you need.
+## Table of Contents
 
-## Quick start
+- [Introduction](#introduction)
+- [Features](#features)
+- [Tech Stack](#tech-stack)
+- [Prerequisites](#prerequisites)
+- [Installation](#installation)
+- [Environment Configuration](#environment-configuration)
+- [Development](#development)
+- [Docker Setup](#docker-setup)
+- [Database & Migrations](#database--migrations)
+- [User Management](#user-management)
+- [Testing](#testing)
+- [Production Build](#production-build)
+- [Deployment](#deployment)
+- [Project Structure](#project-structure)
+- [Available Scripts](#available-scripts)
+- [Troubleshooting](#troubleshooting)
 
-Click the 'Deploy' button above to spin up this template directly into Vercel hosting. It will first prompt you save this template into your own Github repo so that you own the code and can make any changes you want to it.
+## Introduction
 
-Set up the following services and secrets and then once the app has been built and deployed you will be able to visit your site at the generated URL.
-From this point on you can access your admin panel at `/admin` of your app URL, create an admin user and then click the 'Seed the database' button in the dashboard to add content into your app.
+This project is a production-ready PayloadCMS implementation that provides a powerful content management system with a beautiful admin UI. It's built on top of Next.js 15 and uses modern cloud services for scalability and performance.
 
-### Services
+## Features
 
-This project uses the following services integrated into Vercel which you will need to click "Add" and "Connect" for:
+- **PayloadCMS 3.60**: Latest version with full TypeScript support
+- **Next.js 15**: React 19 with App Router
+- **Turso Database**: Globally-distributed SQLite (libSQL) with local fallback
+- **Cloudflare R2**: S3-compatible object storage for media files
+- **Cloudflare Images**: Optimized image transformations
+- **GraphQL API**: Full GraphQL support with playground
+- **SEO Plugin**: Built-in SEO optimization for posts
+- **Lexical Editor**: Modern rich text editing experience
+- **E2E Testing**: Playwright and Vitest integration
+- **Docker Support**: Full containerization support
 
-Turso (libSQL) - globally-distributed SQLite used to host your data. After provisioning, grab the `libsql://` connection URL and a scoped auth token.
+## Tech Stack
 
-Cloudflare R2 - object storage used to host your files such as images and videos. Create an R2 bucket, enable S3 API access, and generate an access key / secret pair with the appropriate permissions.
+- **Frontend/Backend**: Next.js 15.4.4, React 19.1.0
+- **CMS**: PayloadCMS 3.60.0
+- **Database**: SQLite with Turso libSQL
+- **Storage**: Cloudflare R2 (S3-compatible)
+- **Language**: TypeScript 5.7.3
+- **Package Manager**: pnpm 10.15.1
+- **Testing**: Playwright, Vitest
+- **Linting**: ESLint
+- **Containerization**: Docker & Docker Compose
 
-The connection variables will automatically be setup for you on Vercel when these services are connected.
+## Prerequisites
 
-#### Secrets
+Before you begin, ensure you have the following installed:
 
-You will be prompted to add the following secret values to your project. These should be long unguessable strong passwords, you can also use a password manager to generate one for these.
+- **Node.js**: ^18.20.2 || >=20.9.0
+- **pnpm**: 10.15.1 (or it will be installed via corepack)
+- **Docker** (optional): Latest version for containerized development
+- **Docker Compose** (optional): For multi-container setup
 
-PAYLOAD_SECRET - used by Payload to sign secrets like JWT tokens
+## Installation
 
-## Quick Start - local setup
-
-To spin up this template locally, follow these steps:
-
-### Clone
-
-After you click the `Deploy` button above, you'll want to have standalone copy of this repo on your machine. If you've already cloned this repo, skip to [Development](#development).
-
-### Development
-
-1. First [clone the repo](#clone) if you have not done so already
-2. `cd my-project && cp .env.example .env` to copy the example environment variables. You'll need to add the `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`, `PAYLOAD_SECRET`, plus your `R2_ENDPOINT`, `R2_BUCKET_NAME`, `R2_ACCESS_KEY_ID`, and `R2_SECRET_ACCESS_KEY` values so the app can connect to Turso and Cloudflare R2. If the Turso variables are omitted during local development, Payload falls back to a local SQLite file in `.payload/data.sqlite`, and if the R2 variables are omitted Payload stores media on the local filesystem instead.
-
-3. `pnpm install && pnpm dev` to install dependencies and start the dev server
-4. open `http://localhost:3000` to open the app in your browser
-
-That's it! Changes made in `./src` will be reflected in your app. Follow the on-screen instructions to login and create your first admin user. Then check out [Production](#production) once you're ready to build and serve your app, and [Deployment](#deployment) when you're ready to go live.
-
-#### Docker (Optional)
-
-If you prefer to use Docker for local development instead of a local Postgres instance, the provided docker-compose.yml file can be used.
-
-To do so, follow these steps:
-
-- Modify the `POSTGRES_URL` in your `.env` file to `postgres://postgres@localhost:54320/<dbname>`
-- Modify the `docker-compose.yml` file's `POSTGRES_DB` to match the above `<dbname>`
-- Run `docker-compose up` to start the database, optionally pass `-d` to run in the background.
-
-## How it works
-
-The Payload config is tailored specifically to the needs of most websites. It is pre-configured in the following ways:
-
-### Collections
-
-See the [Collections](https://payloadcms.com/docs/configuration/collections) docs for details on how to extend this functionality.
-
-- #### Users (Authentication)
-
-  Users are auth-enabled collections that have access to the admin panel.
-
-  For additional help, see the official [Auth Example](https://github.com/payloadcms/payload/tree/main/examples/auth) or the [Authentication](https://payloadcms.com/docs/authentication/overview#authentication-overview) docs.
-
-- #### Media
-
-  This is the uploads enabled collection. It features pre-configured sizes, focal point and manual resizing to help you manage your pictures.
-
-## Working with SQLite / Turso
-
-SQLite (and the hosted Turso libSQL edge network) still follows a strict schema, so the same care applies when making schema changes.
-
-### Local development
-
-By default the SQLite adapter uses `push: true` while `NODE_ENV !== 'production'`, which lets Payload automatically sync schema changes to your local SQLite file without running migrations manually. If you're pointing at Turso during local development you may prefer to leave `push` enabled so schema updates propagate automatically.
-
-If you connect to your production Turso instance from a local machine, set `PUSH` to `false` for safety—otherwise you risk schema drift.
-
-#### Migrations
-
-[Migrations](https://payloadcms.com/docs/database/migrations) are essentially SQL code versions that keep track of your schema. With Turso you should create a migration any time you make a schema change that needs to land in production.
-
-Locally create a migration:
+1. **Clone the repository:**
 
 ```bash
-PAYLOAD_SECRET=dev-secret TURSO_DATABASE_URL="libsql://..." TURSO_AUTH_TOKEN="..." pnpm payload migrate:create
+git clone <repository-url>
+cd payloadcms
 ```
 
-This creates the migration files you will need to push alongside your configuration. Commit both the `.ts` and `.json` artifacts that are generated in `src/migrations`.
+2. **Install dependencies:**
 
-On the server after building and before running `pnpm start` you will want to run your migrations:
+```bash
+corepack enable
+corepack prepare pnpm@10.15.1 --activate
+pnpm install
+```
+
+## Environment Configuration
+
+1. **Create environment file:**
+
+```bash
+cp .env.example .env
+```
+
+2. **Configure environment variables:**
+
+Edit `.env` with your configuration:
+
+```bash
+# Required: Payload secret for JWT signing
+PAYLOAD_SECRET=your-long-random-secret-here
+
+# Database (optional for local development)
+TURSO_DATABASE_URL=libsql://your-database.turso.io
+TURSO_AUTH_TOKEN=your-turso-auth-token
+
+# Cloudflare R2 Storage (optional for local development)
+R2_ENDPOINT=https://account-id.r2.cloudflarestorage.com
+R2_BUCKET_NAME=your-r2-bucket
+R2_ACCESS_KEY_ID=your-access-key-id
+R2_SECRET_ACCESS_KEY=your-secret-access-key
+
+# Cloudflare Images (optional)
+CLOUDFLARE_IMAGE_BASE_URL=https://account-id.cloudflareimages.com
+```
+
+### Environment Variables Explained
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `PAYLOAD_SECRET` | Yes | Secret key for JWT token signing (use a strong random string) |
+| `TURSO_DATABASE_URL` | No* | Turso database URL (falls back to local SQLite if not set) |
+| `TURSO_AUTH_TOKEN` | No* | Turso authentication token |
+| `R2_ENDPOINT` | No* | Cloudflare R2 endpoint URL |
+| `R2_BUCKET_NAME` | No* | R2 bucket name for media storage |
+| `R2_ACCESS_KEY_ID` | No* | R2 access key ID |
+| `R2_SECRET_ACCESS_KEY` | No* | R2 secret access key |
+| `CLOUDFLARE_IMAGE_BASE_URL` | No | Base URL for Cloudflare Images transformations |
+
+*In local development, the app falls back to local SQLite (`.payload/data.sqlite`) and filesystem storage if these are not provided.
+
+## Development
+
+### Local Development (without Docker)
+
+1. **Start the development server:**
+
+```bash
+pnpm dev
+```
+
+2. **Access the application:**
+   - Frontend: http://localhost:3000
+   - Admin Panel: http://localhost:3000/admin
+   - GraphQL Playground: http://localhost:3000/api/graphql-playground
+   - GraphQL API: http://localhost:3000/api/graphql
+
+3. **Create your first admin user:**
+   - Navigate to http://localhost:3000/admin
+   - Follow the on-screen instructions to create an admin account
+
+### Database Fallback Behavior
+
+- **Without Turso credentials**: Uses local SQLite file at `.payload/data.sqlite`
+- **Without R2 credentials**: Stores media files in local filesystem
+- **Development mode**: Auto-syncs schema changes (no manual migrations needed)
+
+## Docker Setup
+
+### Using Docker Compose (Recommended)
+
+The project includes a `docker-compose.yml` file with the following services:
+
+1. **payload**: Main Next.js application
+2. **minio**: Local S3-compatible storage (optional)
+3. **libsql**: Local Turso emulator (commented out, optional)
+
+**Start all services:**
+
+```bash
+docker-compose up
+```
+
+**Run in background:**
+
+```bash
+docker-compose up -d
+```
+
+**View logs:**
+
+```bash
+docker-compose logs -f
+```
+
+**Stop services:**
+
+```bash
+docker-compose down
+```
+
+### Docker Services Configuration
+
+#### Main Application (payload)
+- Port: `3000:3000`
+- Automatically installs dependencies and starts dev server
+- Uses volumes for code synchronization
+
+#### MinIO (S3-compatible storage)
+- S3 API Port: `9000`
+- Web Console: `9001`
+- Default credentials: `minioadmin` / `minioadmin`
+- Access console at: http://localhost:9001
+
+**To use MinIO locally**, update your `.env`:
+
+```bash
+R2_ENDPOINT=http://minio:9000
+R2_BUCKET_NAME=payloadcms
+R2_ACCESS_KEY_ID=minioadmin
+R2_SECRET_ACCESS_KEY=minioadmin
+```
+
+Then create the bucket via MinIO console at http://localhost:9001
+
+#### LibSQL Server (Optional)
+
+Uncomment the `libsql` service in `docker-compose.yml` to run a local Turso emulator:
+
+```yaml
+libsql:
+  image: ghcr.io/libsql/sqld:0.24.23
+  command:
+    [
+      "--http-listen-addr=0.0.0.0:8080",
+      "--db-path=/var/lib/sqld/db.sqld",
+      "--disable-auth"
+    ]
+  ports:
+    - '8080:8080'
+  volumes:
+    - sqldata:/var/lib/sqld
+```
+
+Update your `.env`:
+
+```bash
+TURSO_DATABASE_URL=http://libsql:8080
+```
+
+### Production Docker Build
+
+The `Dockerfile` is optimized for production deployment:
+
+```bash
+# Build the image
+docker build -t payloadcms .
+
+# Run the container
+docker run -p 3000:3000 --env-file .env payloadcms
+```
+
+**Note**: Ensure `output: 'standalone'` is set in `next.config.mjs` for Docker builds.
+
+## Database & Migrations
+
+### Understanding Schema Synchronization
+
+- **Development** (`NODE_ENV !== 'production'`): Schema changes auto-sync to database
+- **Production**: Manual migrations required for schema changes
+
+### Creating Migrations
+
+When you modify collections, globals, or any schema:
+
+```bash
+pnpm payload migrate:create
+```
+
+For Turso databases, include connection details:
+
+```bash
+PAYLOAD_SECRET=dev-secret \
+TURSO_DATABASE_URL="libsql://..." \
+TURSO_AUTH_TOKEN="..." \
+pnpm payload migrate:create
+```
+
+This creates two files in `src/migrations/`:
+- `YYYYMMDD_HHMMSS.ts` - TypeScript migration file
+- `YYYYMMDD_HHMMSS.json` - JSON migration metadata
+
+**Commit both files to version control.**
+
+### Running Migrations
+
+**In production (before starting the app):**
 
 ```bash
 pnpm payload migrate
 ```
 
-This command checks for any migrations that have not yet been run, executes the outstanding migrations, and keeps a record in the database. Turso provides point-in-time snapshots, so consider taking one before running production migrations.
+**Check migration status:**
 
-### Docker
+```bash
+pnpm payload migrate:status
+```
 
-Alternatively, you can use [Docker](https://www.docker.com) to spin up this template locally. To do so, follow these steps:
+**Reset database (development only - dangerous!):**
 
-1. Follow [steps 1 and 2 from above](#development), the docker-compose file will automatically use the `.env` file in your project root
-1. Next run `docker-compose up`
-1. Follow [steps 4 and 5 from above](#development) to login and create your first admin user
+```bash
+pnpm payload migrate:reset
+```
 
-That's it! The Docker instance will help you get up and running quickly while also standardizing the development environment across your teams.
+### Migration Best Practices
 
-## Questions
+1. Always create migrations for production schema changes
+2. Test migrations in a staging environment first
+3. Take Turso snapshots before running production migrations
+4. Commit migration files with your code changes
+5. Never edit migration files after they've been applied
 
-If you have any issues or questions, reach out to us on [Discord](https://discord.com/invite/payload) or start a [GitHub discussion](https://github.com/payloadcms/payload/discussions).
+## User Management
+
+### Promoting Users to Admin
+
+Use the provided script to promote existing users to admin role:
+
+```bash
+pnpm promote:admin --email user@example.com
+```
+
+Or using the short flag:
+
+```bash
+pnpm promote:admin -e user@example.com
+```
+
+This script:
+- Connects to your configured database (Turso or local SQLite)
+- Finds the user by email
+- Updates their role to `admin`
+- Provides confirmation or error messages
+
+## Testing
+
+The project includes comprehensive testing setup:
+
+### Integration Tests (Vitest)
+
+```bash
+# Run integration tests
+pnpm test:int
+
+# Watch mode
+pnpm test:int --watch
+```
+
+### End-to-End Tests (Playwright)
+
+```bash
+# Run E2E tests
+pnpm test:e2e
+
+# Run with UI
+pnpm test:e2e --ui
+
+# Run specific test file
+pnpm test:e2e tests/e2e/frontend.e2e.spec.ts
+```
+
+### Run All Tests
+
+```bash
+pnpm test
+```
+
+## Production Build
+
+### Build the application:
+
+```bash
+pnpm build
+```
+
+This command:
+1. Generates TypeScript types
+2. Builds the Next.js application
+3. Creates optimized production bundles
+
+### Run migrations (if needed):
+
+```bash
+pnpm payload migrate
+```
+
+### Start production server:
+
+```bash
+pnpm start
+```
+
+### CI/CD Build Command
+
+For continuous integration:
+
+```bash
+pnpm ci
+```
+
+This runs migrations and builds the application.
+
+## Deployment
+
+### Manual Deployment
+
+1. **Build the application:**
+   ```bash
+   pnpm build
+   ```
+
+2. **Run migrations:**
+   ```bash
+   pnpm payload migrate
+   ```
+
+3. **Start the server:**
+   ```bash
+   pnpm start
+   ```
+
+4. **Environment Requirements:**
+   - All environment variables must be set
+   - `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` are required in production
+   - R2 credentials are recommended but optional
+
+## Key Files
+
+- **`src/payload.config.ts`**: Main Payload configuration
+- **`src/collections/`**: Define your content types
+- **`src/globals/`**: Define global singletons
+- **`src/migrations/`**: Database migration files
+- **`docker-compose.yml`**: Local development services
+- **`Dockerfile`**: Production container image
+
+## Available Scripts
+
+| Script | Description |
+|--------|-------------|
+| `pnpm dev` | Start development server |
+| `pnpm build` | Build for production |
+| `pnpm start` | Start production server |
+| `pnpm ci` | Run migrations and build (CI/CD) |
+| `pnpm test` | Run all tests |
+| `pnpm test:int` | Run integration tests |
+| `pnpm test:e2e` | Run E2E tests |
+| `pnpm lint` | Run ESLint |
+| `pnpm payload` | Access Payload CLI |
+| `pnpm payload migrate:create` | Create new migration |
+| `pnpm payload migrate` | Run pending migrations |
+| `pnpm payload migrate:status` | Check migration status |
+| `pnpm generate:types` | Generate TypeScript types |
+| `pnpm generate:importmap` | Generate import map |
+| `pnpm promote:admin` | Promote user to admin |
+| `pnpm devsafe` | Clean dev (removes .next) |
+
+## Troubleshooting
+
+### Local SQLite file not found
+
+**Solution**: The file is auto-created on first run. Ensure the `.payload` directory has write permissions.
+
+### Turso connection errors
+
+**Solutions**:
+- Verify `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` are correct
+- Check network connectivity to Turso
+- Fall back to local SQLite by removing Turso env vars
+
+### R2 upload failures
+
+**Solutions**:
+- Verify R2 credentials and bucket name
+- Check bucket CORS settings
+- Ensure S3 API access is enabled
+- Fall back to local storage by removing R2 env vars
+
+### Docker container exits immediately
+
+**Solutions**:
+- Check Docker logs: `docker-compose logs`
+- Ensure `.env` file exists
+- Verify port 3000 is not in use
+
+### Migration conflicts
+
+**Solutions**:
+- Check migration status: `pnpm payload migrate:status`
+- Never edit applied migrations
+- In development, you can reset: `pnpm payload migrate:reset` (dangerous!)
+
+### Admin panel not accessible
+
+**Solutions**:
+- Ensure dev server is running
+- Check that port 3000 is accessible
+- Verify `PAYLOAD_SECRET` is set
+- Clear browser cache and cookies
+
+### TypeScript errors after schema changes
+
+**Solutions**:
+- Regenerate types: `pnpm generate:types`
+- Restart TypeScript server in VS Code
+- Check for migration files that need to be created
+
+## Additional Resources
+
+- [PayloadCMS Documentation](https://payloadcms.com/docs)
+- [Next.js Documentation](https://nextjs.org/docs)
+- [Turso Documentation](https://docs.turso.tech/)
+- [Cloudflare R2 Documentation](https://developers.cloudflare.com/r2/)
+- [Payload Discord Community](https://discord.com/invite/payload)
+- [GitHub Discussions](https://github.com/payloadcms/payload/discussions)
