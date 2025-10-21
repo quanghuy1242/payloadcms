@@ -1,4 +1,4 @@
-import type { CollectionBeforeValidateHook } from 'payload'
+import type { CollectionBeforeValidateHook, CollectionSlug } from 'payload'
 
 import { getUserId, isAdminUser, normalizeEntityId } from './access'
 
@@ -37,7 +37,7 @@ type RelationshipOwnershipOptions = {
   /**
    * Related collection slug.
    */
-  collection: string
+  collection: CollectionSlug
   /**
    * Field on the parent data that stores the relationship.
    */
