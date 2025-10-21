@@ -1,4 +1,5 @@
 import type { CollectionConfig } from 'payload'
+import { createSlugHook, validateImmutableSlug } from './utils/slug'
 
 export const Categories: CollectionConfig = {
   slug: 'categories',
@@ -7,6 +8,9 @@ export const Categories: CollectionConfig = {
   },
   admin: {
     useAsTitle: 'name',
+  },
+  hooks: {
+    beforeValidate: [createSlugHook('name')],
   },
   fields: [
     {
@@ -17,17 +21,25 @@ export const Categories: CollectionConfig = {
     {
       name: 'slug',
       type: 'text',
-      required: true,
       unique: true,
+      index: true,
+      admin: {
+        description: 'Automatically generated from the name on first save.',
+        position: 'sidebar',
+      },
+      // @ts-ignore
+      validate: validateImmutableSlug,
     },
     {
       name: 'description',
       type: 'textarea',
+      required: true,
     },
     {
       name: 'image',
       type: 'upload',
       relationTo: 'media' as const,
+      required: true,
     },
   ],
 }

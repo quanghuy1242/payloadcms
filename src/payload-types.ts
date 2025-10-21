@@ -173,7 +173,10 @@ export interface Media {
 export interface Post {
   id: number;
   title: string;
-  slug: string;
+  /**
+   * Automatically generated from the title on first save.
+   */
+  slug?: string | null;
   excerpt?: string | null;
   /**
    * Optional publish date — defaults to the time you hit Publish.
@@ -214,9 +217,12 @@ export interface Post {
 export interface Category {
   id: number;
   name: string;
-  slug: string;
-  description?: string | null;
-  image?: (number | null) | Media;
+  /**
+   * Automatically generated from the name on first save.
+   */
+  slug?: string | null;
+  description: string;
+  image: number | Media;
   updatedAt: string;
   createdAt: string;
 }

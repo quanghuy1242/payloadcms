@@ -10,6 +10,7 @@ import {
   ParagraphFeature,
   UnderlineFeature,
 } from '@payloadcms/richtext-lexical'
+import { createSlugHook, validateImmutableSlug } from './utils/slug'
 
 const publishedPostsReadAccess: Access = ({ req: { user } }) => {
   if (user) {
@@ -41,6 +42,9 @@ export const Posts: CollectionConfig = {
       },
     },
   },
+  hooks: {
+    beforeValidate: [createSlugHook('title')],
+  },
   fields: [
     {
       name: 'title',
@@ -50,8 +54,14 @@ export const Posts: CollectionConfig = {
     {
       name: 'slug',
       type: 'text',
-      required: true,
       unique: true,
+      index: true,
+      admin: {
+        description: 'Automatically generated from the title on first save.',
+        position: 'sidebar',
+      },
+      // @ts-ignore
+      validate: validateImmutableSlug,
     },
     {
       name: 'excerpt',
