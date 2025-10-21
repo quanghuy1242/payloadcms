@@ -1,13 +1,11 @@
 import { z } from 'zod'
 
 import { normalizeCloudflareImageFit, type CloudflareImageFit } from './cloudflareImages'
+import { sanitizeDimension, sanitizeQuality, toPositiveInteger } from '../utils/numbers'
 
 const positiveIntSchema = z
   .string()
-  .transform((value) => {
-    const parsed = Number.parseInt(value, 10)
-    return Number.isFinite(parsed) && parsed > 0 ? parsed : null
-  })
+  .transform((value) => toPositiveInteger(value))
   .nullable()
 
 const cloudflareSchema = z.object({
@@ -20,8 +18,8 @@ const cloudflareSchema = z.object({
     .nullish()
     .transform((value) => value ?? null),
   defaultFormat: z.string().nullish().transform((value) => value ?? 'webp'),
-  defaultQuality: positiveIntSchema.transform((value) => value ?? 60),
-  defaultWidth: positiveIntSchema.transform((value) => value ?? 32),
+  defaultQuality: positiveIntSchema.transform((value) => sanitizeQuality(value) ?? 60),
+  defaultWidth: positiveIntSchema.transform((value) => sanitizeDimension(value) ?? 32),
 })
 
 export type CloudflareImageConfig = {

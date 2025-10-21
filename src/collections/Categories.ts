@@ -1,17 +1,22 @@
 import type { CollectionConfig } from 'payload'
-import { createSlugHook, validateImmutableSlug } from './utils/slug'
-import { publicReadAccess } from './utils/access'
+
+import { authenticatedAccess, ownerAccess, publicReadAccess } from '../utils/access'
+import { enforceOwnershipHook } from '../utils/ownership'
+import { createSlugHook, validateImmutableSlug } from '../utils/slug'
 
 export const Categories: CollectionConfig = {
   slug: 'categories',
   access: {
+    create: authenticatedAccess,
     read: publicReadAccess,
+    update: ownerAccess('createdBy'),
+    delete: ownerAccess('createdBy'),
   },
   admin: {
     useAsTitle: 'name',
   },
   hooks: {
-    beforeValidate: [createSlugHook('name')],
+    beforeValidate: [enforceOwnershipHook('createdBy'), createSlugHook('name')],
   },
   fields: [
     {
@@ -41,6 +46,16 @@ export const Categories: CollectionConfig = {
       type: 'upload',
       relationTo: 'media' as const,
       required: true,
+    },
+    {
+      name: 'createdBy',
+      type: 'relationship',
+      relationTo: 'users' as const,
+      required: true,
+      admin: {
+        position: 'sidebar',
+        readOnly: true,
+      },
     },
   ],
 }

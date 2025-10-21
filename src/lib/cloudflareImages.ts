@@ -1,4 +1,5 @@
 import type { Media } from '../payload-types'
+import { clampNumber, isFiniteNumber, sanitizeDimension, sanitizeQuality } from '../utils/numbers'
 
 export type CloudflareImageFit =
   | 'scale-down'
@@ -47,44 +48,6 @@ const encodePath = (path: string): string => {
 
 const createDirective = (key: string, value: string | number): string => {
   return `${key}=${value}`
-}
-
-const sanitizeDimension = (value?: number | null): number | null => {
-  if (typeof value !== 'number' || Number.isNaN(value)) {
-    return null
-  }
-
-  if (!Number.isFinite(value)) {
-    return null
-  }
-
-  if (value <= 0) {
-    return null
-  }
-
-  return Math.round(Math.min(value, 5000))
-}
-
-const sanitizeQuality = (value?: number | null): number | null => {
-  if (typeof value !== 'number' || Number.isNaN(value)) {
-    return null
-  }
-
-  if (!Number.isFinite(value)) {
-    return null
-  }
-
-  const clamped = Math.round(value)
-
-  if (clamped < 10) {
-    return 10
-  }
-
-  if (clamped > 100) {
-    return 100
-  }
-
-  return clamped
 }
 
 const ALLOWED_FITS: CloudflareImageFit[] = ['scale-down', 'contain', 'cover', 'crop', 'pad', 'fill']
@@ -186,10 +149,9 @@ export const buildCloudflareImageUrl = (
   const format = sanitizeFormat(options.format) ?? DEFAULT_FORMAT_DIRECTIVE.split('=')[1]
   const quality = sanitizeQuality(options.quality ?? null) ?? Number(DEFAULT_QUALITY_DIRECTIVE.split('=')[1])
   const gravity = options.gravity ?? null
-  const sharpen =
-    typeof options.sharpen === 'number' && Number.isFinite(options.sharpen)
-      ? Math.max(0, Math.min(Math.round(options.sharpen), 10))
-      : null
+  const sharpen = isFiniteNumber(options.sharpen)
+    ? clampNumber(Math.round(options.sharpen), 0, 10)
+    : null
 
   if (width) {
     directives.push(createDirective('width', width))

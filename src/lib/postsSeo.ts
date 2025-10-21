@@ -5,21 +5,14 @@ import type {
 } from '@payloadcms/plugin-seo/types'
 
 import type { Post } from '../payload-types'
+import { toNullableString } from '../utils/strings'
 
 export const generatePostTitle: GenerateTitle<Post> = ({ doc }) => {
-  if (typeof doc?.title === 'string') {
-    return doc.title.trim()
-  }
-
-  return ''
+  return toNullableString(doc?.title) ?? ''
 }
 
 export const generatePostDescription: GenerateDescription<Post> = ({ doc }) => {
-  if (typeof doc?.excerpt === 'string') {
-    return doc.excerpt
-  }
-
-  return ''
+  return toNullableString(doc?.excerpt) ?? ''
 }
 
 export const generatePostImage: GenerateImage<Post> = ({ doc }) => {
@@ -33,4 +26,3 @@ export const generatePostImage: GenerateImage<Post> = ({ doc }) => {
 
   return (coverImage ?? '') as string | number
 }
-
