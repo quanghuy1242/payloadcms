@@ -1,11 +1,14 @@
 import type { CollectionConfig } from 'payload'
 import {
   lexicalEditor,
-  BlocksFeature,
   FixedToolbarFeature,
   HeadingFeature,
   HorizontalRuleFeature,
   InlineToolbarFeature,
+  BoldFeature,
+  ItalicFeature,
+  ParagraphFeature,
+  UnderlineFeature,
 } from '@payloadcms/richtext-lexical'
 
 export const Posts: CollectionConfig = {
@@ -40,10 +43,15 @@ export const Posts: CollectionConfig = {
     {
       name: 'content',
       type: 'richText',
+      required: true,
       editor: lexicalEditor({
         features: ({ rootFeatures }) => {
           return [
             ...rootFeatures,
+            ParagraphFeature(),
+            UnderlineFeature(),
+            BoldFeature(),
+            ItalicFeature(),
             HeadingFeature({ enabledHeadingSizes: ['h1', 'h2', 'h3', 'h4'] }),
             FixedToolbarFeature(),
             InlineToolbarFeature(),

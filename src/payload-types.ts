@@ -174,7 +174,7 @@ export interface Post {
   slug: string;
   excerpt?: string | null;
   date: string;
-  content?: {
+  content: {
     root: {
       type: string;
       children: {
@@ -188,7 +188,7 @@ export interface Post {
       version: number;
     };
     [k: string]: unknown;
-  } | null;
+  };
   coverImage?: (number | null) | Media;
   author: number | User;
   category?: (number | null) | Category;
