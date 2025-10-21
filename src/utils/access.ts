@@ -11,17 +11,36 @@ type AccessUser = {
   role?: UserRole | null
 }
 
-export const normalizeEntityId = (value: unknown): string | null => {
+export const normalizeEntityId = (value: unknown): string | number | null => {
   if (typeof value === 'object' && value !== null) {
     if ('id' in value) {
-      return toNullableString((value as { id?: unknown }).id)
+      return normalizeEntityId((value as { id?: unknown }).id)
     }
   }
 
-  return toNullableString(value)
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null
+  }
+
+  if (typeof value === 'string') {
+    const normalized = value.trim()
+    if (normalized.length === 0) {
+      return null
+    }
+
+    const numeric = Number(normalized)
+
+    if (!Number.isNaN(numeric) && String(numeric) === normalized) {
+      return numeric
+    }
+
+    return normalized
+  }
+
+  return null
 }
 
-export const getUserId = (user?: AccessUser | null): string | null => {
+export const getUserId = (user?: AccessUser | null): string | number | null => {
   if (!user) {
     return null
   }
@@ -40,7 +59,7 @@ export const authenticatedAccess: Access = ({ req }) => {
     return true
   }
 
-  return Boolean(getUserId(req.user))
+  return getUserId(req.user) != null
 }
 
 export const ownerAccess = (field: string): Access => {
@@ -51,7 +70,7 @@ export const ownerAccess = (field: string): Access => {
 
     const userId = getUserId(req.user)
 
-    if (!userId) {
+    if (userId == null) {
       return false
     }
 
@@ -79,7 +98,7 @@ export const postsReadAccess: Access = ({ req }) => {
 
   const userId = getUserId(req.user)
 
-  if (!userId) {
+  if (userId == null) {
     return false
   }
 
@@ -101,7 +120,7 @@ export const categoriesReadAccess: Access = ({ req }) => {
 
   const userId = getUserId(req.user)
 
-  if (!userId) {
+  if (userId == null) {
     return false
   }
 
@@ -120,7 +139,7 @@ export const publishedMediaReadAccess: Access = async ({ req, data, id }) => {
 
   const userId = getUserId(req.user)
 
-  if (userId) {
+  if (userId != null) {
     return {
       owner: {
         equals: userId,

@@ -10,7 +10,7 @@ export const enforceOwnershipHook = (fieldName: string): CollectionBeforeValidat
 
     const userId = getUserId(req.user)
 
-    if (!userId) {
+    if (userId == null) {
       return data
     }
 
@@ -23,7 +23,7 @@ export const enforceOwnershipHook = (fieldName: string): CollectionBeforeValidat
 
     const originalOwner = normalizeEntityId(originalDoc?.[fieldName])
 
-    if (originalOwner) {
+    if (originalOwner != null) {
       workingData[fieldName] = originalOwner
     } else {
       workingData[fieldName] = userId
@@ -65,14 +65,14 @@ export const validateRelationshipOwnership = ({
 
     const userId = getUserId(req.user)
 
-    if (!userId) {
+    if (userId == null) {
       return data
     }
 
     const candidate = data?.[field] ?? originalDoc?.[field]
     const relatedId = normalizeEntityId(candidate)
 
-    if (!relatedId) {
+    if (relatedId == null) {
       return data
     }
 
@@ -91,7 +91,7 @@ export const validateRelationshipOwnership = ({
 
     const ownerId = normalizeEntityId(relatedDoc[ownerField])
 
-    if (ownerId && ownerId !== userId) {
+    if (ownerId != null && String(ownerId) !== String(userId)) {
       throw new Error(unauthorizedMessage)
     }
 
