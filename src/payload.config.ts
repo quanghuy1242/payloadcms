@@ -6,18 +6,14 @@ import path from 'path'
 import { buildConfig } from 'payload'
 import { fileURLToPath } from 'url'
 
-import type {
-  GenerateDescription,
-  GenerateImage,
-  GenerateTitle,
-} from '@payloadcms/plugin-seo/types'
 import { Categories } from './collections/Categories'
 import { Posts } from './collections/Posts'
 import { Users } from './collections/Users'
 import { Media } from './collections/Media'
+import { createQueriesExtension } from './graphql/queries'
+import { generatePostDescription, generatePostImage, generatePostTitle } from './lib/postsSeo'
 import { createR2BucketFromEnv } from './lib/r2Bucket'
 import { Homepage } from './globals/Homepage'
-import type { Post } from './payload-types'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -56,34 +52,6 @@ const storagePlugins = r2Bucket
     ]
   : []
 
-const generatePostTitle: GenerateTitle<Post> = ({ doc }) => {
-  if (typeof doc?.title === 'string') {
-    return doc.title.trim()
-  }
-
-  return ''
-}
-
-const generatePostDescription: GenerateDescription<Post> = ({ doc }) => {
-  if (typeof doc?.excerpt === 'string') {
-    return doc.excerpt
-  }
-
-  return ''
-}
-
-const generatePostImage: GenerateImage<Post> = ({ doc }) => {
-  const { coverImage } = doc ?? {}
-
-  if (coverImage && typeof coverImage === 'object') {
-    if ('id' in coverImage && coverImage.id) {
-      return coverImage.id as string | number
-    }
-  }
-
-  return (coverImage ?? '') as string | number
-}
-
 const seo = seoPlugin({
   collections: ['posts'],
   uploadsCollection: 'media',
@@ -112,5 +80,6 @@ export default buildConfig({
   plugins: [...storagePlugins, seo],
   graphQL: {
     disablePlaygroundInProduction: false,
+    queries: createQueriesExtension,
   },
 })
