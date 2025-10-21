@@ -9,6 +9,9 @@ import {
 } from '../../../lib/cloudflareImages'
 import type { CloudflareImageConfig } from '../../../lib/env'
 import type { Post } from '../../../payload-types'
+import { sanitizeIdentifiers } from '../../../utils/identifiers'
+import { sanitizeDimension, sanitizeQuality } from '../../../utils/numbers'
+import { toNullableString } from '../../../utils/strings'
 
 export type PostsCoverImageTransformsArgs = {
   fit?: string | null
@@ -21,32 +24,6 @@ export type PostsCoverImageTransformsArgs = {
 
 export type PostsCoverImageTransformsContext = {
   req: PayloadRequest
-}
-
-const toNullableString = (value: unknown): string | null => {
-  if (value == null) {
-    return null
-  }
-
-  const stringified = value.toString()
-
-  return stringified.length > 0 ? stringified : null
-}
-
-const sanitizeIds = (ids: (string | number)[]): string[] => {
-  return Array.from(
-    new Set(
-      ids
-        .map((value) => {
-          if (typeof value === 'number' || typeof value === 'string') {
-            return toNullableString(value)
-          }
-
-          return null
-        })
-        .filter((value): value is string => Boolean(value)),
-    ),
-  )
 }
 
 export const createPostsCoverImageTransformsResolver =
@@ -62,7 +39,7 @@ export const createPostsCoverImageTransformsResolver =
       throw new Error('Missing Payload request context for GraphQL resolver.')
     }
 
-    const ids = sanitizeIds(args.ids)
+    const ids = sanitizeIdentifiers(args.ids)
 
     if (ids.length === 0) {
       return []
@@ -86,25 +63,10 @@ export const createPostsCoverImageTransformsResolver =
       postsResult.docs.map((doc) => [doc.id != null ? doc.id.toString() : '', doc]),
     )
 
-    const requestedWidth =
-      typeof args.width === 'number' && Number.isFinite(args.width) && args.width > 0
-        ? Math.round(args.width)
-        : defaults.defaultWidth
-
-    const requestedHeight =
-      typeof args.height === 'number' && Number.isFinite(args.height) && args.height > 0
-        ? Math.round(args.height)
-        : null
-
-    const requestedQuality =
-      typeof args.quality === 'number' && Number.isFinite(args.quality)
-        ? Math.min(100, Math.max(10, Math.round(args.quality)))
-        : defaults.defaultQuality
-
-    const requestedFormat =
-      typeof args.format === 'string' && args.format.trim().length > 0
-        ? args.format
-        : defaults.defaultFormat
+    const requestedWidth = sanitizeDimension(args.width) ?? defaults.defaultWidth
+    const requestedHeight = sanitizeDimension(args.height) ?? null
+    const requestedQuality = sanitizeQuality(args.quality) ?? defaults.defaultQuality
+    const requestedFormat = toNullableString(args.format) ?? defaults.defaultFormat
 
     const requestedFit: CloudflareImageFit =
       normalizeCloudflareImageFit(args.fit) ?? defaults.defaultFit

@@ -1,13 +1,20 @@
 import type { CollectionBeforeValidateHook } from 'payload'
 
-export const formatSlug = (value: string) =>
-  value
-    ?.toString()
-    .trim()
+import { isNonEmptyString, toNullableString } from './strings'
+
+export const formatSlug = (value: unknown): string => {
+  const normalized = toNullableString(value)
+
+  if (!normalized) {
+    return ''
+  }
+
+  return normalized
     .toLowerCase()
     .replace(/[^a-z0-9_-]+/g, '-')
     .replace(/-{2,}/g, '-')
     .replace(/^-+|-+$/g, '')
+}
 
 type SlugRecord = {
   slug?: string | null
@@ -21,9 +28,9 @@ export const createSlugHook = (sourceField: string): CollectionBeforeValidateHoo
     const originalRecord = (originalDoc as SlugRecord | undefined) ?? {}
 
     const candidateSource = workingRecord[sourceField] ?? originalRecord[sourceField]
-    const sourceValue = typeof candidateSource === 'string' ? candidateSource : undefined
+    const sourceValue = isNonEmptyString(candidateSource) ? candidateSource : undefined
 
-    const hasSlug = typeof workingRecord.slug === 'string' && workingRecord.slug.trim() !== ''
+    const hasSlug = isNonEmptyString(workingRecord.slug)
 
     if (operation === 'create') {
       if (!hasSlug && sourceValue) {
@@ -32,7 +39,7 @@ export const createSlugHook = (sourceField: string): CollectionBeforeValidateHoo
     }
 
     if (operation === 'update') {
-      const originalSlug = typeof originalRecord.slug === 'string' ? originalRecord.slug : undefined
+      const originalSlug = isNonEmptyString(originalRecord.slug) ? originalRecord.slug : undefined
 
       if (originalSlug) {
         workingRecord.slug = originalSlug
@@ -47,12 +54,19 @@ export const createSlugHook = (sourceField: string): CollectionBeforeValidateHoo
 
 type ValidateArgs = { operation?: string; previousValue?: { slug?: string | null } | null }
 
-export const validateImmutableSlug = (value: unknown, { operation, previousValue }: ValidateArgs) => {
-  if (typeof value !== 'string' || value.trim() === '') {
+export const validateImmutableSlug = (
+  value: unknown,
+  { operation, previousValue }: ValidateArgs,
+) => {
+  if (!isNonEmptyString(value)) {
     return 'Slug is required.'
   }
 
-  if (operation === 'update' && previousValue?.slug && value !== previousValue.slug) {
+  if (
+    operation === 'update' &&
+    isNonEmptyString(previousValue?.slug) &&
+    value !== previousValue.slug
+  ) {
     return 'Slug cannot be changed after creation.'
   }
 

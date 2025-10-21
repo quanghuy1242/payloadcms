@@ -10,8 +10,8 @@ import {
   ParagraphFeature,
   UnderlineFeature,
 } from '@payloadcms/richtext-lexical'
-import { createSlugHook, validateImmutableSlug } from './utils/slug'
-import { publishedPostsReadAccess } from './utils/access'
+import { createSlugHook, validateImmutableSlug } from '../utils/slug'
+import { publishedPostsReadAccess } from '../utils/access'
 
 export const Posts: CollectionConfig = {
   slug: 'posts',

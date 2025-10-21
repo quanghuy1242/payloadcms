@@ -1,5 +1,5 @@
 import type { CollectionConfig } from 'payload'
-import { publishedMediaReadAccess } from './utils/access'
+import { publishedMediaReadAccess } from '../utils/access'
 
 export const Media: CollectionConfig = {
   slug: 'media',
