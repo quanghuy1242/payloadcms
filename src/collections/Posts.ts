@@ -1,4 +1,4 @@
-import type { CollectionConfig } from 'payload'
+import type { Access, CollectionConfig } from 'payload'
 import {
   lexicalEditor,
   FixedToolbarFeature,
@@ -11,13 +11,35 @@ import {
   UnderlineFeature,
 } from '@payloadcms/richtext-lexical'
 
+const publishedPostsReadAccess: Access = ({ req: { user } }) => {
+  if (user) {
+    return true
+  }
+
+  return {
+    _status: {
+      equals: 'published',
+    },
+  }
+}
+
 export const Posts: CollectionConfig = {
   slug: 'posts',
   access: {
-    read: () => true,
+    read: publishedPostsReadAccess,
   },
   admin: {
     useAsTitle: 'title',
+    defaultColumns: ['title', 'category', 'author', '_status', 'updatedAt'],
+    description:
+      'Drafts are private until you publish. Publishing will lock in the current content for readers.',
+  },
+  versions: {
+    drafts: {
+      autosave: {
+        interval: 30000,
+      },
+    },
   },
   fields: [
     {
@@ -38,7 +60,9 @@ export const Posts: CollectionConfig = {
     {
       name: 'date',
       type: 'date',
-      required: true,
+      admin: {
+        description: 'Optional publish date — defaults to the time you hit Publish.',
+      },
     },
     {
       name: 'content',
@@ -75,6 +99,7 @@ export const Posts: CollectionConfig = {
       name: 'category',
       type: 'relationship',
       relationTo: 'categories' as const,
+      required: true,
     },
     {
       name: 'tags',

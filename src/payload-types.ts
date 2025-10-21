@@ -165,6 +165,8 @@ export interface Media {
   focalY?: number | null;
 }
 /**
+ * Drafts are private until you publish. Publishing will lock in the current content for readers.
+ *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "posts".
  */
@@ -173,7 +175,10 @@ export interface Post {
   title: string;
   slug: string;
   excerpt?: string | null;
-  date: string;
+  /**
+   * Optional publish date — defaults to the time you hit Publish.
+   */
+  date?: string | null;
   content: {
     root: {
       type: string;
@@ -191,7 +196,7 @@ export interface Post {
   };
   coverImage?: (number | null) | Media;
   author: number | User;
-  category?: (number | null) | Category;
+  category: number | Category;
   tags?:
     | {
         tag?: string | null;
@@ -200,6 +205,7 @@ export interface Post {
     | null;
   updatedAt: string;
   createdAt: string;
+  _status?: ('draft' | 'published') | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -340,6 +346,7 @@ export interface PostsSelect<T extends boolean = true> {
       };
   updatedAt?: T;
   createdAt?: T;
+  _status?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
