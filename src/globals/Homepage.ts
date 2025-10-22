@@ -18,5 +18,10 @@ export const Homepage: GlobalConfig = {
       name: 'subHeader',
       type: 'text',
     },
+    {
+      name: 'imageBanner',
+      type: 'upload',
+      relationTo: 'media' as const,
+    },
   ],
 }

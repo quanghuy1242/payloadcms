@@ -432,6 +432,15 @@ export interface Homepage {
   id: number;
   header: string;
   subHeader?: string | null;
+  imageBanner?: (number | null) | Media;
+  meta?: {
+    title?: string | null;
+    description?: string | null;
+    /**
+     * Maximum upload file size: 12MB. Recommended file size for images is <500KB.
+     */
+    image?: (number | null) | Media;
+  };
   updatedAt?: string | null;
   createdAt?: string | null;
 }
@@ -442,6 +451,14 @@ export interface Homepage {
 export interface HomepageSelect<T extends boolean = true> {
   header?: T;
   subHeader?: T;
+  imageBanner?: T;
+  meta?:
+    | T
+    | {
+        title?: T;
+        description?: T;
+        image?: T;
+      };
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;

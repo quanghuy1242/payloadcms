@@ -11,7 +11,7 @@ import { Posts } from './collections/Posts'
 import { Users } from './collections/Users'
 import { Media } from './collections/Media'
 import { getR2PublicBaseUrl } from './lib/env'
-import { generatePostDescription, generatePostImage, generatePostTitle } from './lib/postsSeo'
+import { generateSeoDescription, generateSeoImage, generateSeoTitle } from './lib/postsSeo'
 import { createR2BucketFromEnv } from './lib/r2Bucket'
 import { Homepage } from './globals/Homepage'
 import { resolveTursoConnection } from './lib/turso'
@@ -68,10 +68,12 @@ const storagePlugins = r2Bucket
 
 const seo = seoPlugin({
   collections: ['posts'],
+  globals: ['homepage'],
   uploadsCollection: 'media',
-  generateTitle: generatePostTitle,
-  generateDescription: generatePostDescription,
-  generateImage: generatePostImage,
+  generateTitle: generateSeoTitle,
+  generateDescription: generateSeoDescription,
+  generateImage: generateSeoImage,
+  tabbedUI: true,
 })
 
 export default buildConfig({
