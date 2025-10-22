@@ -31,7 +31,6 @@ This project is a production-ready PayloadCMS implementation that provides a pow
 - **Next.js 15**: React 19 with App Router
 - **Turso Database**: Globally-distributed SQLite (libSQL) with local fallback
 - **Cloudflare R2**: S3-compatible object storage for media files
-- **Cloudflare Images**: Optimized image transformations
 - **GraphQL API**: Full GraphQL support with playground
 - **SEO Plugin**: Built-in SEO optimization for posts
 - **Lexical Editor**: Modern rich text editing experience
@@ -101,9 +100,7 @@ R2_ENDPOINT=https://account-id.r2.cloudflarestorage.com
 R2_BUCKET_NAME=your-r2-bucket
 R2_ACCESS_KEY_ID=your-access-key-id
 R2_SECRET_ACCESS_KEY=your-secret-access-key
-
-# Cloudflare Images (optional)
-CLOUDFLARE_IMAGE_BASE_URL=https://account-id.cloudflareimages.com
+R2_PUBLIC_BASE_URL=https://account-id.r2.cloudflarestorage.com/your-r2-bucket
 ```
 
 ### Environment Variables Explained
@@ -117,7 +114,7 @@ CLOUDFLARE_IMAGE_BASE_URL=https://account-id.cloudflareimages.com
 | `R2_BUCKET_NAME` | No* | R2 bucket name for media storage |
 | `R2_ACCESS_KEY_ID` | No* | R2 access key ID |
 | `R2_SECRET_ACCESS_KEY` | No* | R2 secret access key |
-| `CLOUDFLARE_IMAGE_BASE_URL` | No | Base URL for Cloudflare Images transformations |
+| `R2_PUBLIC_BASE_URL` | No* | Public base URL (or custom domain) for your R2 bucket |
 
 *In local development, the app falls back to local SQLite (`.payload/data.sqlite`) and filesystem storage if these are not provided.
 

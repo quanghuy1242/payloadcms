@@ -16,10 +16,10 @@ Our agentic coding workflow relies on a consistent, reusable utilities layer so 
 | Module | Responsibilities | Primary Consumers |
 | --- | --- | --- |
 | `src/utils/strings.ts` | Whitespace-safe conversion helpers (`toNullableString`, `isNonEmptyString`). | SEO generators, slug helpers, GraphQL resolvers. |
-| `src/utils/numbers.ts` | Numeric safety net (`isFiniteNumber`, `clampNumber`, `sanitizeDimension`, `sanitizeQuality`). | Cloudflare image builder, environment config parser. |
-| `src/utils/identifiers.ts` | Deduplicates arbitrary IDs into canonical strings. | GraphQL cover-image resolver. |
+| `src/utils/numbers.ts` | Numeric safety net (`isFiniteNumber`, `clampNumber`, `sanitizeDimension`, `sanitizeQuality`). | Media sanitization, storage configuration. |
+| `src/utils/identifiers.ts` | Deduplicates arbitrary IDs into canonical strings. | Collection-level lookups, seeds, migrations. |
 | `src/utils/slug.ts` | Immutable slug formatting plus randomized variants for collision-free posts. | Collections that need stable identifiers (Posts, Categories). |
-| `src/utils/access.ts` | Role-aware access primitives (`authenticatedAccess`, `ownerAccess`, `postsReadAccess`, `publishedMediaReadAccess`) plus shared-media handling. | Collections, field-level guards, ownership hooks. |
+| `src/utils/access.ts` | Role-aware access primitives (`authenticatedAccess`, `ownerAccess`, `postsReadAccess`, `publishedMediaReadAccess`, `adminOrEmailContains`) plus shared-media handling. | Collections, globals, field-level guards, ownership hooks. |
 | `src/utils/ownership.ts` | Hooks that enforce relationship ownership (e.g., auto-assigning `author`, `owner`, `createdBy`). | Collections needing per-user ownership guarantees. |
 
 These files replace the legacy `src/collections/utils` folder so future helpers are available outside collection contexts.

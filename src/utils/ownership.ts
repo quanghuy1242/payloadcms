@@ -1,13 +1,9 @@
 import type { CollectionBeforeValidateHook, CollectionSlug } from 'payload'
 
-import { getUserId, isAdminUser, normalizeEntityId } from './access'
+import { getUserId, normalizeEntityId } from './access'
 
 export const enforceOwnershipHook = (fieldName: string): CollectionBeforeValidateHook => {
   return ({ data, originalDoc, operation, req }) => {
-    if (isAdminUser(req.user)) {
-      return data
-    }
-
     const userId = getUserId(req.user)
 
     if (userId == null) {
@@ -59,10 +55,6 @@ export const validateRelationshipOwnership = ({
   unauthorizedMessage = 'You do not have permission to use the selected resource.',
 }: RelationshipOwnershipOptions): CollectionBeforeValidateHook => {
   return async ({ data, originalDoc, req }) => {
-    if (isAdminUser(req.user)) {
-      return data
-    }
-
     const userId = getUserId(req.user)
 
     if (userId == null) {

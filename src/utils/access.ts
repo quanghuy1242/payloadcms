@@ -64,10 +64,6 @@ export const authenticatedAccess: Access = ({ req }) => {
 
 export const ownerAccess = (field: string): Access => {
   return ({ req }) => {
-    if (isAdminUser(req.user)) {
-      return true
-    }
-
     const userId = getUserId(req.user)
 
     if (userId == null) {
@@ -103,9 +99,18 @@ export const postsReadAccess: Access = ({ req }) => {
   }
 
   return {
-    author: {
-      equals: userId,
-    },
+    or: [
+      {
+        author: {
+          equals: userId,
+        },
+      },
+      {
+        _status: {
+          equals: 'published',
+        },
+      },
+    ],
   }
 }
 
@@ -248,4 +253,23 @@ export const publishedMediaReadAccess: Access = async ({ req, data, id }) => {
   }
 
   return false
+}
+
+/**
+ * Global access control that allows admins or users whose email contains a specific string.
+ * Useful for restricting global document updates to specific users.
+ */
+export const adminOrEmailContains = (emailSubstring: string): Access => {
+  return ({ req }) => {
+    if (isAdminUser(req.user)) {
+      return true
+    }
+
+    const email = req.user?.email
+    if (email && typeof email === 'string' && email.includes(emailSubstring)) {
+      return true
+    }
+
+    return false
+  }
 }
