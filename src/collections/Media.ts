@@ -1,13 +1,13 @@
 import type { CollectionConfig } from 'payload'
 
-import { authenticatedAccess, ownerAccess } from '../utils/access'
+import { authenticatedAccess, ownerAccess, publishedMediaReadAccess } from '../utils/access'
 import { enforceOwnershipHook } from '../utils/ownership'
 
 export const Media: CollectionConfig = {
   slug: 'media',
   access: {
     create: authenticatedAccess,
-    read: authenticatedAccess,
+    read: publishedMediaReadAccess,
     update: ownerAccess('owner'),
     delete: ownerAccess('owner'),
   },
