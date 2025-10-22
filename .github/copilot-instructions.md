@@ -6,9 +6,8 @@ This is a **PayloadCMS 3.60 + Next.js 15** headless CMS with a **pluggable stora
 
 - **Database**: Turso (libSQL) in production → local SQLite fallback (`.payload/data.sqlite`) in dev
 - **Storage**: Cloudflare R2 in production → local filesystem fallback in dev
-- **Image Transforms**: Cloudflare Images for dynamic resizing with custom GraphQL queries
 - **SEO**: Plugin-based with custom generators in `src/lib/postsSeo.ts`
-- **GraphQL**: Extended API with custom queries in `src/graphql/queries/`
+- **GraphQL**: Standard Payload GraphQL API with playground enabled
 
 **Critical**: The `src/lib/turso.ts` and `src/lib/r2Bucket.ts` modules handle fallback logic. Missing env vars trigger graceful degradation, NOT errors (except in production runtime).
 
@@ -22,8 +21,8 @@ This is a **PayloadCMS 3.60 + Next.js 15** headless CMS with a **pluggable stora
 | `utils/ownership.ts` | Auto-assign relationship owners via hooks | `enforceOwnershipHook('author')` in Posts |
 | `utils/slug.ts` | Immutable slug generation with random suffixes | `createRandomizedSlugHook('title')` prevents collisions |
 | `utils/strings.ts` | Safe string conversions | `toNullableString()`, `isNonEmptyString()` |
-| `utils/numbers.ts` | Numeric sanitization | `sanitizeDimension()`, `sanitizeQuality()`, `clampNumber()` |
-| `utils/identifiers.ts` | ID normalization across types | GraphQL resolvers use this for type-safe ID handling |
+| `utils/numbers.ts` | Numeric safety net (`isFiniteNumber`, `clampNumber`, `sanitizeDimension`, `sanitizeQuality`). | Media sanitization, storage configuration. |
+| `utils/identifiers.ts` | ID normalization across types | Shared API handlers use this for type-safe ID handling |
 
 **Before adding any validation, parsing, or access logic**: Check if a utility exists. If it doesn't, extend `src/utils/` instead of inlining code. See `docs/agentic-ai.md` for the full philosophy.
 
@@ -86,24 +85,6 @@ pnpm payload migrate:status
 
 **Never run migrations during Next.js build** (`isNextBuild` flag prevents this in `src/payload.config.ts`).
 
-## GraphQL Extensions
-
-Custom queries live in `src/graphql/queries/` and are wired via `createQueriesExtension()` in config.
-
-Example pattern (see `postsCoverImageTransforms/`):
-```typescript
-export const createPostsCoverImageTransformsQuery = (GraphQL, defaults) => ({
-  queries: {
-    PostsCoverImageTransforms: {
-      type: new GraphQL.GraphQLObjectType({ /* ... */ }),
-      resolve: customResolver,
-    },
-  },
-})
-```
-
-These extend the auto-generated PayloadCMS GraphQL schema with custom business logic (like Cloudflare image transforms).
-
 ## Environment Configuration
 
 **Strict vs. Lenient Mode**:
@@ -111,14 +92,6 @@ These extend the auto-generated PayloadCMS GraphQL schema with custom business l
 - `strict: true` in production → throws errors
 
 The config file uses `isNextBuild` to relax validation during `next build` (when services aren't needed).
-
-### Cloudflare Images Integration
-`src/lib/cloudflareImages.ts` builds URLs like:
-```
-https://account.cloudflareimages.com/cdn-cgi/image/w=800,h=600,fit=cover,format=webp/bucket/path/filename.jpg
-```
-
-Uses `sanitizeDimension()` and `sanitizeQuality()` from `utils/numbers.ts` to validate transform params.
 
 ## Critical Workflows
 
@@ -183,7 +156,7 @@ The `(payload)` route group keeps admin separate from frontend routes.
 1. **Access control**: Use existing utilities from `utils/access.ts` (admin check → owner check → public fallback)
 2. **Field validation**: Check `utils/` for sanitizers/validators before writing custom logic
 3. **Hooks**: Follow the `beforeValidate` → ownership → slug pattern from existing collections
-4. **GraphQL**: Extend via `src/graphql/queries/` directory with custom resolvers
+4. **GraphQL**: Add extensions directly in Payload config when needed (no custom directory by default)
 5. **Environment vars**: Add to `.env.example` and validate via Zod in `src/lib/env.ts`
 
 ## Reference Files for Patterns

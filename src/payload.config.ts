@@ -10,8 +10,7 @@ import { Categories } from './collections/Categories'
 import { Posts } from './collections/Posts'
 import { Users } from './collections/Users'
 import { Media } from './collections/Media'
-import { createQueriesExtension } from './graphql/queries'
-import { getCloudflareImageConfig } from './lib/env'
+import { getR2PublicBaseUrl } from './lib/env'
 import { generatePostDescription, generatePostImage, generatePostTitle } from './lib/postsSeo'
 import { createR2BucketFromEnv } from './lib/r2Bucket'
 import { Homepage } from './globals/Homepage'
@@ -23,7 +22,7 @@ const isProduction = process.env.NODE_ENV === 'production'
 const isNextBuild = process.env.NEXT_PHASE === 'phase-production-build'
 const fallbackSQLiteFile = path.resolve(dirname, '../.payload/data.sqlite')
 const r2Bucket = createR2BucketFromEnv({ strict: !isNextBuild })
-const cloudflareImageConfig = getCloudflareImageConfig()
+const r2PublicBaseUrl = getR2PublicBaseUrl()
 
 const tursoConnection = resolveTursoConnection({
   authToken: process.env.TURSO_AUTH_TOKEN,
@@ -46,7 +45,22 @@ const storagePlugins = r2Bucket
       r2Storage({
         bucket: r2Bucket,
         collections: {
-          media: true,
+          media: r2PublicBaseUrl
+            ? {
+                generateFileURL: async ({ filename, prefix }) => {
+                  const pathSegments = [prefix, filename]
+                    .filter(
+                      (segment): segment is string =>
+                        typeof segment === 'string' && segment.length > 0,
+                    )
+                    .flatMap((segment) => segment.split('/').filter((part) => part.length > 0))
+
+                  const encodedKey = pathSegments.map(encodeURIComponent).join('/')
+
+                  return `${r2PublicBaseUrl}/${encodedKey}`
+                },
+              }
+            : true,
         },
       }),
     ]
@@ -80,6 +94,5 @@ export default buildConfig({
   plugins: [...storagePlugins, seo],
   graphQL: {
     disablePlaygroundInProduction: false,
-    queries: createQueriesExtension(cloudflareImageConfig),
   },
 })
