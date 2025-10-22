@@ -143,6 +143,54 @@ src/app/
 
 The `(payload)` route group keeps admin separate from frontend routes.
 
+## GraphQL Extensions
+
+**Always follow PayloadCMS best practices for GraphQL organization**. See `docs/graphql-best-practices.md` for full details.
+
+### Directory Structure
+```
+src/graphql/
+├── index.ts              # Main export
+├── queries/
+│   ├── index.ts          # Query aggregator
+│   └── [QueryName]/
+│       ├── index.ts      # Query definition
+│       └── resolver.ts   # Resolver logic
+└── mutations/
+    ├── index.ts          # Mutation aggregator
+    └── [MutationName]/
+        ├── index.ts      # Mutation definition
+        └── resolver.ts   # Resolver logic
+```
+
+### Critical Rules
+1. **Never inline GraphQL logic in `payload.config.ts`** - Extract to `src/graphql/`
+2. **Separate concerns** - Keep resolver logic separate from query/mutation definitions
+3. **Use the structure** - Each query/mutation gets its own directory with `index.ts` + `resolver.ts`
+4. **Reference existing types** - Use `payload.collections['posts'].graphQL?.type` instead of recreating types
+5. **Access payload correctly** - Always extract from context: `const payload: Payload = context.req.payload`
+
+### Example Pattern
+```typescript
+// src/graphql/queries/MyQuery/resolver.ts
+export const myQueryResolver = async (_: any, args: Args, context: any) => {
+  const payload: Payload = context.req.payload
+  // Logic here
+}
+
+// src/graphql/queries/MyQuery/index.ts
+export const MyQuery = (GraphQL: any, payload: any): GraphQLFieldConfig => ({
+  type: /* ... */,
+  args: /* ... */,
+  resolve: myQueryResolver,
+})
+
+// src/graphql/queries/index.ts
+export const queries = (GraphQL, payload) => ({
+  MyQuery: MyQuery(GraphQL, payload),
+})
+```
+
 ## Common Gotchas
 
 1. **Don't use `push: true` with production Turso** - Set `TURSO_DATABASE_URL` and let `resolveTursoConnection()` handle it
@@ -156,7 +204,7 @@ The `(payload)` route group keeps admin separate from frontend routes.
 1. **Access control**: Use existing utilities from `utils/access.ts` (admin check → owner check → public fallback)
 2. **Field validation**: Check `utils/` for sanitizers/validators before writing custom logic
 3. **Hooks**: Follow the `beforeValidate` → ownership → slug pattern from existing collections
-4. **GraphQL**: Add extensions directly in Payload config when needed (no custom directory by default)
+4. **GraphQL extensions**: Follow the structured approach in `src/graphql/` - see `docs/graphql-best-practices.md`
 5. **Environment vars**: Add to `.env.example` and validate via Zod in `src/lib/env.ts`
 
 ## Reference Files for Patterns
@@ -167,6 +215,7 @@ The `(payload)` route group keeps admin separate from frontend routes.
 - **Hook composition**: `src/utils/slug.ts` and `src/utils/ownership.ts`
 - **Migration structure**: Any file in `src/migrations/`
 - **Storage abstraction**: `src/lib/r2Bucket.ts` (S3 SDK → R2 bucket interface)
+- **GraphQL extensions**: `src/graphql/queries/SimilarPosts/` (query + resolver pattern)
 
 ## Context7 Usage
 
