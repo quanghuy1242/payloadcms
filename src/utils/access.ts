@@ -99,9 +99,18 @@ export const postsReadAccess: Access = ({ req }) => {
   }
 
   return {
-    author: {
-      equals: userId,
-    },
+    or: [
+      {
+        author: {
+          equals: userId,
+        },
+      },
+      {
+        _status: {
+          equals: 'published',
+        },
+      },
+    ],
   }
 }
 

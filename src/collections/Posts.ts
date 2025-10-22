@@ -11,7 +11,7 @@ import {
   UnderlineFeature,
 } from '@payloadcms/richtext-lexical'
 
-import { authenticatedAccess, ownerAccess } from '../utils/access'
+import { authenticatedAccess, ownerAccess, postsReadAccess } from '../utils/access'
 import { enforceOwnershipHook } from '../utils/ownership'
 import { createRandomizedSlugHook, validateImmutableSlug } from '../utils/slug'
 
@@ -19,7 +19,7 @@ export const Posts: CollectionConfig = {
   slug: 'posts',
   access: {
     create: authenticatedAccess,
-    read: authenticatedAccess,
+    read: postsReadAccess,
     update: ownerAccess('author'),
     delete: ownerAccess('author'),
   },
