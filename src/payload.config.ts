@@ -97,6 +97,7 @@ export default buildConfig({
   plugins: [...storagePlugins, seo],
   graphQL: {
     disablePlaygroundInProduction: false,
+    schemaOutputFile: path.resolve(dirname, '../schema.graphql'),
     queries,
   },
 })
