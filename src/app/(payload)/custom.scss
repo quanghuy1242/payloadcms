@@ -1,0 +1,13 @@
+/* Lexical editor responsive images */
+.lexical-editor img,
+.rich-text-lexical img,
+[data-lexical-editor] img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Also apply to rendered content outside the editor */
+.payload-richtext img {
+  max-width: 100%;
+  height: auto;
+}

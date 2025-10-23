@@ -1317,7 +1317,6 @@ type Post {
   title: String
   slug: String
   excerpt: String
-  date: DateTime
   content(depth: Int): JSON
   coverImage: Media
   author: User
@@ -1374,7 +1373,6 @@ input Post_where {
   title: Post_title_operator
   slug: Post_slug_operator
   excerpt: Post_excerpt_operator
-  date: Post_date_operator
   content: Post_content_operator
   coverImage: Post_coverImage_operator
   author: Post_author_operator
@@ -1418,17 +1416,6 @@ input Post_excerpt_operator {
   not_equals: String
   like: String
   contains: String
-  exists: Boolean
-}
-
-input Post_date_operator {
-  equals: DateTime
-  not_equals: DateTime
-  greater_than_equal: DateTime
-  greater_than: DateTime
-  less_than_equal: DateTime
-  less_than: DateTime
-  like: DateTime
   exists: Boolean
 }
 
@@ -1564,7 +1551,6 @@ input Post_where_and {
   title: Post_title_operator
   slug: Post_slug_operator
   excerpt: Post_excerpt_operator
-  date: Post_date_operator
   content: Post_content_operator
   coverImage: Post_coverImage_operator
   author: Post_author_operator
@@ -1586,7 +1572,6 @@ input Post_where_or {
   title: Post_title_operator
   slug: Post_slug_operator
   excerpt: Post_excerpt_operator
-  date: Post_date_operator
   content: Post_content_operator
   coverImage: Post_coverImage_operator
   author: Post_author_operator
@@ -1621,7 +1606,6 @@ type PostsDocAccessFields {
   title: PostsDocAccessFields_title
   slug: PostsDocAccessFields_slug
   excerpt: PostsDocAccessFields_excerpt
-  date: PostsDocAccessFields_date
   content: PostsDocAccessFields_content
   coverImage: PostsDocAccessFields_coverImage
   author: PostsDocAccessFields_author
@@ -1699,29 +1683,6 @@ type PostsDocAccessFields_excerpt_Update {
 }
 
 type PostsDocAccessFields_excerpt_Delete {
-  permission: Boolean!
-}
-
-type PostsDocAccessFields_date {
-  create: PostsDocAccessFields_date_Create
-  read: PostsDocAccessFields_date_Read
-  update: PostsDocAccessFields_date_Update
-  delete: PostsDocAccessFields_date_Delete
-}
-
-type PostsDocAccessFields_date_Create {
-  permission: Boolean!
-}
-
-type PostsDocAccessFields_date_Read {
-  permission: Boolean!
-}
-
-type PostsDocAccessFields_date_Update {
-  permission: Boolean!
-}
-
-type PostsDocAccessFields_date_Delete {
   permission: Boolean!
 }
 
@@ -2099,7 +2060,6 @@ type PostVersion_Version {
   title: String
   slug: String
   excerpt: String
-  date: DateTime
   content(depth: Int): JSON
   coverImage: Media
   author: User
@@ -2146,7 +2106,6 @@ input versionsPost_where {
   version__title: versionsPost_version__title_operator
   version__slug: versionsPost_version__slug_operator
   version__excerpt: versionsPost_version__excerpt_operator
-  version__date: versionsPost_version__date_operator
   version__content: versionsPost_version__content_operator
   version__coverImage: versionsPost_version__coverImage_operator
   version__author: versionsPost_version__author_operator
@@ -2203,17 +2162,6 @@ input versionsPost_version__excerpt_operator {
   not_equals: String
   like: String
   contains: String
-  exists: Boolean
-}
-
-input versionsPost_version__date_operator {
-  equals: DateTime
-  not_equals: DateTime
-  greater_than_equal: DateTime
-  greater_than: DateTime
-  less_than_equal: DateTime
-  less_than: DateTime
-  like: DateTime
   exists: Boolean
 }
 
@@ -2384,7 +2332,6 @@ input versionsPost_where_and {
   version__title: versionsPost_version__title_operator
   version__slug: versionsPost_version__slug_operator
   version__excerpt: versionsPost_version__excerpt_operator
-  version__date: versionsPost_version__date_operator
   version__content: versionsPost_version__content_operator
   version__coverImage: versionsPost_version__coverImage_operator
   version__author: versionsPost_version__author_operator
@@ -2411,7 +2358,6 @@ input versionsPost_where_or {
   version__title: versionsPost_version__title_operator
   version__slug: versionsPost_version__slug_operator
   version__excerpt: versionsPost_version__excerpt_operator
-  version__date: versionsPost_version__date_operator
   version__content: versionsPost_version__content_operator
   version__coverImage: versionsPost_version__coverImage_operator
   version__author: versionsPost_version__author_operator
@@ -4323,7 +4269,6 @@ type PostsFields {
   title: PostsFields_title
   slug: PostsFields_slug
   excerpt: PostsFields_excerpt
-  date: PostsFields_date
   content: PostsFields_content
   coverImage: PostsFields_coverImage
   author: PostsFields_author
@@ -4401,29 +4346,6 @@ type PostsFields_excerpt_Update {
 }
 
 type PostsFields_excerpt_Delete {
-  permission: Boolean!
-}
-
-type PostsFields_date {
-  create: PostsFields_date_Create
-  read: PostsFields_date_Read
-  update: PostsFields_date_Update
-  delete: PostsFields_date_Delete
-}
-
-type PostsFields_date_Create {
-  permission: Boolean!
-}
-
-type PostsFields_date_Read {
-  permission: Boolean!
-}
-
-type PostsFields_date_Update {
-  permission: Boolean!
-}
-
-type PostsFields_date_Delete {
   permission: Boolean!
 }
 
@@ -5732,7 +5654,6 @@ input mutationPostInput {
   title: String!
   slug: String
   excerpt: String
-  date: String
   content: JSON!
   coverImage: Int
   author: Int
@@ -5764,7 +5685,6 @@ input mutationPostUpdateInput {
   title: String
   slug: String
   excerpt: String
-  date: String
   content: JSON
   coverImage: Int
   author: Int
