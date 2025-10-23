@@ -139,6 +139,7 @@ export const postsReadAccess: Access = ({ req }) => {
 
   const userId = getUserId(req.user)
 
+  // Must be authenticated
   if (userId == null) {
     return false
   }
@@ -157,28 +158,6 @@ export const postsReadAccess: Access = ({ req }) => {
         },
       },
     ],
-  }
-}
-
-export const categoriesReadAccess: Access = ({ req }) => {
-  if (!req.user) {
-    return true
-  }
-
-  if (isAdminUser(req.user)) {
-    return true
-  }
-
-  const userId = getUserId(req.user)
-
-  if (userId == null) {
-    return false
-  }
-
-  return {
-    createdBy: {
-      equals: userId,
-    },
   }
 }
 
