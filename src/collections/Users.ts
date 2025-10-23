@@ -11,7 +11,13 @@ import {
   UnderlineFeature,
 } from '@payloadcms/richtext-lexical'
 
-import { USER_ROLES, adminOrSelfAccess, adminOrSelfFieldAccess, isAdminUser } from '../utils/access'
+import {
+  USER_ROLES,
+  adminOrSelfAccess,
+  adminOrSelfFieldAccess,
+  isAdminUser,
+  authenticatedAccess,
+} from '../utils/access'
 
 const USER_ROLE_OPTIONS = USER_ROLES.map((role) => ({
   label: role === 'admin' ? 'Admin' : 'User',
@@ -22,7 +28,7 @@ export const Users: CollectionConfig = {
   slug: 'users',
   access: {
     create: ({ req }) => isAdminUser(req.user),
-    read: adminOrSelfAccess,
+    read: authenticatedAccess,
     update: adminOrSelfAccess,
     delete: ({ req }) => isAdminUser(req.user),
   },
