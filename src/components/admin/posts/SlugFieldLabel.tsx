@@ -2,7 +2,7 @@
 
 import React from 'react'
 import { TextFieldLabelClientComponent } from 'payload'
-import { FieldLabel, useFormFields, useField, Button } from '@payloadcms/ui'
+import { FieldLabel, useFormFields, useField } from '@payloadcms/ui'
 
 const SlugFieldLabel: TextFieldLabelClientComponent = ({ field, path }) => {
   const title = useFormFields(([fields]) => fields.title as { value: string })
@@ -41,21 +41,31 @@ const SlugFieldLabel: TextFieldLabelClientComponent = ({ field, path }) => {
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: '1.5rem',
+        // gap: '1.5rem',
         justifySelf: 'flex-start',
         marginBottom: '0.5rem',
       }}
     >
       <FieldLabel label={field?.label || field?.name} path={path} required={field?.required} />
-      <Button
-        buttonStyle="subtle"
-        size="xsmall"
+      <span style={{ paddingBottom: 5 }}>&nbsp; — &nbsp;</span>
+      <button
+        type="button"
         onClick={handleGenerate}
         disabled={!title?.value || isPublished}
-        margin={false}
+        style={{
+          background: 'none',
+          border: 'none',
+          padding: 0,
+          color: isPublished || !title?.value ? '#888' : 'inherit',
+          textDecoration: 'underline',
+          cursor: isPublished || !title?.value ? 'not-allowed' : 'pointer',
+          fontSize: 'inherit',
+          fontFamily: 'inherit',
+          paddingBottom: 5,
+        }}
       >
-        Generate from Title
-      </Button>
+        Auto-generate
+      </button>
     </div>
   )
 }
