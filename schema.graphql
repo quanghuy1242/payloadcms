@@ -118,10 +118,14 @@ type Query {
 type User {
   id: Int!
   fullName: String!
+  avatar: Media
   role: User_role
   updatedAt: DateTime
   createdAt: DateTime
-  email: EmailAddress!
+  enableAPIKey: Boolean
+  apiKey: String
+  apiKeyIndex: String
+  email: EmailAddress
   resetPasswordToken: String
   resetPasswordExpiration: DateTime
   salt: String
@@ -131,15 +135,32 @@ type User {
   sessions: [User_Sessions!]
 }
 
-enum User_role {
-  admin
-  user
+type Media {
+  id: Int!
+  alt: String!
+  owner: User!
+  updatedAt: DateTime
+  createdAt: DateTime
+  url: String
+  thumbnailURL: String
+  filename: String
+  mimeType: String
+  filesize: Float
+  width: Float
+  height: Float
+  focalX: Float
+  focalY: Float
 }
 
 """
 A date-time string at UTC, such as 2007-12-03T10:15:30Z, compliant with the `date-time` format outlined in section 5.6 of the RFC 3339 profile of the ISO 8601 standard for representation of dates and times using the Gregorian calendar.
 """
 scalar DateTime
+
+enum User_role {
+  admin
+  user
+}
 
 """
 A field whose value conforms to the standard internet email address format as specified in HTML Spec: https://html.spec.whatwg.org/multipage/input.html#valid-e-mail-address.
@@ -169,9 +190,12 @@ type Users {
 
 input User_where {
   fullName: User_fullName_operator
+  avatar: User_avatar_operator
   role: User_role_operator
   updatedAt: User_updatedAt_operator
   createdAt: User_createdAt_operator
+  enableAPIKey: User_enableAPIKey_operator
+  apiKey: User_apiKey_operator
   email: User_email_operator
   sessions__id: User_sessions__id_operator
   sessions__createdAt: User_sessions__createdAt_operator
@@ -190,6 +214,21 @@ input User_fullName_operator {
   not_in: [String]
   all: [String]
 }
+
+input User_avatar_operator {
+  equals: JSON
+  not_equals: JSON
+  in: [JSON]
+  not_in: [JSON]
+  all: [JSON]
+  exists: Boolean
+}
+
+"""
+The `JSON` scalar type represents JSON values as specified by [ECMA-404](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf).
+"""
+scalar JSON
+  @specifiedBy(url: "http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf")
 
 input User_role_operator {
   equals: User_role_Input
@@ -223,6 +262,23 @@ input User_createdAt_operator {
   less_than_equal: DateTime
   less_than: DateTime
   like: DateTime
+  exists: Boolean
+}
+
+input User_enableAPIKey_operator {
+  equals: Boolean
+  not_equals: Boolean
+  exists: Boolean
+}
+
+input User_apiKey_operator {
+  equals: String
+  not_equals: String
+  like: String
+  contains: String
+  in: [String]
+  not_in: [String]
+  all: [String]
   exists: Boolean
 }
 
@@ -279,9 +335,12 @@ input User_id_operator {
 
 input User_where_and {
   fullName: User_fullName_operator
+  avatar: User_avatar_operator
   role: User_role_operator
   updatedAt: User_updatedAt_operator
   createdAt: User_createdAt_operator
+  enableAPIKey: User_enableAPIKey_operator
+  apiKey: User_apiKey_operator
   email: User_email_operator
   sessions__id: User_sessions__id_operator
   sessions__createdAt: User_sessions__createdAt_operator
@@ -293,9 +352,12 @@ input User_where_and {
 
 input User_where_or {
   fullName: User_fullName_operator
+  avatar: User_avatar_operator
   role: User_role_operator
   updatedAt: User_updatedAt_operator
   createdAt: User_createdAt_operator
+  enableAPIKey: User_enableAPIKey_operator
+  apiKey: User_apiKey_operator
   email: User_email_operator
   sessions__id: User_sessions__id_operator
   sessions__createdAt: User_sessions__createdAt_operator
@@ -320,9 +382,12 @@ type usersDocAccess {
 
 type UsersDocAccessFields {
   fullName: UsersDocAccessFields_fullName
+  avatar: UsersDocAccessFields_avatar
   role: UsersDocAccessFields_role
   updatedAt: UsersDocAccessFields_updatedAt
   createdAt: UsersDocAccessFields_createdAt
+  enableAPIKey: UsersDocAccessFields_enableAPIKey
+  apiKey: UsersDocAccessFields_apiKey
   email: UsersDocAccessFields_email
   sessions: UsersDocAccessFields_sessions
 }
@@ -347,6 +412,29 @@ type UsersDocAccessFields_fullName_Update {
 }
 
 type UsersDocAccessFields_fullName_Delete {
+  permission: Boolean!
+}
+
+type UsersDocAccessFields_avatar {
+  create: UsersDocAccessFields_avatar_Create
+  read: UsersDocAccessFields_avatar_Read
+  update: UsersDocAccessFields_avatar_Update
+  delete: UsersDocAccessFields_avatar_Delete
+}
+
+type UsersDocAccessFields_avatar_Create {
+  permission: Boolean!
+}
+
+type UsersDocAccessFields_avatar_Read {
+  permission: Boolean!
+}
+
+type UsersDocAccessFields_avatar_Update {
+  permission: Boolean!
+}
+
+type UsersDocAccessFields_avatar_Delete {
   permission: Boolean!
 }
 
@@ -416,6 +504,52 @@ type UsersDocAccessFields_createdAt_Update {
 }
 
 type UsersDocAccessFields_createdAt_Delete {
+  permission: Boolean!
+}
+
+type UsersDocAccessFields_enableAPIKey {
+  create: UsersDocAccessFields_enableAPIKey_Create
+  read: UsersDocAccessFields_enableAPIKey_Read
+  update: UsersDocAccessFields_enableAPIKey_Update
+  delete: UsersDocAccessFields_enableAPIKey_Delete
+}
+
+type UsersDocAccessFields_enableAPIKey_Create {
+  permission: Boolean!
+}
+
+type UsersDocAccessFields_enableAPIKey_Read {
+  permission: Boolean!
+}
+
+type UsersDocAccessFields_enableAPIKey_Update {
+  permission: Boolean!
+}
+
+type UsersDocAccessFields_enableAPIKey_Delete {
+  permission: Boolean!
+}
+
+type UsersDocAccessFields_apiKey {
+  create: UsersDocAccessFields_apiKey_Create
+  read: UsersDocAccessFields_apiKey_Read
+  update: UsersDocAccessFields_apiKey_Update
+  delete: UsersDocAccessFields_apiKey_Delete
+}
+
+type UsersDocAccessFields_apiKey_Create {
+  permission: Boolean!
+}
+
+type UsersDocAccessFields_apiKey_Read {
+  permission: Boolean!
+}
+
+type UsersDocAccessFields_apiKey_Update {
+  permission: Boolean!
+}
+
+type UsersDocAccessFields_apiKey_Delete {
   permission: Boolean!
 }
 
@@ -580,23 +714,6 @@ type usersMe {
   user: User
 }
 
-type Media {
-  id: Int!
-  alt: String!
-  owner: User!
-  updatedAt: DateTime
-  createdAt: DateTime
-  url: String
-  thumbnailURL: String
-  filename: String
-  mimeType: String
-  filesize: Float
-  width: Float
-  height: Float
-  focalX: Float
-  focalY: Float
-}
-
 type allMedia {
   docs: [Media!]!
   hasNextPage: Boolean!
@@ -647,12 +764,6 @@ input Media_owner_operator {
   not_in: [JSON]
   all: [JSON]
 }
-
-"""
-The `JSON` scalar type represents JSON values as specified by [ECMA-404](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf).
-"""
-scalar JSON
-  @specifiedBy(url: "http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf")
 
 input Media_updatedAt_operator {
   equals: DateTime
@@ -3478,9 +3589,12 @@ type usersAccess {
 
 type UsersFields {
   fullName: UsersFields_fullName
+  avatar: UsersFields_avatar
   role: UsersFields_role
   updatedAt: UsersFields_updatedAt
   createdAt: UsersFields_createdAt
+  enableAPIKey: UsersFields_enableAPIKey
+  apiKey: UsersFields_apiKey
   email: UsersFields_email
   sessions: UsersFields_sessions
 }
@@ -3505,6 +3619,29 @@ type UsersFields_fullName_Update {
 }
 
 type UsersFields_fullName_Delete {
+  permission: Boolean!
+}
+
+type UsersFields_avatar {
+  create: UsersFields_avatar_Create
+  read: UsersFields_avatar_Read
+  update: UsersFields_avatar_Update
+  delete: UsersFields_avatar_Delete
+}
+
+type UsersFields_avatar_Create {
+  permission: Boolean!
+}
+
+type UsersFields_avatar_Read {
+  permission: Boolean!
+}
+
+type UsersFields_avatar_Update {
+  permission: Boolean!
+}
+
+type UsersFields_avatar_Delete {
   permission: Boolean!
 }
 
@@ -3574,6 +3711,52 @@ type UsersFields_createdAt_Update {
 }
 
 type UsersFields_createdAt_Delete {
+  permission: Boolean!
+}
+
+type UsersFields_enableAPIKey {
+  create: UsersFields_enableAPIKey_Create
+  read: UsersFields_enableAPIKey_Read
+  update: UsersFields_enableAPIKey_Update
+  delete: UsersFields_enableAPIKey_Delete
+}
+
+type UsersFields_enableAPIKey_Create {
+  permission: Boolean!
+}
+
+type UsersFields_enableAPIKey_Read {
+  permission: Boolean!
+}
+
+type UsersFields_enableAPIKey_Update {
+  permission: Boolean!
+}
+
+type UsersFields_enableAPIKey_Delete {
+  permission: Boolean!
+}
+
+type UsersFields_apiKey {
+  create: UsersFields_apiKey_Create
+  read: UsersFields_apiKey_Read
+  update: UsersFields_apiKey_Update
+  delete: UsersFields_apiKey_Delete
+}
+
+type UsersFields_apiKey_Create {
+  permission: Boolean!
+}
+
+type UsersFields_apiKey_Read {
+  permission: Boolean!
+}
+
+type UsersFields_apiKey_Update {
+  permission: Boolean!
+}
+
+type UsersFields_apiKey_Delete {
   permission: Boolean!
 }
 
@@ -5368,10 +5551,14 @@ type Mutation {
 
 input mutationUserInput {
   fullName: String!
+  avatar: Int
   role: User_role_MutationInput
   updatedAt: String
   createdAt: String
-  email: String!
+  enableAPIKey: Boolean
+  apiKey: String
+  apiKeyIndex: String
+  email: String
   resetPasswordToken: String
   resetPasswordExpiration: String
   salt: String
@@ -5395,9 +5582,13 @@ input mutationUser_SessionsInput {
 
 input mutationUserUpdateInput {
   fullName: String
+  avatar: Int
   role: UserUpdate_role_MutationInput
   updatedAt: String
   createdAt: String
+  enableAPIKey: Boolean
+  apiKey: String
+  apiKeyIndex: String
   email: String
   resetPasswordToken: String
   resetPasswordExpiration: String
