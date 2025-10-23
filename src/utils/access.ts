@@ -62,6 +62,14 @@ export const authenticatedAccess: Access = ({ req }) => {
   return getUserId(req.user) != null
 }
 
+export const authenticatedFieldAccess: FieldAccess = ({ req }) => {
+  if (isAdminUser(req.user)) {
+    return true
+  }
+
+  return getUserId(req.user) != null
+}
+
 const resolveTargetId = (doc: unknown, id: unknown): string | number | null => {
   const docId = doc ? getUserId(doc as AccessUser) : null
 

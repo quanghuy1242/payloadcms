@@ -17,6 +17,7 @@ import {
   adminOrSelfFieldAccess,
   isAdminUser,
   authenticatedAccess,
+  authenticatedFieldAccess,
 } from '../utils/access'
 
 const USER_ROLE_OPTIONS = USER_ROLES.map((role) => ({
@@ -79,7 +80,7 @@ export const Users: CollectionConfig = {
       type: 'upload',
       relationTo: 'media',
       access: {
-        read: () => true,
+        read: authenticatedFieldAccess,
         update: adminOrSelfFieldAccess,
       },
     },
@@ -105,7 +106,7 @@ export const Users: CollectionConfig = {
         description: 'A short bio about yourself.',
       },
       access: {
-        read: () => true,
+        read: authenticatedFieldAccess,
         update: adminOrSelfFieldAccess,
       },
     },
