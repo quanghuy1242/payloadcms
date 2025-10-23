@@ -17,7 +17,9 @@ export const Users: CollectionConfig = {
   admin: {
     useAsTitle: 'email',
   },
-  auth: true,
+  auth: {
+    useAPIKey: true,
+  },
   hooks: {
     beforeValidate: [
       ({ data, originalDoc, operation, req }) => {
