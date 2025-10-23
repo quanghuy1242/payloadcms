@@ -130,6 +130,24 @@ export interface User {
   fullName: string;
   avatar?: (number | null) | Media;
   /**
+   * A short bio about yourself.
+   */
+  bio?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  /**
    * Controls access within the Payload admin. Defaults to User.
    */
   role: 'admin' | 'user';
@@ -317,6 +335,7 @@ export interface PayloadMigration {
 export interface UsersSelect<T extends boolean = true> {
   fullName?: T;
   avatar?: T;
+  bio?: T;
   role?: T;
   updatedAt?: T;
   createdAt?: T;

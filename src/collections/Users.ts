@@ -1,4 +1,12 @@
 import type { CollectionConfig } from 'payload'
+import {
+  lexicalEditor,
+  BoldFeature,
+  ItalicFeature,
+  ParagraphFeature,
+  UnderlineFeature,
+  LinkFeature,
+} from '@payloadcms/richtext-lexical'
 
 import { USER_ROLES, adminOrSelfAccess, adminOrSelfFieldAccess, isAdminUser } from '../utils/access'
 
@@ -60,6 +68,29 @@ export const Users: CollectionConfig = {
       name: 'avatar',
       type: 'upload',
       relationTo: 'media',
+      access: {
+        read: () => true,
+        update: adminOrSelfFieldAccess,
+      },
+    },
+    {
+      name: 'bio',
+      type: 'richText',
+      editor: lexicalEditor({
+        features: ({ rootFeatures }) => {
+          return [
+            ...rootFeatures,
+            ParagraphFeature(),
+            BoldFeature(),
+            ItalicFeature(),
+            UnderlineFeature(),
+            LinkFeature({}),
+          ]
+        },
+      }),
+      admin: {
+        description: 'A short bio about yourself.',
+      },
       access: {
         read: () => true,
         update: adminOrSelfFieldAccess,

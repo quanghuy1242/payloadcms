@@ -119,6 +119,7 @@ type User {
   id: Int!
   fullName: String!
   avatar: Media
+  bio(depth: Int): JSON
   role: User_role
   updatedAt: DateTime
   createdAt: DateTime
@@ -157,6 +158,12 @@ A date-time string at UTC, such as 2007-12-03T10:15:30Z, compliant with the `dat
 """
 scalar DateTime
 
+"""
+The `JSON` scalar type represents JSON values as specified by [ECMA-404](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf).
+"""
+scalar JSON
+  @specifiedBy(url: "http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf")
+
 enum User_role {
   admin
   user
@@ -191,6 +198,7 @@ type Users {
 input User_where {
   fullName: User_fullName_operator
   avatar: User_avatar_operator
+  bio: User_bio_operator
   role: User_role_operator
   updatedAt: User_updatedAt_operator
   createdAt: User_createdAt_operator
@@ -224,11 +232,13 @@ input User_avatar_operator {
   exists: Boolean
 }
 
-"""
-The `JSON` scalar type represents JSON values as specified by [ECMA-404](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf).
-"""
-scalar JSON
-  @specifiedBy(url: "http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf")
+input User_bio_operator {
+  equals: JSON
+  not_equals: JSON
+  like: JSON
+  contains: JSON
+  exists: Boolean
+}
 
 input User_role_operator {
   equals: User_role_Input
@@ -336,6 +346,7 @@ input User_id_operator {
 input User_where_and {
   fullName: User_fullName_operator
   avatar: User_avatar_operator
+  bio: User_bio_operator
   role: User_role_operator
   updatedAt: User_updatedAt_operator
   createdAt: User_createdAt_operator
@@ -353,6 +364,7 @@ input User_where_and {
 input User_where_or {
   fullName: User_fullName_operator
   avatar: User_avatar_operator
+  bio: User_bio_operator
   role: User_role_operator
   updatedAt: User_updatedAt_operator
   createdAt: User_createdAt_operator
@@ -383,6 +395,7 @@ type usersDocAccess {
 type UsersDocAccessFields {
   fullName: UsersDocAccessFields_fullName
   avatar: UsersDocAccessFields_avatar
+  bio: UsersDocAccessFields_bio
   role: UsersDocAccessFields_role
   updatedAt: UsersDocAccessFields_updatedAt
   createdAt: UsersDocAccessFields_createdAt
@@ -435,6 +448,29 @@ type UsersDocAccessFields_avatar_Update {
 }
 
 type UsersDocAccessFields_avatar_Delete {
+  permission: Boolean!
+}
+
+type UsersDocAccessFields_bio {
+  create: UsersDocAccessFields_bio_Create
+  read: UsersDocAccessFields_bio_Read
+  update: UsersDocAccessFields_bio_Update
+  delete: UsersDocAccessFields_bio_Delete
+}
+
+type UsersDocAccessFields_bio_Create {
+  permission: Boolean!
+}
+
+type UsersDocAccessFields_bio_Read {
+  permission: Boolean!
+}
+
+type UsersDocAccessFields_bio_Update {
+  permission: Boolean!
+}
+
+type UsersDocAccessFields_bio_Delete {
   permission: Boolean!
 }
 
@@ -3590,6 +3626,7 @@ type usersAccess {
 type UsersFields {
   fullName: UsersFields_fullName
   avatar: UsersFields_avatar
+  bio: UsersFields_bio
   role: UsersFields_role
   updatedAt: UsersFields_updatedAt
   createdAt: UsersFields_createdAt
@@ -3642,6 +3679,29 @@ type UsersFields_avatar_Update {
 }
 
 type UsersFields_avatar_Delete {
+  permission: Boolean!
+}
+
+type UsersFields_bio {
+  create: UsersFields_bio_Create
+  read: UsersFields_bio_Read
+  update: UsersFields_bio_Update
+  delete: UsersFields_bio_Delete
+}
+
+type UsersFields_bio_Create {
+  permission: Boolean!
+}
+
+type UsersFields_bio_Read {
+  permission: Boolean!
+}
+
+type UsersFields_bio_Update {
+  permission: Boolean!
+}
+
+type UsersFields_bio_Delete {
   permission: Boolean!
 }
 
@@ -5552,6 +5612,7 @@ type Mutation {
 input mutationUserInput {
   fullName: String!
   avatar: Int
+  bio: JSON
   role: User_role_MutationInput
   updatedAt: String
   createdAt: String
@@ -5583,6 +5644,7 @@ input mutationUser_SessionsInput {
 input mutationUserUpdateInput {
   fullName: String
   avatar: Int
+  bio: JSON
   role: UserUpdate_role_MutationInput
   updatedAt: String
   createdAt: String
