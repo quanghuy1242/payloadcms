@@ -299,6 +299,41 @@ export const publishedMediaReadAccess: Access = async ({ req, data, id }) => {
     return true
   }
 
+  // Check if media is used as a user avatar
+  const isReferencedByUsers = await req.payload.find({
+    collection: 'users',
+    depth: 0,
+    limit: 1,
+    overrideAccess: false,
+    where: {
+      avatar: {
+        in: mediaIdVariants,
+      },
+    },
+  })
+
+  if (isReferencedByUsers.docs.length > 0) {
+    return true
+  }
+
+  // Check if media is used in homepage banner
+  try {
+    const homepage = await req.payload.findGlobal({
+      slug: 'homepage',
+      depth: 0,
+      overrideAccess: false,
+    })
+
+    if (homepage?.imageBanner) {
+      const bannerMediaId = normalizeEntityId(homepage.imageBanner)
+      if (bannerMediaId != null && mediaIdVariants.includes(bannerMediaId)) {
+        return true
+      }
+    }
+  } catch (error) {
+    // Homepage might not exist or user doesn't have access, continue
+  }
+
   return {
     owner: {
       equals: userId,
