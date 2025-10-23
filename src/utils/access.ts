@@ -1,4 +1,4 @@
-import type { Access } from 'payload'
+import type { Access, FieldAccess } from 'payload'
 
 import { toNullableString } from './strings'
 
@@ -60,6 +60,54 @@ export const authenticatedAccess: Access = ({ req }) => {
   }
 
   return getUserId(req.user) != null
+}
+
+const resolveTargetId = (doc: unknown, id: unknown): string | number | null => {
+  const docId = doc ? getUserId(doc as AccessUser) : null
+
+  if (docId != null) {
+    return docId
+  }
+
+  if (id == null) {
+    return null
+  }
+
+  return getUserId({ id } as AccessUser)
+}
+
+const isAdminOrSelf = (user: AccessUser | null | undefined, doc: unknown, id: unknown): boolean => {
+  if (isAdminUser(user)) {
+    return true
+  }
+
+  const userId = getUserId(user)
+
+  if (userId == null) {
+    return false
+  }
+
+  const targetId = resolveTargetId(doc, id)
+
+  if (targetId == null) {
+    return false
+  }
+
+  return String(targetId) === String(userId)
+}
+
+export const adminOrSelfAccess: Access = (args) => {
+  const docValue = 'doc' in args ? (args as { doc?: unknown }).doc : undefined
+  const idValue = 'id' in args ? (args as { id?: unknown }).id : undefined
+
+  return isAdminOrSelf(args.req.user as AccessUser | null | undefined, docValue, idValue)
+}
+
+export const adminOrSelfFieldAccess: FieldAccess = (args) => {
+  const docValue = 'doc' in args ? (args as { doc?: unknown }).doc : undefined
+  const idValue = 'id' in args ? (args as { id?: unknown }).id : undefined
+
+  return isAdminOrSelf(args.req.user as AccessUser | null | undefined, docValue, idValue)
 }
 
 export const ownerAccess = (field: string): Access => {

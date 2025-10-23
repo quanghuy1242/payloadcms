@@ -1,6 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
-import { USER_ROLES, isAdminUser } from '../utils/access'
+import { USER_ROLES, adminOrSelfAccess, adminOrSelfFieldAccess, isAdminUser } from '../utils/access'
 
 const USER_ROLE_OPTIONS = USER_ROLES.map((role) => ({
   label: role === 'admin' ? 'Admin' : 'User',
@@ -11,11 +11,15 @@ export const Users: CollectionConfig = {
   slug: 'users',
   access: {
     create: ({ req }) => isAdminUser(req.user),
+    update: adminOrSelfAccess,
+    delete: ({ req }) => isAdminUser(req.user),
   },
   admin: {
     useAsTitle: 'email',
   },
-  auth: true,
+  auth: {
+    useAPIKey: true,
+  },
   hooks: {
     beforeValidate: [
       ({ data, originalDoc, operation, req }) => {
@@ -39,12 +43,28 @@ export const Users: CollectionConfig = {
   },
   fields: [
     {
+      name: 'email',
+      type: 'email',
+      unique: true,
+      required: true,
+      access: {
+        read: adminOrSelfFieldAccess,
+      },
+    },
+    {
       name: 'fullName',
       type: 'text',
       required: true,
     },
-    // Email added by default
-    // Add more fields as needed
+    {
+      name: 'avatar',
+      type: 'upload',
+      relationTo: 'media',
+      access: {
+        read: () => true,
+        update: adminOrSelfFieldAccess,
+      },
+    },
     {
       name: 'role',
       type: 'select',
