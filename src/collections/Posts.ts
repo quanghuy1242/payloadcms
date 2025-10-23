@@ -54,6 +54,10 @@ export const Posts: CollectionConfig = {
       admin: {
         description: 'Automatically generated with a unique suffix on first save.',
         position: 'sidebar',
+        components: {
+          Label: '@/components/admin/posts/SlugFieldLabel',
+          Field: '@/components/admin/posts/SlugField',
+        },
       },
       // @ts-ignore
       validate: validateImmutableSlug,
@@ -61,13 +65,6 @@ export const Posts: CollectionConfig = {
     {
       name: 'excerpt',
       type: 'textarea',
-    },
-    {
-      name: 'date',
-      type: 'date',
-      admin: {
-        description: 'Optional publish date — defaults to the time you hit Publish.',
-      },
     },
     {
       name: 'content',

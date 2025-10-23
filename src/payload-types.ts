@@ -206,10 +206,6 @@ export interface Post {
    */
   slug?: string | null;
   excerpt?: string | null;
-  /**
-   * Optional publish date — defaults to the time you hit Publish.
-   */
-  date?: string | null;
   content: {
     root: {
       type: string;
@@ -384,7 +380,6 @@ export interface PostsSelect<T extends boolean = true> {
   title?: T;
   slug?: T;
   excerpt?: T;
-  date?: T;
   content?: T;
   coverImage?: T;
   author?: T;

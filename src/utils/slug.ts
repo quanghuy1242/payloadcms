@@ -88,43 +88,57 @@ export const createRandomizedSlugHook = (
     const sourceValue = isNonEmptyString(candidateSource) ? candidateSource : undefined
 
     const hasSlug = isNonEmptyString(workingRecord.slug)
+    const isPublished = (workingRecord._status ?? originalRecord._status) === 'published'
 
     if (operation === 'create') {
       if (!hasSlug) {
         workingRecord.slug = buildRandomSlug(sourceValue ?? workingRecord.slug, randomLength)
       }
+      // If user provided a slug on create, keep it as-is (they generated it via the button)
     }
 
     if (operation === 'update') {
       const originalSlug = isNonEmptyString(originalRecord.slug) ? originalRecord.slug : undefined
+      const wasPublished = originalRecord._status === 'published'
 
-      if (originalSlug) {
+      // Once published, slug is immutable
+      if (wasPublished && originalSlug) {
         workingRecord.slug = originalSlug
-      } else if (!hasSlug) {
+      } else if (!hasSlug && !isPublished) {
+        // Only auto-generate if no slug provided and still draft
         workingRecord.slug = buildRandomSlug(sourceValue ?? workingRecord.slug, randomLength)
       }
+      // Otherwise keep the user-provided slug (allow edits while draft)
     }
 
     return workingData
   }
 }
 
-type ValidateArgs = { operation?: string; previousValue?: { slug?: string | null } | null }
+type ValidateArgs = {
+  operation?: string
+  previousValue?: { slug?: string | null; _status?: string | null } | null
+  data?: { _status?: string | null }
+}
 
-export const validateImmutableSlug = (
-  value: unknown,
-  { operation, previousValue }: ValidateArgs,
-) => {
+export const validateImmutableSlug = (value: unknown, args: ValidateArgs) => {
+  const { operation, previousValue, data } = args
+
   if (!isNonEmptyString(value)) {
     return 'Slug is required.'
   }
 
+  const wasPublished = previousValue?._status === 'published'
+  const previousSlug = previousValue?.slug
+
+  // Only prevent slug changes if the post was previously published
   if (
     operation === 'update' &&
-    isNonEmptyString(previousValue?.slug) &&
-    value !== previousValue.slug
+    wasPublished &&
+    isNonEmptyString(previousSlug) &&
+    value !== previousSlug
   ) {
-    return 'Slug cannot be changed after creation.'
+    return 'Slug cannot be changed after publishing.'
   }
 
   return true
