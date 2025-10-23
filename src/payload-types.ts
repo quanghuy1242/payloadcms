@@ -128,6 +128,7 @@ export interface UserAuthOperations {
 export interface User {
   id: number;
   fullName: string;
+  avatar?: (number | null) | Media;
   /**
    * Controls access within the Payload admin. Defaults to User.
    */
@@ -312,6 +313,7 @@ export interface PayloadMigration {
  */
 export interface UsersSelect<T extends boolean = true> {
   fullName?: T;
+  avatar?: T;
   role?: T;
   updatedAt?: T;
   createdAt?: T;

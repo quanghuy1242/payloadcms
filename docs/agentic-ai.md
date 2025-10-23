@@ -19,7 +19,7 @@ Our agentic coding workflow relies on a consistent, reusable utilities layer so 
 | `src/utils/numbers.ts` | Numeric safety net (`isFiniteNumber`, `clampNumber`, `sanitizeDimension`, `sanitizeQuality`). | Media sanitization, storage configuration. |
 | `src/utils/identifiers.ts` | Deduplicates arbitrary IDs into canonical strings. | Collection-level lookups, seeds, migrations. |
 | `src/utils/slug.ts` | Immutable slug formatting plus randomized variants for collision-free posts. | Collections that need stable identifiers (Posts, Categories). |
-| `src/utils/access.ts` | Role-aware access primitives (`authenticatedAccess`, `ownerAccess`, `postsReadAccess`, `publishedMediaReadAccess`, `adminOrEmailContains`) plus shared-media handling. | Collections, globals, field-level guards, ownership hooks. |
+| `src/utils/access.ts` | Role-aware access primitives (`authenticatedAccess`, `ownerAccess`, `adminOrSelfAccess`, `adminOrSelfFieldAccess`, `postsReadAccess`, `publishedMediaReadAccess`, `adminOrEmailContains`) plus shared-media handling. | Collections, globals, field-level guards, ownership hooks. |
 | `src/utils/ownership.ts` | Hooks that enforce relationship ownership (e.g., auto-assigning `author`, `owner`, `createdBy`). | Collections needing per-user ownership guarantees. |
 
 These files replace the legacy `src/collections/utils` folder so future helpers are available outside collection contexts.
@@ -37,7 +37,7 @@ These files replace the legacy `src/collections/utils` folder so future helpers 
 
 - **Planner:** When breaking down a task, identify which utilities will be reused and note any needed extensions.
 - **Architect:** Ensure new features integrate via existing helpers instead of redefining validation, parsing, or access rules.
-- **Implementer:** Import from the relevant utility module; do not inline string/number sanitization or slug logic.
+- **Implementer:** Import from the relevant utility module; do not inline string/number sanitization, slug logic, or access control (use helpers like `adminOrSelfFieldAccess`).
 - **Reviewer:** Reject patches that duplicate functionality or bypass existing helpers without justification.
 - **Integrator:** When wiring configuration or storage backends, lean on shared utilities so environment parsing and error handling stay consistent.
 - **Operator:** Feed runtime learnings (unexpected inputs, edge cases) back into utilities to strengthen the shared foundation.
