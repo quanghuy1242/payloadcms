@@ -1,11 +1,14 @@
 import type { CollectionConfig } from 'payload'
 import {
   lexicalEditor,
+  FixedToolbarFeature,
+  HeadingFeature,
+  HorizontalRuleFeature,
+  InlineToolbarFeature,
   BoldFeature,
   ItalicFeature,
   ParagraphFeature,
   UnderlineFeature,
-  LinkFeature,
 } from '@payloadcms/richtext-lexical'
 
 import { USER_ROLES, adminOrSelfAccess, adminOrSelfFieldAccess, isAdminUser } from '../utils/access'
@@ -81,10 +84,13 @@ export const Users: CollectionConfig = {
           return [
             ...rootFeatures,
             ParagraphFeature(),
+            UnderlineFeature(),
             BoldFeature(),
             ItalicFeature(),
-            UnderlineFeature(),
-            LinkFeature({}),
+            HeadingFeature({ enabledHeadingSizes: ['h1', 'h2', 'h3', 'h4'] }),
+            FixedToolbarFeature(),
+            InlineToolbarFeature(),
+            HorizontalRuleFeature(),
           ]
         },
       }),
