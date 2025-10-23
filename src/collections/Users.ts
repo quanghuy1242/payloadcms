@@ -22,6 +22,7 @@ export const Users: CollectionConfig = {
   slug: 'users',
   access: {
     create: ({ req }) => isAdminUser(req.user),
+    read: adminOrSelfAccess,
     update: adminOrSelfAccess,
     delete: ({ req }) => isAdminUser(req.user),
   },

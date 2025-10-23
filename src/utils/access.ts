@@ -128,12 +128,9 @@ export const ownerAccess = (field: string): Access => {
 
 // @ts-ignore
 export const postsReadAccess: Access = ({ req }) => {
+  // No authentication = no access
   if (!req.user) {
-    return {
-      _status: {
-        equals: 'published',
-      },
-    }
+    return false
   }
 
   if (isAdminUser(req.user)) {
@@ -146,6 +143,7 @@ export const postsReadAccess: Access = ({ req }) => {
     return false
   }
 
+  // Authenticated users can read published posts OR their own drafts
   return {
     or: [
       {
@@ -184,13 +182,24 @@ export const categoriesReadAccess: Access = ({ req }) => {
   }
 }
 
-// Allow public reads only when the asset is tied to a published post
+// Allow authenticated users to read media tied to published posts or their own media
 export const publishedMediaReadAccess: Access = async ({ req, data, id }) => {
+  // No authentication = no access
+  if (!req.user) {
+    return false
+  }
+
   if (isAdminUser(req.user)) {
     return true
   }
 
   const userId = getUserId(req.user)
+
+  // Must be authenticated
+  if (userId == null) {
+    return false
+  }
+
   if (data == null && id == null) {
     return true
   }
@@ -211,19 +220,17 @@ export const publishedMediaReadAccess: Access = async ({ req, data, id }) => {
       : null)
 
   if (!mediaRecord) {
-    return userId != null
-      ? {
-          owner: {
-            equals: userId,
-          },
-        }
-      : false
+    return {
+      owner: {
+        equals: userId,
+      },
+    }
   }
 
   const mediaId = normalizeEntityId(mediaRecord.id ?? candidateId)
   const ownerId = normalizeEntityId(mediaRecord.owner)
 
-  if (userId != null && ownerId != null && String(ownerId) === String(userId)) {
+  if (ownerId != null && String(ownerId) === String(userId)) {
     return true
   }
 
@@ -292,15 +299,11 @@ export const publishedMediaReadAccess: Access = async ({ req, data, id }) => {
     return true
   }
 
-  if (userId != null) {
-    return {
-      owner: {
-        equals: userId,
-      },
-    }
+  return {
+    owner: {
+      equals: userId,
+    },
   }
-
-  return false
 }
 
 /**
