@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.913.0",
+    "@libsql/client": "^0.13.0",
     "@payloadcms/db-sqlite": "3.60.0",
     "@payloadcms/next": "3.60.0",
     "@payloadcms/payload-cloud": "3.60.0",
@@ -28,7 +29,6 @@
     "@payloadcms/richtext-lexical": "3.60.0",
     "@payloadcms/storage-r2": "3.60.0",
     "@payloadcms/ui": "3.60.0",
-    "@libsql/client": "^0.13.0",
     "cross-env": "^7.0.3",
     "graphql": "^16.11.0",
     "libsql": "^0.5.22",
@@ -40,6 +40,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
+    "@payloadcms/graphql": "^3.60.0",
     "@playwright/test": "1.54.1",
     "@testing-library/react": "16.3.0",
     "@types/node": "^22.18.12",
