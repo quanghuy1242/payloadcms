@@ -99,5 +99,6 @@ export default buildConfig({
     disablePlaygroundInProduction: false,
     schemaOutputFile: path.resolve(dirname, '../schema.graphql'),
     queries,
+    validationRules: () => [], // Disable all validation rules including introspection blocking
   },
 })
