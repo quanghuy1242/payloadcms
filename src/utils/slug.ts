@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto'
 import type { CollectionBeforeValidateHook } from 'payload'
+import slugify from 'slugify'
 
 import { isNonEmptyString, toNullableString } from './strings'
 
@@ -10,11 +11,12 @@ export const formatSlug = (value: unknown): string => {
     return ''
   }
 
-  return normalized
-    .toLowerCase()
-    .replace(/[^a-z0-9_-]+/g, '-')
-    .replace(/-{2,}/g, '-')
-    .replace(/^-+|-+$/g, '')
+  return slugify(normalized, {
+    lower: true,
+    strict: true,
+    locale: 'vi', // Vietnamese locale support
+    trim: true,
+  })
 }
 
 const generateRandomSegment = (length: number): string => {

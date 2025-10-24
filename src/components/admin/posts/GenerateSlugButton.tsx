@@ -3,6 +3,7 @@
 import React from 'react'
 import { TextFieldClientComponent } from 'payload'
 import { useFormFields, useField, Button, TextField } from '@payloadcms/ui'
+import slugify from 'slugify'
 
 const GenerateSlugButton: TextFieldClientComponent = (props) => {
   const { path } = props
@@ -22,11 +23,12 @@ const GenerateSlugButton: TextFieldClientComponent = (props) => {
       return
     }
 
-    const base = title.value
-      .toLowerCase()
-      .replace(/[^a-z0-9_-]+/g, '-')
-      .replace(/-{2,}/g, '-')
-      .replace(/^-+|-+$/g, '')
+    const base = slugify(title.value, {
+      lower: true,
+      strict: true,
+      locale: 'vi', // Vietnamese locale support
+      trim: true,
+    })
 
     const suffix = generateRandomSuffix(12)
     const formatted = base ? `${base}-${suffix}` : suffix
