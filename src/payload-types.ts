@@ -179,6 +179,10 @@ export interface User {
 export interface Media {
   id: number;
   alt: string;
+  /**
+   * Base64 encoded 20px blur placeholder for progressive image loading
+   */
+  lowResUrl?: string | null;
   owner: number | User;
   updatedAt: string;
   createdAt: string;
@@ -359,6 +363,7 @@ export interface UsersSelect<T extends boolean = true> {
  */
 export interface MediaSelect<T extends boolean = true> {
   alt?: T;
+  lowResUrl?: T;
   owner?: T;
   updatedAt?: T;
   createdAt?: T;
