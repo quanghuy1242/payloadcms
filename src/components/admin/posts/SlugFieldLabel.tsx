@@ -3,6 +3,7 @@
 import React from 'react'
 import { TextFieldLabelClientComponent } from 'payload'
 import { FieldLabel, useFormFields, useField } from '@payloadcms/ui'
+import slugify from 'slugify'
 
 const SlugFieldLabel: TextFieldLabelClientComponent = ({ field, path }) => {
   const title = useFormFields(([fields]) => fields.title as { value: string })
@@ -24,11 +25,12 @@ const SlugFieldLabel: TextFieldLabelClientComponent = ({ field, path }) => {
       return
     }
 
-    const base = title.value
-      .toLowerCase()
-      .replace(/[^a-z0-9_-]+/g, '-')
-      .replace(/-{2,}/g, '-')
-      .replace(/^-+|-+$/g, '')
+    const base = slugify(title.value, {
+      lower: true,
+      strict: true,
+      locale: 'vi', // Vietnamese locale support
+      trim: true,
+    })
 
     const suffix = generateRandomSuffix(12)
     const formatted = base ? `${base}-${suffix}` : suffix
