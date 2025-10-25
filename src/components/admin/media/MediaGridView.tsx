@@ -1,8 +1,9 @@
 'use client'
 
 import React from 'react'
-import { useListQuery, useListDrawerContext } from '@payloadcms/ui'
+import { useListQuery, useListDrawerContext, useSelection } from '@payloadcms/ui'
 import Link from 'next/link'
+import { CheckboxInput } from '@payloadcms/ui'
 
 interface MediaDoc {
   id: string
@@ -20,6 +21,7 @@ interface MediaDoc {
 export const MediaGridView: React.FC = () => {
   const { data } = useListQuery()
   const { isInDrawer, onSelect } = useListDrawerContext()
+  const { selected, setSelection } = useSelection()
 
   if (!data?.docs || data.docs.length === 0) {
     return null
@@ -49,6 +51,16 @@ export const MediaGridView: React.FC = () => {
             const imageContent = (
               <>
                 <div className="media-grid-image-container">
+                  {/* Selection Checkbox - Only show when NOT in drawer mode */}
+                  {!isInDrawer && (
+                    <div className="media-grid-checkbox">
+                      <CheckboxInput
+                        checked={Boolean(selected.get(doc.id))}
+                        onToggle={() => setSelection(doc.id)}
+                        aria-label={`Select ${doc.alt || doc.filename}`}
+                      />
+                    </div>
+                  )}
                   {placeholderUrl && (
                     <img
                       src={placeholderUrl}
@@ -186,6 +198,21 @@ export const MediaGridView: React.FC = () => {
           padding-bottom: 75%;
           background: var(--theme-elevation-100);
           overflow: hidden;
+        }
+
+        .media-grid-checkbox {
+          position: absolute;
+          top: 0.5rem;
+          left: 0.5rem;
+          z-index: 10;
+          background: rgba(255, 255, 255, 0.9);
+          border-radius: 4px;
+          padding: 0.25rem;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .media-grid-checkbox :global(.checkbox-input) {
+          margin: 0;
         }
 
         .media-grid-placeholder {
