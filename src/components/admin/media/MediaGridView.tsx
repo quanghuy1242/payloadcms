@@ -294,18 +294,10 @@ export const MediaGridView: React.FC = () => {
           left: 0.5rem;
           z-index: 20;
           pointer-events: all;
-          background: rgba(255, 255, 255, 0.95);
-          border-radius: 4px;
           padding: 4px;
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-          cursor: pointer;
-          transition: all 0.2s ease;
-          backdrop-filter: blur(4px);
         }
 
         .media-grid-checkbox:hover {
-          background: rgba(255, 255, 255, 1);
-          box-shadow: 0 3px 12px rgba(0, 0, 0, 0.25);
           transform: scale(1.05);
         }
 
