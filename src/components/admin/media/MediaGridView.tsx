@@ -96,6 +96,17 @@ export const MediaGridView: React.FC = () => {
 
             return (
               <div key={doc.id} className="media-grid-item">
+                {/* Selection Checkbox - Only show when NOT in drawer mode */}
+                {!isInDrawer && (
+                  <div className="media-grid-checkbox">
+                    <CheckboxInput
+                      checked={Boolean(selected.get(doc.id))}
+                      onToggle={() => setSelection(doc.id)}
+                      aria-label={`Select ${doc.alt || doc.filename}`}
+                    />
+                  </div>
+                )}
+
                 {isInDrawer ? (
                   <button
                     type="button"
@@ -180,6 +191,8 @@ export const MediaGridView: React.FC = () => {
           display: block;
           text-decoration: none;
           color: inherit;
+          position: relative;
+          z-index: 1;
         }
 
         .media-grid-button {
@@ -204,15 +217,26 @@ export const MediaGridView: React.FC = () => {
           position: absolute;
           top: 0.5rem;
           left: 0.5rem;
-          z-index: 10;
-          background: rgba(255, 255, 255, 0.9);
-          border-radius: 4px;
-          padding: 0.25rem;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+          z-index: 20;
+          pointer-events: all;
+          background: rgba(255, 255, 255, 0.95);
+          border-radius: 6px;
+          padding: 6px;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+          cursor: pointer;
         }
 
         .media-grid-checkbox :global(.checkbox-input) {
           margin: 0;
+          cursor: pointer;
+        }
+
+        .media-grid-checkbox :global(label) {
+          margin: 0;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
         }
 
         .media-grid-placeholder {
