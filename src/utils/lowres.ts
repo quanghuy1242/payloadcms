@@ -135,3 +135,74 @@ export const getStorageKey = (file: FileData): string | null => {
 
   return file.filename
 }
+
+/**
+ * Responsive image variant configuration
+ */
+export type ResponsiveVariant = {
+  width: number
+  height: number
+  quality: number
+  fit: string
+  format: string
+}
+
+export const RESPONSIVE_VARIANTS: ResponsiveVariant[] = [
+  { width: 480, height: 240, quality: 75, fit: 'cover', format: 'webp' },
+  { width: 640, height: 320, quality: 75, fit: 'cover', format: 'webp' },
+  { width: 750, height: 375, quality: 75, fit: 'cover', format: 'webp' },
+  { width: 828, height: 414, quality: 75, fit: 'cover', format: 'webp' },
+  { width: 1080, height: 540, quality: 75, fit: 'cover', format: 'webp' },
+  { width: 1200, height: 600, quality: 75, fit: 'cover', format: 'webp' },
+]
+
+/**
+ * Generates a transformation URL for a specific responsive variant
+ */
+export const generateResponsiveVariantUrl = (
+  fileUrl: string,
+  variant: ResponsiveVariant,
+): string => {
+  const url = new URL(fileUrl)
+  const baseUrl = `${url.protocol}//${url.host}`
+  const filename = url.pathname
+
+  const transformParams = `width=${variant.width},height=${variant.height},quality=${variant.quality},fit=${variant.fit},format=${variant.format}`
+
+  return `${baseUrl}/cdn-cgi/image/${transformParams}${filename}`
+}
+
+/**
+ * Generates a filename for a responsive variant
+ */
+export const getResponsiveVariantFilename = (
+  originalFilename: string,
+  variant: ResponsiveVariant,
+): string => {
+  const lastDotIndex = originalFilename.lastIndexOf('.')
+  const name = lastDotIndex === -1 ? originalFilename : originalFilename.slice(0, lastDotIndex)
+
+  return `${name}-${variant.width}x${variant.height}.${variant.format}`
+}
+
+/**
+ * Fetches a responsive variant image from R2 transformation URL
+ */
+export const fetchResponsiveVariant = async (variantUrl: string): Promise<Buffer> => {
+  const headers = {
+    'User-Agent':
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+    Accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+  }
+
+  const response = await fetch(variantUrl, { headers })
+
+  if (!response.ok) {
+    throw new Error(
+      `Failed to fetch responsive variant (${response.status} ${response.statusText}): ${variantUrl}`,
+    )
+  }
+
+  const arrayBuffer = await response.arrayBuffer()
+  return Buffer.from(arrayBuffer)
+}

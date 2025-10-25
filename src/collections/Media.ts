@@ -5,10 +5,14 @@ import { enforceOwnershipHook } from '../utils/ownership'
 import {
   fetchLowResImageAsBase64,
   fetchOptimizedImage,
+  fetchResponsiveVariant,
   generateLowResUrl,
   generateOptimizedUrl,
+  generateResponsiveVariantUrl,
   getOptimizedFilename,
+  getResponsiveVariantFilename,
   getStorageKey,
+  RESPONSIVE_VARIANTS,
 } from '../utils/lowres'
 import { createR2BucketFromEnv } from '../lib/r2Bucket'
 
@@ -60,6 +64,29 @@ export const Media: CollectionConfig = {
           } catch (error) {
             console.error('Failed to generate optimized image:', error)
           }
+
+          // Generate 6 responsive variants
+          for (const variant of RESPONSIVE_VARIANTS) {
+            try {
+              const variantTransformUrl = generateResponsiveVariantUrl(doc.url, variant)
+              const variantBuffer = await fetchResponsiveVariant(variantTransformUrl)
+              const variantFilename = getResponsiveVariantFilename(doc.filename, variant)
+
+              // Upload the variant to R2
+              const storageKey = getStorageKey(doc)
+              const variantKey = storageKey
+                ? getResponsiveVariantFilename(storageKey, variant)
+                : variantFilename
+
+              await r2Bucket.put(variantKey, variantBuffer)
+
+              console.log(
+                `Generated responsive variant: ${variant.width}x${variant.height} (${Math.round(variantBuffer.length / 1024)} KB)`,
+              )
+            } catch (error) {
+              console.error(`Failed to generate ${variant.width}x${variant.height} variant:`, error)
+            }
+          }
         }
 
         // Update the document with both URLs if we have any
@@ -82,25 +109,38 @@ export const Media: CollectionConfig = {
     ],
     afterDelete: [
       async ({ doc }) => {
-        // Clean up the optimized file from R2
-        if (!doc.optimizedUrl) {
-          return
-        }
-
         const r2Bucket = createR2BucketFromEnv()
         if (!r2Bucket) {
           return
         }
 
-        try {
-          const storageKey = getStorageKey(doc)
+        const storageKey = getStorageKey(doc)
+        const keysToDelete: string[] = []
+
+        // Clean up the optimized file
+        if (doc.optimizedUrl) {
           const optimizedKey = storageKey
             ? getOptimizedFilename(storageKey)
             : getOptimizedFilename(doc.filename)
+          keysToDelete.push(optimizedKey)
+        }
 
-          await r2Bucket.delete(optimizedKey)
-        } catch (error) {
-          console.error('Failed to delete optimized image:', error)
+        // Clean up all 6 responsive variants
+        for (const variant of RESPONSIVE_VARIANTS) {
+          const variantKey = storageKey
+            ? getResponsiveVariantFilename(storageKey, variant)
+            : getResponsiveVariantFilename(doc.filename, variant)
+          keysToDelete.push(variantKey)
+        }
+
+        // Delete all variants in one call
+        if (keysToDelete.length > 0) {
+          try {
+            await r2Bucket.delete(keysToDelete)
+            console.log(`Deleted ${keysToDelete.length} image variants for ${doc.filename}`)
+          } catch (error) {
+            console.error('Failed to delete image variants:', error)
+          }
         }
       },
     ],
