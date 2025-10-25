@@ -51,16 +51,6 @@ export const MediaGridView: React.FC = () => {
             const imageContent = (
               <>
                 <div className="media-grid-image-container">
-                  {/* Selection Checkbox - Only show when NOT in drawer mode */}
-                  {!isInDrawer && (
-                    <div className="media-grid-checkbox">
-                      <CheckboxInput
-                        checked={Boolean(selected.get(doc.id))}
-                        onToggle={() => setSelection(doc.id)}
-                        aria-label={`Select ${doc.alt || doc.filename}`}
-                      />
-                    </div>
-                  )}
                   {placeholderUrl && (
                     <img
                       src={placeholderUrl}
