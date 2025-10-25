@@ -57,12 +57,16 @@ export const MediaGridView: React.FC = () => {
     (node: HTMLDivElement | null) => {
       if (node && isMounted) {
         const id = node.getAttribute('data-id')
+        console.log('itemRef called for id:', id)
 
-        // Immediately mark as visible if already in viewport
-        const rect = node.getBoundingClientRect()
-        const isInViewport = rect.top < window.innerHeight && rect.bottom > 0
-        if (isInViewport && id) {
-          setVisibleItems((prev) => new Set(prev).add(id))
+        if (id) {
+          // Immediately mark as visible
+          setVisibleItems((prev) => {
+            const newSet = new Set(prev)
+            newSet.add(id)
+            console.log('Added to visibleItems:', id, 'Total visible:', newSet.size)
+            return newSet
+          })
         }
 
         // Also observe for future visibility changes
@@ -72,9 +76,7 @@ export const MediaGridView: React.FC = () => {
       }
     },
     [isMounted],
-  )
-
-  // Don't render anything if no data yet
+  ) // Don't render anything if no data yet
   if (!data?.docs || data.docs.length === 0) {
     return null
   }
@@ -335,7 +337,7 @@ export const MediaGridView: React.FC = () => {
         }
 
         /* Hide the default table view below the grid */
-        :global(.payload-list-table) {
+        :global(.collection-list__tables) {
           display: none !important;
         }
       `}</style>
