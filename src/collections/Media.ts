@@ -18,6 +18,19 @@ import { createR2BucketFromEnv } from '../lib/r2Bucket'
 
 export const Media: CollectionConfig = {
   slug: 'media',
+  admin: {
+    components: {
+      views: {
+        list: {
+          Component: '/components/admin/media/MediaGridView',
+        },
+      },
+    },
+    pagination: {
+      defaultLimit: 50, // Load more items per page for grid view
+      limits: [24, 50, 100, 200],
+    },
+  },
   access: {
     create: authenticatedAccess,
     read: publishedMediaReadAccess,
