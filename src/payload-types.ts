@@ -183,6 +183,10 @@ export interface Media {
    * Base64 encoded 20px blur placeholder for progressive image loading
    */
   lowResUrl?: string | null;
+  /**
+   * 1920px WebP optimized version for web delivery
+   */
+  optimizedUrl?: string | null;
   owner: number | User;
   updatedAt: string;
   createdAt: string;
@@ -364,6 +368,7 @@ export interface UsersSelect<T extends boolean = true> {
 export interface MediaSelect<T extends boolean = true> {
   alt?: T;
   lowResUrl?: T;
+  optimizedUrl?: T;
   owner?: T;
   updatedAt?: T;
   createdAt?: T;
