@@ -122,8 +122,8 @@ const backfillLowRes = async (options: CliOptions) => {
             await r2Bucket.put(optimizedKey, optimizedBuffer)
           }
 
-          const sizeMB = Math.round((optimizedBuffer.length / 1024 / 1024) * 100) / 100
-          console.log(`  ✓ Optimized generated (${sizeMB} MB)`)
+          const sizeKB = Math.round((optimizedBuffer.length / 1024) * 100) / 100
+          console.log(`  ✓ Optimized generated (${sizeKB} KB)`)
           updates.optimizedUrl = media.url.replace(media.filename, optimizedFilename)
         } catch (error) {
           console.error(

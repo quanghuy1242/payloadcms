@@ -144,6 +144,6 @@ export const Media: CollectionConfig = {
     mimeTypes: ['image/png', 'image/jpeg', 'image/jpg'],
     disableLocalStorage: true,
     crop: false, // Disable image editing/cropping in upload dialog
-    focalPoint: false, // Disable focal point selection
+    focalPoint: true, // Keep focal point data (but user won't see the UI since crop is disabled)
   },
 }

@@ -25,7 +25,13 @@ export const generateLowResUrl = (fileUrl: string): string => {
  * Fetches the low-res image from R2 transformation URL and returns as base64 data URL.
  */
 export const fetchLowResImageAsBase64 = async (lowResUrl: string): Promise<string> => {
-  const response = await fetch(lowResUrl)
+  const headers = {
+    'User-Agent':
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+    Accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+  }
+
+  const response = await fetch(lowResUrl, { headers })
 
   if (!response.ok) {
     throw new Error(
@@ -83,7 +89,13 @@ export const generateOptimizedUrl = (fileUrl: string): string => {
  * Fetches the optimized image from R2 transformation URL and returns as Buffer.
  */
 export const fetchOptimizedImage = async (optimizedUrl: string): Promise<Buffer> => {
-  const response = await fetch(optimizedUrl)
+  const headers = {
+    'User-Agent':
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+    Accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+  }
+
+  const response = await fetch(optimizedUrl, { headers })
 
   if (!response.ok) {
     throw new Error(
