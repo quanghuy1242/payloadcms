@@ -2,6 +2,7 @@
 
 import React from 'react'
 import { useListQuery } from '@payloadcms/ui'
+import Link from 'next/link'
 
 interface MediaDoc {
   id: string
@@ -35,7 +36,7 @@ export const MediaGridView: React.FC = () => {
 
             return (
               <div key={doc.id} className="media-grid-item">
-                <a href={`/admin/collections/media/${doc.id}`} className="media-grid-link">
+                <Link href={`/admin/collections/media/${doc.id}`} className="media-grid-link">
                   <div className="media-grid-image-container">
                     {placeholderUrl && (
                       <img
@@ -67,7 +68,7 @@ export const MediaGridView: React.FC = () => {
                       </p>
                     )}
                   </div>
-                </a>
+                </Link>
               </div>
             )
           })}
