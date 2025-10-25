@@ -37,57 +37,80 @@ export const Media: CollectionConfig = {
         const payload = req.payload
         const updates: { lowResUrl?: string; optimizedUrl?: string } = {}
 
+        // Fetch all variants in parallel for maximum speed
+        const tasks: Promise<void>[] = []
+
         // Generate low-res base64 placeholder
-        try {
-          const transformUrl = generateLowResUrl(doc.url)
-          const base64DataUrl = await fetchLowResImageAsBase64(transformUrl)
-          updates.lowResUrl = base64DataUrl
-        } catch (error) {
-          console.error('Failed to generate low-res image:', error)
-        }
+        tasks.push(
+          (async () => {
+            try {
+              const transformUrl = generateLowResUrl(doc.url)
+              const base64DataUrl = await fetchLowResImageAsBase64(transformUrl)
+              updates.lowResUrl = base64DataUrl
+            } catch (error) {
+              console.error('Failed to generate low-res image:', error)
+            }
+          })(),
+        )
 
         // Generate optimized 1920px WebP version
         if (r2Bucket) {
-          try {
-            const optimizedTransformUrl = generateOptimizedUrl(doc.url)
-            const optimizedBuffer = await fetchOptimizedImage(optimizedTransformUrl)
-            const optimizedFilename = getOptimizedFilename(doc.filename)
+          tasks.push(
+            (async () => {
+              try {
+                const optimizedTransformUrl = generateOptimizedUrl(doc.url)
+                const optimizedBuffer = await fetchOptimizedImage(optimizedTransformUrl)
+                const optimizedFilename = getOptimizedFilename(doc.filename)
 
-            // Upload the optimized image to R2
-            const storageKey = getStorageKey(doc)
-            const optimizedKey = storageKey ? getOptimizedFilename(storageKey) : optimizedFilename
+                // Upload the optimized image to R2
+                const storageKey = getStorageKey(doc)
+                const optimizedKey = storageKey
+                  ? getOptimizedFilename(storageKey)
+                  : optimizedFilename
 
-            await r2Bucket.put(optimizedKey, optimizedBuffer)
+                await r2Bucket.put(optimizedKey, optimizedBuffer)
 
-            // Generate the public URL for the optimized image
-            updates.optimizedUrl = doc.url.replace(doc.filename, optimizedFilename)
-          } catch (error) {
-            console.error('Failed to generate optimized image:', error)
-          }
+                // Generate the public URL for the optimized image
+                updates.optimizedUrl = doc.url.replace(doc.filename, optimizedFilename)
+              } catch (error) {
+                console.error('Failed to generate optimized image:', error)
+              }
+            })(),
+          )
 
-          // Generate 6 responsive variants
+          // Generate 6 responsive variants in parallel
           for (const variant of RESPONSIVE_VARIANTS) {
-            try {
-              const variantTransformUrl = generateResponsiveVariantUrl(doc.url, variant)
-              const variantBuffer = await fetchResponsiveVariant(variantTransformUrl)
-              const variantFilename = getResponsiveVariantFilename(doc.filename, variant)
+            tasks.push(
+              (async () => {
+                try {
+                  const variantTransformUrl = generateResponsiveVariantUrl(doc.url, variant)
+                  const variantBuffer = await fetchResponsiveVariant(variantTransformUrl)
+                  const variantFilename = getResponsiveVariantFilename(doc.filename, variant)
 
-              // Upload the variant to R2
-              const storageKey = getStorageKey(doc)
-              const variantKey = storageKey
-                ? getResponsiveVariantFilename(storageKey, variant)
-                : variantFilename
+                  // Upload the variant to R2
+                  const storageKey = getStorageKey(doc)
+                  const variantKey = storageKey
+                    ? getResponsiveVariantFilename(storageKey, variant)
+                    : variantFilename
 
-              await r2Bucket.put(variantKey, variantBuffer)
+                  await r2Bucket.put(variantKey, variantBuffer)
 
-              console.log(
-                `Generated responsive variant: ${variant.width}x${variant.height} (${Math.round(variantBuffer.length / 1024)} KB)`,
-              )
-            } catch (error) {
-              console.error(`Failed to generate ${variant.width}x${variant.height} variant:`, error)
-            }
+                  console.log(
+                    `Generated responsive variant: ${variant.width}x${variant.height} (${Math.round(variantBuffer.length / 1024)} KB)`,
+                  )
+                } catch (error) {
+                  console.error(
+                    `Failed to generate ${variant.width}x${variant.height} variant:`,
+                    error,
+                  )
+                }
+              })(),
+            )
           }
         }
+
+        // Wait for all tasks to complete in parallel (8 total: low-res + optimized + 6 variants)
+        await Promise.allSettled(tasks)
 
         // Update the document with both URLs if we have any
         if (Object.keys(updates).length > 0) {
