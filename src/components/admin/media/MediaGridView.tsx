@@ -20,9 +20,17 @@ export const MediaGridView: React.FC = () => {
   const { data } = useListQuery()
   const [visibleItems, setVisibleItems] = useState<Set<string>>(new Set())
   const observerRef = useRef<IntersectionObserver | null>(null)
+  const [isMounted, setIsMounted] = useState(false)
+
+  // Handle client-side mounting
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
   // Set up Intersection Observer for lazy loading
   useEffect(() => {
+    if (!isMounted) return
+
     observerRef.current = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
@@ -43,13 +51,28 @@ export const MediaGridView: React.FC = () => {
     return () => {
       observerRef.current?.disconnect()
     }
-  }, [])
+  }, [isMounted])
 
-  const itemRef = useCallback((node: HTMLDivElement | null) => {
-    if (node && observerRef.current) {
-      observerRef.current.observe(node)
-    }
-  }, [])
+  const itemRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      if (node && isMounted) {
+        const id = node.getAttribute('data-id')
+
+        // Immediately mark as visible if already in viewport
+        const rect = node.getBoundingClientRect()
+        const isInViewport = rect.top < window.innerHeight && rect.bottom > 0
+        if (isInViewport && id) {
+          setVisibleItems((prev) => new Set(prev).add(id))
+        }
+
+        // Also observe for future visibility changes
+        if (observerRef.current) {
+          observerRef.current.observe(node)
+        }
+      }
+    },
+    [isMounted],
+  )
 
   // Don't render anything if no data yet
   if (!data?.docs || data.docs.length === 0) {
@@ -59,59 +82,94 @@ export const MediaGridView: React.FC = () => {
   const docs = data.docs as MediaDoc[]
 
   console.log('MediaGridView - First doc:', docs[0])
+  console.log('MediaGridView - Sample URLs:', {
+    url: docs[0]?.url,
+    optimizedUrl: docs[0]?.optimizedUrl,
+    lowResUrl: docs[0]?.lowResUrl,
+  })
+
+  // Show skeleton on server-side render, load images on client
+  if (!isMounted) {
+    return (
+      <div className="media-grid-wrapper">
+        <div className="media-grid">
+          {docs.map((doc) => (
+            <div key={doc.id} className="media-grid-item">
+              <div className="media-grid-image-container">
+                <div className="media-grid-skeleton" />
+              </div>
+              <div className="media-grid-info">
+                <p className="media-grid-alt">{doc.alt || doc.filename}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <div className="media-grid-wrapper">
-      <div className="media-grid">
-        {docs.map((doc) => {
-          const isVisible = visibleItems.has(doc.id)
-          const thumbnailUrl = doc.optimizedUrl || doc.url
-          const placeholderUrl = doc.lowResUrl
+    <>
+      <div className="media-grid-wrapper">
+        <div className="media-grid">
+          {docs.map((doc) => {
+            const isVisible = visibleItems.has(doc.id)
+            // Prefer optimizedUrl first, fallback to url
+            const thumbnailUrl = doc.optimizedUrl || doc.url
+            const placeholderUrl = doc.lowResUrl
 
-          return (
-            <div key={doc.id} ref={itemRef} data-id={doc.id} className="media-grid-item">
-              <a href={`/admin/collections/media/${doc.id}`} className="media-grid-link">
-                <div className="media-grid-image-container">
-                  {isVisible && thumbnailUrl ? (
-                    <>
-                      {placeholderUrl && (
+            console.log(`Doc ${doc.id} - isVisible: ${isVisible}, thumbnailUrl: ${thumbnailUrl}`)
+
+            return (
+              <div key={doc.id} ref={itemRef} data-id={doc.id} className="media-grid-item">
+                <a href={`/admin/collections/media/${doc.id}`} className="media-grid-link">
+                  <div className="media-grid-image-container">
+                    {isVisible && thumbnailUrl ? (
+                      <>
+                        {placeholderUrl && (
+                          <img
+                            src={placeholderUrl}
+                            alt=""
+                            className="media-grid-placeholder"
+                            aria-hidden="true"
+                          />
+                        )}
                         <img
-                          src={placeholderUrl}
-                          alt=""
-                          className="media-grid-placeholder"
-                          aria-hidden="true"
+                          src={thumbnailUrl}
+                          alt={doc.alt || doc.filename || 'Media'}
+                          className="media-grid-image"
+                          loading="lazy"
+                          decoding="async"
+                          onLoad={() => console.log('Image loaded:', doc.filename)}
+                          onError={(e) => {
+                            console.error('Failed to load image:', thumbnailUrl, doc)
+                            e.currentTarget.style.display = 'none'
+                          }}
                         />
-                      )}
-                      <img
-                        src={thumbnailUrl}
-                        alt={doc.alt || doc.filename || 'Media'}
-                        className="media-grid-image"
-                        loading="lazy"
-                        decoding="async"
-                        onError={(e) => {
-                          console.error('Failed to load image:', thumbnailUrl)
-                          e.currentTarget.style.display = 'none'
-                        }}
-                      />
-                    </>
-                  ) : (
-                    <div className="media-grid-skeleton" />
-                  )}
-                </div>
-                <div className="media-grid-info">
-                  <p className="media-grid-alt" title={doc.alt}>
-                    {doc.alt || doc.filename}
-                  </p>
-                  {doc.width && doc.height && (
-                    <p className="media-grid-dimensions">
-                      {doc.width} × {doc.height}
+                      </>
+                    ) : (
+                      <div className="media-grid-skeleton">
+                        <div style={{ padding: '1rem', fontSize: '0.75rem', color: '#666' }}>
+                          {!thumbnailUrl ? 'No URL' : 'Loading...'}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <div className="media-grid-info">
+                    <p className="media-grid-alt" title={doc.alt}>
+                      {doc.alt || doc.filename}
                     </p>
-                  )}
-                </div>
-              </a>
-            </div>
-          )
-        })}
+                    {doc.width && doc.height && (
+                      <p className="media-grid-dimensions">
+                        {doc.width} × {doc.height}
+                      </p>
+                    )}
+                  </div>
+                </a>
+              </div>
+            )
+          })}
+        </div>
       </div>
 
       <style jsx>{`
@@ -275,8 +333,13 @@ export const MediaGridView: React.FC = () => {
             font-size: 0.6875rem;
           }
         }
+
+        /* Hide the default table view below the grid */
+        :global(.payload-list-table) {
+          display: none !important;
+        }
       `}</style>
-    </div>
+    </>
   )
 }
 
