@@ -82,15 +82,15 @@ export const MediaGridView: React.FC = () => {
 
         .media-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-          gap: 1rem;
+          grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+          gap: 1.5rem;
           width: 100%;
         }
 
         @media (max-width: 640px) {
           .media-grid {
             grid-template-columns: repeat(2, 1fr);
-            gap: 0.75rem;
+            gap: 1rem;
           }
           .media-grid-wrapper {
             padding: 0.75rem;
@@ -99,19 +99,22 @@ export const MediaGridView: React.FC = () => {
 
         @media (min-width: 641px) and (max-width: 1024px) {
           .media-grid {
-            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            gap: 1.25rem;
           }
         }
 
         @media (min-width: 1025px) {
           .media-grid {
-            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1.5rem;
           }
         }
 
         @media (min-width: 1600px) {
           .media-grid {
-            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 2rem;
           }
         }
 
@@ -155,6 +158,7 @@ export const MediaGridView: React.FC = () => {
           object-fit: cover;
           filter: blur(10px);
           transform: scale(1.1);
+          z-index: 1;
         }
 
         .media-grid-image {
@@ -164,6 +168,8 @@ export const MediaGridView: React.FC = () => {
           width: 100%;
           height: 100%;
           object-fit: cover;
+          z-index: 2;
+          background: var(--theme-elevation-100);
         }
 
         .media-grid-no-image {
