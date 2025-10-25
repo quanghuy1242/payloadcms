@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { useListQuery } from '@payloadcms/ui'
+import { useListQuery, useListDrawerContext } from '@payloadcms/ui'
 import Link from 'next/link'
 
 interface MediaDoc {
@@ -19,12 +19,24 @@ interface MediaDoc {
 
 export const MediaGridView: React.FC = () => {
   const { data } = useListQuery()
+  const { isInDrawer, onSelect } = useListDrawerContext()
 
   if (!data?.docs || data.docs.length === 0) {
     return null
   }
 
   const docs = data.docs as MediaDoc[]
+
+  // Handler for drawer mode selection
+  const handleDrawerSelect = (doc: MediaDoc) => {
+    if (isInDrawer && onSelect) {
+      onSelect({
+        collectionSlug: 'media',
+        doc,
+        docID: doc.id,
+      })
+    }
+  }
 
   return (
     <>
@@ -34,41 +46,57 @@ export const MediaGridView: React.FC = () => {
             const thumbnailUrl = doc.optimizedUrl || doc.url
             const placeholderUrl = doc.lowResUrl
 
+            const imageContent = (
+              <>
+                <div className="media-grid-image-container">
+                  {placeholderUrl && (
+                    <img
+                      src={placeholderUrl}
+                      alt=""
+                      className="media-grid-placeholder"
+                      aria-hidden="true"
+                    />
+                  )}
+                  {thumbnailUrl ? (
+                    <img
+                      src={thumbnailUrl}
+                      alt={doc.alt || doc.filename || 'Media'}
+                      className="media-grid-image"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  ) : (
+                    <div className="media-grid-no-image">No image URL</div>
+                  )}
+                </div>
+                <div className="media-grid-info">
+                  <p className="media-grid-alt" title={doc.alt}>
+                    {doc.alt || doc.filename}
+                  </p>
+                  {doc.width && doc.height && (
+                    <p className="media-grid-dimensions">
+                      {doc.width} × {doc.height}
+                    </p>
+                  )}
+                </div>
+              </>
+            )
+
             return (
               <div key={doc.id} className="media-grid-item">
-                <Link href={`/admin/collections/media/${doc.id}`} className="media-grid-link">
-                  <div className="media-grid-image-container">
-                    {placeholderUrl && (
-                      <img
-                        src={placeholderUrl}
-                        alt=""
-                        className="media-grid-placeholder"
-                        aria-hidden="true"
-                      />
-                    )}
-                    {thumbnailUrl ? (
-                      <img
-                        src={thumbnailUrl}
-                        alt={doc.alt || doc.filename || 'Media'}
-                        className="media-grid-image"
-                        loading="lazy"
-                        decoding="async"
-                      />
-                    ) : (
-                      <div className="media-grid-no-image">No image URL</div>
-                    )}
-                  </div>
-                  <div className="media-grid-info">
-                    <p className="media-grid-alt" title={doc.alt}>
-                      {doc.alt || doc.filename}
-                    </p>
-                    {doc.width && doc.height && (
-                      <p className="media-grid-dimensions">
-                        {doc.width} × {doc.height}
-                      </p>
-                    )}
-                  </div>
-                </Link>
+                {isInDrawer ? (
+                  <button
+                    type="button"
+                    onClick={() => handleDrawerSelect(doc)}
+                    className="media-grid-link media-grid-button"
+                  >
+                    {imageContent}
+                  </button>
+                ) : (
+                  <Link href={`/admin/collections/media/${doc.id}`} className="media-grid-link">
+                    {imageContent}
+                  </Link>
+                )}
               </div>
             )
           })}
@@ -140,6 +168,16 @@ export const MediaGridView: React.FC = () => {
           display: block;
           text-decoration: none;
           color: inherit;
+        }
+
+        .media-grid-button {
+          width: 100%;
+          padding: 0;
+          border: none;
+          background: transparent;
+          cursor: pointer;
+          font-family: inherit;
+          text-align: left;
         }
 
         .media-grid-image-container {
