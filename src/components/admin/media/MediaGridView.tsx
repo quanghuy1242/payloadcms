@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React from 'react'
 import { useListQuery } from '@payloadcms/ui'
 
 interface MediaDoc {
@@ -18,143 +18,43 @@ interface MediaDoc {
 
 export const MediaGridView: React.FC = () => {
   const { data } = useListQuery()
-  const [visibleItems, setVisibleItems] = useState<Set<string>>(new Set())
-  const observerRef = useRef<IntersectionObserver | null>(null)
-  const [isMounted, setIsMounted] = useState(false)
 
-  // Handle client-side mounting
-  useEffect(() => {
-    setIsMounted(true)
-  }, [])
-
-  // Set up Intersection Observer for lazy loading
-  useEffect(() => {
-    if (!isMounted) return
-
-    observerRef.current = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            const id = entry.target.getAttribute('data-id')
-            if (id) {
-              setVisibleItems((prev) => new Set(prev).add(id))
-            }
-          }
-        })
-      },
-      {
-        rootMargin: '50px', // Start loading slightly before items enter viewport
-        threshold: 0.01,
-      },
-    )
-
-    return () => {
-      observerRef.current?.disconnect()
-    }
-  }, [isMounted])
-
-  const itemRef = useCallback(
-    (node: HTMLDivElement | null) => {
-      if (node && isMounted) {
-        const id = node.getAttribute('data-id')
-        console.log('itemRef called for id:', id)
-
-        if (id) {
-          // Immediately mark as visible
-          setVisibleItems((prev) => {
-            const newSet = new Set(prev)
-            newSet.add(id)
-            console.log('Added to visibleItems:', id, 'Total visible:', newSet.size)
-            return newSet
-          })
-        }
-
-        // Also observe for future visibility changes
-        if (observerRef.current) {
-          observerRef.current.observe(node)
-        }
-      }
-    },
-    [isMounted],
-  ) // Don't render anything if no data yet
   if (!data?.docs || data.docs.length === 0) {
     return null
   }
 
   const docs = data.docs as MediaDoc[]
 
-  console.log('MediaGridView - First doc:', docs[0])
-  console.log('MediaGridView - Sample URLs:', {
-    url: docs[0]?.url,
-    optimizedUrl: docs[0]?.optimizedUrl,
-    lowResUrl: docs[0]?.lowResUrl,
-  })
-
-  // Show skeleton on server-side render, load images on client
-  if (!isMounted) {
-    return (
-      <div className="media-grid-wrapper">
-        <div className="media-grid">
-          {docs.map((doc) => (
-            <div key={doc.id} className="media-grid-item">
-              <div className="media-grid-image-container">
-                <div className="media-grid-skeleton" />
-              </div>
-              <div className="media-grid-info">
-                <p className="media-grid-alt">{doc.alt || doc.filename}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    )
-  }
-
   return (
     <>
       <div className="media-grid-wrapper">
         <div className="media-grid">
           {docs.map((doc) => {
-            const isVisible = visibleItems.has(doc.id)
-            // Prefer optimizedUrl first, fallback to url
             const thumbnailUrl = doc.optimizedUrl || doc.url
             const placeholderUrl = doc.lowResUrl
 
-            console.log(`Doc ${doc.id} - isVisible: ${isVisible}, thumbnailUrl: ${thumbnailUrl}`)
-
             return (
-              <div key={doc.id} ref={itemRef} data-id={doc.id} className="media-grid-item">
+              <div key={doc.id} className="media-grid-item">
                 <a href={`/admin/collections/media/${doc.id}`} className="media-grid-link">
                   <div className="media-grid-image-container">
-                    {isVisible && thumbnailUrl ? (
-                      <>
-                        {placeholderUrl && (
-                          <img
-                            src={placeholderUrl}
-                            alt=""
-                            className="media-grid-placeholder"
-                            aria-hidden="true"
-                          />
-                        )}
-                        <img
-                          src={thumbnailUrl}
-                          alt={doc.alt || doc.filename || 'Media'}
-                          className="media-grid-image"
-                          loading="lazy"
-                          decoding="async"
-                          onLoad={() => console.log('Image loaded:', doc.filename)}
-                          onError={(e) => {
-                            console.error('Failed to load image:', thumbnailUrl, doc)
-                            e.currentTarget.style.display = 'none'
-                          }}
-                        />
-                      </>
+                    {placeholderUrl && (
+                      <img
+                        src={placeholderUrl}
+                        alt=""
+                        className="media-grid-placeholder"
+                        aria-hidden="true"
+                      />
+                    )}
+                    {thumbnailUrl ? (
+                      <img
+                        src={thumbnailUrl}
+                        alt={doc.alt || doc.filename || 'Media'}
+                        className="media-grid-image"
+                        loading="lazy"
+                        decoding="async"
+                      />
                     ) : (
-                      <div className="media-grid-skeleton">
-                        <div style={{ padding: '1rem', fontSize: '0.75rem', color: '#666' }}>
-                          {!thumbnailUrl ? 'No URL' : 'Loading...'}
-                        </div>
-                      </div>
+                      <div className="media-grid-no-image">No image URL</div>
                     )}
                   </div>
                   <div className="media-grid-info">
@@ -187,7 +87,6 @@ export const MediaGridView: React.FC = () => {
           width: 100%;
         }
 
-        /* Mobile: 2 columns */
         @media (max-width: 640px) {
           .media-grid {
             grid-template-columns: repeat(2, 1fr);
@@ -198,21 +97,18 @@ export const MediaGridView: React.FC = () => {
           }
         }
 
-        /* Tablet: 3-4 columns */
         @media (min-width: 641px) and (max-width: 1024px) {
           .media-grid {
             grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
           }
         }
 
-        /* Desktop: 4-6 columns */
         @media (min-width: 1025px) {
           .media-grid {
             grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
           }
         }
 
-        /* Large desktop: more columns */
         @media (min-width: 1600px) {
           .media-grid {
             grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
@@ -245,34 +141,9 @@ export const MediaGridView: React.FC = () => {
         .media-grid-image-container {
           position: relative;
           width: 100%;
-          padding-bottom: 75%; /* 4:3 aspect ratio */
+          padding-bottom: 75%;
           background: var(--theme-elevation-100);
           overflow: hidden;
-        }
-
-        .media-grid-skeleton {
-          position: absolute;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 100%;
-          background: linear-gradient(
-            90deg,
-            var(--theme-elevation-100) 0%,
-            var(--theme-elevation-150) 50%,
-            var(--theme-elevation-100) 100%
-          );
-          background-size: 200% 100%;
-          animation: shimmer 1.5s infinite;
-        }
-
-        @keyframes shimmer {
-          0% {
-            background-position: -200% 0;
-          }
-          100% {
-            background-position: 200% 0;
-          }
         }
 
         .media-grid-placeholder {
@@ -293,7 +164,15 @@ export const MediaGridView: React.FC = () => {
           width: 100%;
           height: 100%;
           object-fit: cover;
-          transition: opacity 0.3s ease;
+        }
+
+        .media-grid-no-image {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          font-size: 0.75rem;
+          color: var(--theme-elevation-600);
         }
 
         .media-grid-info {
@@ -336,7 +215,6 @@ export const MediaGridView: React.FC = () => {
           }
         }
 
-        /* Hide the default table view below the grid */
         :global(.collection-list__tables) {
           display: none !important;
         }
