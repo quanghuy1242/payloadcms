@@ -21,7 +21,7 @@ interface MediaDoc {
 export const MediaGridView: React.FC = () => {
   const { data } = useListQuery()
   const { isInDrawer, onSelect } = useListDrawerContext()
-  const { selected, setSelection } = useSelection()
+  const { selected, setSelection, count, totalDocs, toggleAll } = useSelection()
 
   if (!data?.docs || data.docs.length === 0) {
     return null
@@ -43,6 +43,31 @@ export const MediaGridView: React.FC = () => {
   return (
     <>
       <div className="media-grid-wrapper">
+        {!isInDrawer && (
+          <div className="media-grid-selection-controls">
+            <span className="selection-status">
+              {count > 0 ? `${count} of ${totalDocs} selected` : `${totalDocs} items`}
+            </span>
+            <div className="selection-buttons">
+              <button
+                type="button"
+                className="selection-button"
+                onClick={() => toggleAll(true)}
+                disabled={count === totalDocs}
+              >
+                Select All
+              </button>
+              <button
+                type="button"
+                className="selection-button"
+                onClick={() => toggleAll(false)}
+                disabled={count === 0}
+              >
+                Deselect All
+              </button>
+            </div>
+          </div>
+        )}
         <div className="media-grid">
           {docs.map((doc) => {
             const thumbnailUrl = doc.optimizedUrl || doc.url
@@ -120,6 +145,66 @@ export const MediaGridView: React.FC = () => {
         .media-grid-wrapper {
           padding: 1rem;
           width: 100%;
+        }
+
+        .media-grid-selection-controls {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 0.75rem 1rem;
+          margin-bottom: 1rem;
+          background: var(--theme-elevation-50);
+          border: 1px solid var(--theme-elevation-150);
+          border-radius: 6px;
+        }
+
+        .selection-status {
+          font-size: 0.875rem;
+          color: var(--theme-elevation-700);
+          font-weight: 500;
+        }
+
+        .selection-buttons {
+          display: flex;
+          gap: 0.5rem;
+        }
+
+        .selection-button {
+          padding: 0.5rem 1rem;
+          font-size: 0.875rem;
+          font-weight: 500;
+          background: var(--theme-elevation-100);
+          color: var(--theme-elevation-900);
+          border: 1px solid var(--theme-elevation-200);
+          border-radius: 4px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .selection-button:hover:not(:disabled) {
+          background: var(--theme-elevation-200);
+          border-color: var(--theme-elevation-300);
+        }
+
+        .selection-button:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
+        @media (max-width: 640px) {
+          .media-grid-selection-controls {
+            flex-direction: column;
+            gap: 0.75rem;
+            align-items: stretch;
+          }
+
+          .selection-status {
+            text-align: center;
+          }
+
+          .selection-buttons {
+            justify-content: center;
+          }
         }
 
         .media-grid {
@@ -210,23 +295,44 @@ export const MediaGridView: React.FC = () => {
           z-index: 20;
           pointer-events: all;
           background: rgba(255, 255, 255, 0.95);
-          border-radius: 6px;
-          padding: 6px;
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+          border-radius: 4px;
+          padding: 4px;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
           cursor: pointer;
+          transition: all 0.2s ease;
+          backdrop-filter: blur(4px);
+        }
+
+        .media-grid-checkbox:hover {
+          background: rgba(255, 255, 255, 1);
+          box-shadow: 0 3px 12px rgba(0, 0, 0, 0.25);
+          transform: scale(1.05);
         }
 
         .media-grid-checkbox :global(.checkbox-input) {
-          margin: 0;
+          margin: 0 !important;
           cursor: pointer;
         }
 
         .media-grid-checkbox :global(label) {
-          margin: 0;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
+          margin: 0 !important;
+          padding: 0 !important;
+          cursor: pointer !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          min-height: unset !important;
+        }
+
+        .media-grid-checkbox :global(input[type='checkbox']) {
+          cursor: pointer !important;
+          width: 18px !important;
+          height: 18px !important;
+          margin: 0 !important;
+        }
+
+        .media-grid-checkbox :global(.checkbox-input__icon) {
+          cursor: pointer !important;
         }
 
         .media-grid-placeholder {
