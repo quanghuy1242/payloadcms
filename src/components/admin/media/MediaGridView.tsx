@@ -18,7 +18,6 @@ interface MediaDoc {
 
 export const MediaGridView: React.FC = () => {
   const { data } = useListQuery()
-  const isLoading = !data
   const [visibleItems, setVisibleItems] = useState<Set<string>>(new Set())
   const observerRef = useRef<IntersectionObserver | null>(null)
 
@@ -52,23 +51,14 @@ export const MediaGridView: React.FC = () => {
     }
   }, [])
 
-  if (isLoading) {
-    return (
-      <div className="media-grid-loading">
-        <p>Loading media...</p>
-      </div>
-    )
+  // Don't render anything if no data yet
+  if (!data?.docs || data.docs.length === 0) {
+    return null
   }
 
-  const docs = (data?.docs || []) as MediaDoc[]
+  const docs = data.docs as MediaDoc[]
 
-  if (docs.length === 0) {
-    return (
-      <div className="media-grid-empty">
-        <p>No media found</p>
-      </div>
-    )
-  }
+  console.log('MediaGridView - First doc:', docs[0])
 
   return (
     <div className="media-grid-wrapper">
@@ -82,7 +72,7 @@ export const MediaGridView: React.FC = () => {
             <div key={doc.id} ref={itemRef} data-id={doc.id} className="media-grid-item">
               <a href={`/admin/collections/media/${doc.id}`} className="media-grid-link">
                 <div className="media-grid-image-container">
-                  {isVisible ? (
+                  {isVisible && thumbnailUrl ? (
                     <>
                       {placeholderUrl && (
                         <img
@@ -98,6 +88,10 @@ export const MediaGridView: React.FC = () => {
                         className="media-grid-image"
                         loading="lazy"
                         decoding="async"
+                        onError={(e) => {
+                          console.error('Failed to load image:', thumbnailUrl)
+                          e.currentTarget.style.display = 'none'
+                        }}
                       />
                     </>
                   ) : (
@@ -280,13 +274,6 @@ export const MediaGridView: React.FC = () => {
           .media-grid-dimensions {
             font-size: 0.6875rem;
           }
-        }
-
-        .media-grid-loading,
-        .media-grid-empty {
-          padding: 2rem;
-          text-align: center;
-          color: var(--theme-elevation-600);
         }
       `}</style>
     </div>

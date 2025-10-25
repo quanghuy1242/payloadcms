@@ -20,12 +20,10 @@ export const Media: CollectionConfig = {
   slug: 'media',
   admin: {
     components: {
-      views: {
-        list: {
-          Component: '/components/admin/media/MediaGridView',
-        },
-      },
+      beforeListTable: ['/components/admin/media/MediaGridView'],
     },
+    useAsTitle: 'filename',
+    defaultColumns: ['filename', 'alt', 'updatedAt'],
     pagination: {
       defaultLimit: 50, // Load more items per page for grid view
       limits: [24, 50, 100, 200],
