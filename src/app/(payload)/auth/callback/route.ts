@@ -14,6 +14,8 @@ import {
 } from '@/lib/betterAuth/authorize'
 import { getNextTokenCookieOptions } from '@/lib/betterAuth/cookies'
 
+const PAYLOAD_ADMIN_COOKIE = `${process.env.PAYLOAD_COOKIE_PREFIX ?? 'payload'}-token`
+
 const buildRedirectResponse = (location: string) => {
   return NextResponse.redirect(location)
 }
@@ -115,11 +117,10 @@ export async function GET(request: NextRequest) {
   const expiresInSeconds = tokenData?.expires_in ?? 60 * 60
   const response = buildRedirectResponse(`${url.origin}/admin`)
 
-  response.cookies.set(
-    BETTER_AUTH_TOKEN_COOKIE,
-    accessToken,
-    getNextTokenCookieOptions(expiresInSeconds),
-  )
+  const cookieOptions = getNextTokenCookieOptions(expiresInSeconds)
+
+  response.cookies.set(BETTER_AUTH_TOKEN_COOKIE, accessToken, cookieOptions)
+  response.cookies.set(PAYLOAD_ADMIN_COOKIE, accessToken, cookieOptions)
   clearPkceCookie(response)
 
   response.headers.set('Cache-Control', 'no-store')
