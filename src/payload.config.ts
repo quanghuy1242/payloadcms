@@ -84,8 +84,8 @@ export default buildConfig({
       baseDir: path.resolve(dirname),
     },
     components: {
-      beforeLogin: [path.resolve(dirname, './components/admin/BetterAuthLoginRedirect.tsx')],
-      afterNavLinks: [path.resolve(dirname, './components/admin/BetterAuthLogout.tsx')],
+      beforeLogin: ['./components/admin/BetterAuthLoginRedirect.tsx'],
+      afterNavLinks: ['./components/admin/BetterAuthLogout.tsx'],
     },
   },
   collections: [Users, Media, Posts, Categories],

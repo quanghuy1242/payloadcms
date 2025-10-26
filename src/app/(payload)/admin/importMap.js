@@ -30,8 +30,8 @@ import { MetaTitleComponent as MetaTitleComponent_a8a977ebc872c5d5ea7ee689724c08
 import { MetaDescriptionComponent as MetaDescriptionComponent_a8a977ebc872c5d5ea7ee689724c0860 } from '@payloadcms/plugin-seo/client'
 import { MetaImageComponent as MetaImageComponent_a8a977ebc872c5d5ea7ee689724c0860 } from '@payloadcms/plugin-seo/client'
 import { PreviewComponent as PreviewComponent_a8a977ebc872c5d5ea7ee689724c0860 } from '@payloadcms/plugin-seo/client'
-import { default as default_9982dead0d0d2b0a5744f483b23f00d3 } from '../../../home/quanghuy1242/plcf/payloadcms/src/components/admin/BetterAuthLogout.tsx'
-import { default as default_10f0c815b1fd324e37ebf6841f3b8c39 } from '../../../home/quanghuy1242/plcf/payloadcms/src/components/admin/BetterAuthLoginRedirect.tsx'
+import { default as default_2f341c840ac97590f796719a63b02bee } from '../../../components/admin/BetterAuthLogout.tsx'
+import { default as default_eb2ccc2a31c57d79ed56e65807616fbd } from '../../../components/admin/BetterAuthLoginRedirect.tsx'
 
 export const importMap = {
   "@payloadcms/richtext-lexical/rsc#RscEntryLexicalCell": RscEntryLexicalCell_44fe37237e0ebf4470c9990d8cb7b07e,
@@ -66,6 +66,6 @@ export const importMap = {
   "@payloadcms/plugin-seo/client#MetaDescriptionComponent": MetaDescriptionComponent_a8a977ebc872c5d5ea7ee689724c0860,
   "@payloadcms/plugin-seo/client#MetaImageComponent": MetaImageComponent_a8a977ebc872c5d5ea7ee689724c0860,
   "@payloadcms/plugin-seo/client#PreviewComponent": PreviewComponent_a8a977ebc872c5d5ea7ee689724c0860,
-  "/home/quanghuy1242/plcf/payloadcms/src/components/admin/BetterAuthLogout.tsx#default": default_9982dead0d0d2b0a5744f483b23f00d3,
-  "/home/quanghuy1242/plcf/payloadcms/src/components/admin/BetterAuthLoginRedirect.tsx#default": default_10f0c815b1fd324e37ebf6841f3b8c39
+  "./components/admin/BetterAuthLogout.tsx#default": default_2f341c840ac97590f796719a63b02bee,
+  "./components/admin/BetterAuthLoginRedirect.tsx#default": default_eb2ccc2a31c57d79ed56e65807616fbd
 }
