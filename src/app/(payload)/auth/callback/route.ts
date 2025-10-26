@@ -9,10 +9,7 @@ import {
   getPayloadClientSecret,
   getPayloadRedirectUri,
 } from '@/lib/betterAuth/env'
-import {
-  getNextAuthorizeCookieOptions,
-  readPkceCookie,
-} from '@/lib/betterAuth/authorize'
+import { getNextAuthorizeCookieOptions, readPkceCookie } from '@/lib/betterAuth/authorize'
 import { getNextTokenCookieOptions } from '@/lib/betterAuth/cookies'
 
 const buildRedirectResponse = (location: string) => {
@@ -97,14 +94,13 @@ export async function GET(request: NextRequest) {
     return response
   }
 
-  const tokenData = (await tokenResponse.json().catch(() => null)) as
-    | {
-        access_token?: string
-        expires_in?: number
-      }
-    | null
+  const tokenData = (await tokenResponse.json().catch(() => null)) as {
+    access_token?: string
+    expires_in?: number
+  } | null
 
   const accessToken = tokenData?.access_token
+  console.log('Access Token received:', accessToken)
 
   if (!accessToken) {
     const response = buildRedirectResponse(`${url.origin}/admin?error=missing_access_token`)
