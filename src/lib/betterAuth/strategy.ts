@@ -31,7 +31,7 @@ export const betterAuthStrategy: AuthStrategy = {
       }
     } catch (error) {
       if (error instanceof BetterAuthTokenError) {
-        payload.logger.debug(`[auth] Better Auth token rejected: ${error.message}`)
+        payload.logger.error(`[auth] Better Auth token rejected: ${error.message}`)
 
         return {
           user: null,
