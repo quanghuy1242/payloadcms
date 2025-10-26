@@ -20,6 +20,7 @@ export const betterAuthStrategy: AuthStrategy = {
         payload,
         token: tokenPayload,
       })
+      console.log('Better Auth user authenticated:', user)
 
       return {
         user: {
