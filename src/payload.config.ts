@@ -16,6 +16,7 @@ import { createR2BucketFromEnv } from './lib/r2Bucket'
 import { Homepage } from './globals/Homepage'
 import { resolveTursoConnection } from './lib/turso'
 import { queries } from './graphql'
+import { attachBetterAuthAdminMiddleware } from './lib/betterAuth/middleware'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -83,6 +84,9 @@ export default buildConfig({
     importMap: {
       baseDir: path.resolve(dirname),
     },
+    components: {
+      afterNavLinks: [path.resolve(dirname, './components/admin/BetterAuthLogout.tsx')],
+    },
   },
   collections: [Users, Media, Posts, Categories],
   editor: lexicalEditor({}),
@@ -97,5 +101,8 @@ export default buildConfig({
   plugins: [...storagePlugins, seo],
   graphQL: {
     queries,
+  },
+  onInit: async (payload) => {
+    attachBetterAuthAdminMiddleware(payload)
   },
 })

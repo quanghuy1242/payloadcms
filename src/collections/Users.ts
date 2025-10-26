@@ -19,6 +19,12 @@ import {
   authenticatedAccess,
   authenticatedFieldAccess,
 } from '../utils/access'
+import {
+  signUpBetterAuthUser,
+  BetterAuthRequestError,
+  BetterAuthUserExistsError,
+} from '../lib/betterAuth/api'
+import { betterAuthStrategy } from '../lib/betterAuth/strategy'
 
 const USER_ROLE_OPTIONS = USER_ROLES.map((role) => ({
   label: role === 'admin' ? 'Admin' : 'User',
@@ -38,6 +44,8 @@ export const Users: CollectionConfig = {
   },
   auth: {
     useAPIKey: true,
+    disableLocalStrategy: true,
+    strategies: [betterAuthStrategy],
   },
   hooks: {
     beforeValidate: [
@@ -56,6 +64,90 @@ export const Users: CollectionConfig = {
         return {
           ...data,
           role: originalDoc?.role ?? 'user',
+        }
+      },
+    ],
+    beforeChange: [
+      async ({ data, operation, originalDoc }) => {
+        if (!data) {
+          return data
+        }
+
+        if (operation === 'update') {
+          const existingIdentifier = (originalDoc as { betterAuthUserId?: unknown } | undefined)
+            ?.betterAuthUserId
+
+          if (existingIdentifier != null && existingIdentifier !== '') {
+            return {
+              ...data,
+              betterAuthUserId: existingIdentifier,
+            }
+          }
+
+          const incomingIdentifier = (data as { betterAuthUserId?: unknown }).betterAuthUserId
+
+          if (typeof incomingIdentifier === 'string' && incomingIdentifier.trim().length > 0) {
+            return {
+              ...data,
+              betterAuthUserId: incomingIdentifier.trim(),
+            }
+          }
+
+          return {
+            ...data,
+            betterAuthUserId: null,
+          }
+        }
+
+        if (operation !== 'create') {
+          return data
+        }
+
+        const currentIdentifier = (data as { betterAuthUserId?: unknown }).betterAuthUserId
+
+        if (typeof currentIdentifier === 'string' && currentIdentifier.trim().length > 0) {
+          return {
+            ...data,
+            betterAuthUserId: currentIdentifier.trim(),
+          }
+        }
+
+        const email = typeof data.email === 'string' ? data.email.trim() : ''
+
+        if (!email) {
+          throw new Error('Email is required to provision Better Auth users.')
+        }
+
+        const fullName = typeof data.fullName === 'string' ? data.fullName.trim() : undefined
+
+        try {
+          const signUpResult = await signUpBetterAuthUser({
+            email,
+            name: fullName ?? undefined,
+          })
+
+          return {
+            ...data,
+            betterAuthUserId: signUpResult.id,
+            email: signUpResult.email ?? email,
+            fullName: fullName ?? signUpResult.name ?? email,
+          }
+        } catch (error) {
+          if (error instanceof BetterAuthUserExistsError) {
+            throw new Error(
+              'A Better Auth user with this email already exists. Link the record by providing the Better Auth user ID.',
+            )
+          }
+
+          if (error instanceof BetterAuthRequestError) {
+            throw error
+          }
+
+          throw new Error(
+            error instanceof Error
+              ? error.message
+              : 'Unknown error occurred while provisioning Better Auth user.',
+          )
         }
       },
     ],
@@ -124,6 +216,20 @@ export const Users: CollectionConfig = {
         create: ({ req }) => isAdminUser(req.user),
         read: ({ req }) => isAdminUser(req.user),
         update: ({ req }) => isAdminUser(req.user),
+      },
+    },
+    {
+      name: 'betterAuthUserId',
+      type: 'text',
+      unique: true,
+      index: true,
+      admin: {
+        position: 'sidebar',
+        readOnly: true,
+        description: 'Identifier from Better Auth, used for SSO linking.',
+      },
+      access: {
+        read: ({ req }) => isAdminUser(req.user),
       },
     },
   ],
