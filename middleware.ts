@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 
-import { BETTER_AUTH_TOKEN_COOKIE } from './lib/betterAuth/env'
+import { BETTER_AUTH_TOKEN_COOKIE } from './src/lib/betterAuth/env'
 
 const AUTH_MATCHERS = ['/admin/:path*', '/api/:path*', '/graphql', '/rest/:path*']
 
@@ -10,6 +10,7 @@ export const config = {
 
 export function middleware(request: NextRequest) {
   const token = request.cookies.get(BETTER_AUTH_TOKEN_COOKIE)?.value
+  console.log('Better Auth token extracted:', token?.slice(0, 10) + '...')
 
   if (!token) {
     return NextResponse.next()
