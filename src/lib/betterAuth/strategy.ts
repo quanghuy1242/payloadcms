@@ -7,7 +7,7 @@ export const betterAuthStrategy: AuthStrategy = {
   name: 'better-auth',
   authenticate: async ({ headers, payload }) => {
     const token = extractTokenFromHeaders(headers)
-    console.log('Strategy: Better Auth token extracted:', token?.slice(0, 10) + '...')
+    console.log('Strategy: Better Auth token extracted:', token)
 
     if (!token) {
       return { user: null }

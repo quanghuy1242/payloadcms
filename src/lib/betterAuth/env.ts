@@ -157,5 +157,9 @@ export const getBetterAuthExpectedAudience = (): string[] | null => {
   return cachedAudience
 }
 
-export const BETTER_AUTH_TOKEN_COOKIE = 'payload-token'
+export const BETTER_AUTH_TOKEN_COOKIE = 'betterAuthToken'
 export const BETTER_AUTH_STATE_COOKIE = 'betterAuthState'
+
+const PAYLOAD_COOKIE_PREFIX = process.env.PAYLOAD_COOKIE_PREFIX || 'payload'
+
+export const PAYLOAD_ADMIN_TOKEN_COOKIE = `${PAYLOAD_COOKIE_PREFIX}-token`

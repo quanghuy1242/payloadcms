@@ -2,6 +2,7 @@ import { createRemoteJWKSet, errors, jwtVerify, type JWTPayload } from 'jose'
 
 import {
   BETTER_AUTH_TOKEN_COOKIE,
+  PAYLOAD_ADMIN_TOKEN_COOKIE,
   getAuthBaseUrl,
   getBetterAuthExpectedAudience,
   getBetterAuthExpectedIssuer,
@@ -31,6 +32,8 @@ export const extractTokenFromHeaders = (headers: Headers): string | null => {
   }
 
   const cookies = cookieHeader.split(';')
+  const validCookieNames = new Set([BETTER_AUTH_TOKEN_COOKIE, PAYLOAD_ADMIN_TOKEN_COOKIE])
+  const jwtPattern = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/
 
   for (const segment of cookies) {
     const [name, value] = segment.split('=')
@@ -39,12 +42,16 @@ export const extractTokenFromHeaders = (headers: Headers): string | null => {
       continue
     }
 
-    if (name.trim() === BETTER_AUTH_TOKEN_COOKIE) {
-      const token = value.trim()
+    const trimmedName = name.trim()
 
-      if (token.length > 0) {
-        return decodeURIComponent(token)
-      }
+    if (!validCookieNames.has(trimmedName)) {
+      continue
+    }
+
+    const token = decodeURIComponent(value.trim())
+
+    if (token.length > 0 && jwtPattern.test(token)) {
+      return token
     }
   }
 
