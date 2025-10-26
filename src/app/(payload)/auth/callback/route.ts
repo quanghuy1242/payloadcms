@@ -96,14 +96,14 @@ export async function GET(request: NextRequest) {
 
   const tokenData = (await tokenResponse.json().catch(() => null)) as {
     access_token?: string
+    id_token?: string
     expires_in?: number
   } | null
 
-  const accessToken = tokenData?.access_token
-  console.log('Access Token received:', accessToken)
+  const idToken = tokenData?.id_token
 
-  if (!accessToken) {
-    const response = buildRedirectResponse(`${url.origin}/admin?error=missing_access_token`)
+  if (!idToken) {
+    const response = buildRedirectResponse(`${url.origin}/admin?error=missing_id_token`)
     clearPkceCookie(response)
 
     return response
@@ -114,8 +114,8 @@ export async function GET(request: NextRequest) {
 
   const cookieOptions = getNextTokenCookieOptions(expiresInSeconds)
 
-  response.cookies.set(BETTER_AUTH_TOKEN_COOKIE, accessToken, cookieOptions)
-  response.cookies.set(PAYLOAD_ADMIN_TOKEN_COOKIE, accessToken, cookieOptions)
+  response.cookies.set(BETTER_AUTH_TOKEN_COOKIE, idToken, cookieOptions)
+  response.cookies.set(PAYLOAD_ADMIN_TOKEN_COOKIE, idToken, cookieOptions)
   clearPkceCookie(response)
 
   response.headers.set('Cache-Control', 'no-store')

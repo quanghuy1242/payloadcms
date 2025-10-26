@@ -32,8 +32,6 @@ export const extractTokenFromHeaders = (headers: Headers): string | null => {
   }
 
   const cookies = cookieHeader.split(';')
-  const validCookieNames = new Set([BETTER_AUTH_TOKEN_COOKIE, PAYLOAD_ADMIN_TOKEN_COOKIE])
-  const jwtPattern = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/
 
   for (const segment of cookies) {
     const [name, value] = segment.split('=')
@@ -44,13 +42,13 @@ export const extractTokenFromHeaders = (headers: Headers): string | null => {
 
     const trimmedName = name.trim()
 
-    if (!validCookieNames.has(trimmedName)) {
+    if (trimmedName !== BETTER_AUTH_TOKEN_COOKIE && trimmedName !== PAYLOAD_ADMIN_TOKEN_COOKIE) {
       continue
     }
 
     const token = decodeURIComponent(value.trim())
 
-    if (token.length > 0 && jwtPattern.test(token)) {
+    if (token.length > 0) {
       return token
     }
   }
