@@ -63,8 +63,16 @@ export async function POST(request: NextRequest) {
         logoutUrl = endSessionUrl.toString()
       }
     }
+    if (!logoutUrl) {
+      logoutUrl = new URL('/api/auth/sign-out', baseUrl).toString()
+    }
   } catch (error) {
     console.warn('Failed to resolve Better Auth end session endpoint.', error)
+    try {
+      logoutUrl = new URL('/api/auth/sign-out', getAuthBaseUrl()).toString()
+    } catch {
+      logoutUrl = null
+    }
   }
 
   return NextResponse.json({ success: true, logoutUrl }, { status: 200 })

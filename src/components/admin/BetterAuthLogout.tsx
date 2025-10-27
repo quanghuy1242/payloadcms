@@ -36,11 +36,22 @@ const BetterAuthLogout = () => {
     try {
       const { logoutUrl } = await logout()
 
-      if (logoutUrl) {
-        window.location.assign(logoutUrl)
-      } else {
-        window.location.replace('/admin')
+      const authBaseUrl = process.env.NEXT_PUBLIC_AUTH_BASE_URL
+      const signOutUrl = logoutUrl ?? (authBaseUrl ? `${authBaseUrl.replace(/\/$/, '')}/api/auth/sign-out` : null)
+
+      if (signOutUrl) {
+        try {
+          await fetch(signOutUrl, {
+            method: 'POST',
+            credentials: 'include',
+            mode: 'cors',
+          })
+        } catch (fetchError) {
+          console.warn('Failed to call Better Auth sign-out endpoint.', fetchError)
+        }
       }
+
+      window.location.replace('/admin?loggedOut=1')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unexpected logout error.')
       setPending(false)
