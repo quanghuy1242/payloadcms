@@ -34,21 +34,15 @@ export async function POST(request: NextRequest) {
   const baseUrl = getAuthBaseUrl()
   const redirectOrigin = request.headers.get('origin') ?? request.nextUrl.origin
 
-  // Build a URL that redirects through Better Auth's sign-out to clear their cookies
-  // Then Better Auth will redirect back to Payload
-  const payloadReturnUrl = `${redirectOrigin}/admin?loggedOut=1`
-  const betterAuthSignOutUrl = new URL('/api/auth/sign-out', baseUrl)
-
-  // Better Auth doesn't have a built-in redirect parameter for sign-out
-  // So we need to redirect to a page that will then redirect to Payload
-  // The simplest approach: redirect to Better Auth sign-in with a return URL
-  const finalLogoutUrl = `${baseUrl}/sign-in?callbackURL=${encodeURIComponent(payloadReturnUrl)}`
+  // Build a logout redirect page URL that will handle the Better Auth sign-out
+  const returnUrl = `${redirectOrigin}/admin?loggedOut=1`
+  const logoutRedirectUrl = `${redirectOrigin}/auth/logout-redirect?authBaseUrl=${encodeURIComponent(baseUrl)}&returnUrl=${encodeURIComponent(returnUrl)}`
 
   // Create response with Set-Cookie headers to clear cookies in the browser
   const response = NextResponse.json(
     {
       success: true,
-      logoutUrl: finalLogoutUrl,
+      logoutUrl: logoutRedirectUrl,
     },
     { status: 200 },
   )
