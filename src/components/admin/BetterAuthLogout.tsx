@@ -2,7 +2,12 @@
 
 import { useState } from 'react'
 
-const logout = async (): Promise<void> => {
+type LogoutResponse = {
+  success: boolean
+  logoutUrl?: string | null
+}
+
+const logout = async (): Promise<LogoutResponse> => {
   const response = await fetch('/api/auth/logout', {
     method: 'POST',
     credentials: 'include',
@@ -12,6 +17,8 @@ const logout = async (): Promise<void> => {
     const message = await response.text()
     throw new Error(message || `Logout failed with status ${response.status}.`)
   }
+
+  return (await response.json()) as LogoutResponse
 }
 
 const BetterAuthLogout = () => {
@@ -27,8 +34,13 @@ const BetterAuthLogout = () => {
     setError(null)
 
     try {
-      await logout()
-      window.location.replace('/admin')
+      const { logoutUrl } = await logout()
+
+      if (logoutUrl) {
+        window.location.assign(logoutUrl)
+      } else {
+        window.location.replace('/admin')
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unexpected logout error.')
       setPending(false)
