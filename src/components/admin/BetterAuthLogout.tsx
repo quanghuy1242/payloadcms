@@ -37,7 +37,8 @@ const BetterAuthLogout = () => {
       const { logoutUrl } = await logout()
 
       const authBaseUrl = process.env.NEXT_PUBLIC_AUTH_BASE_URL
-      const signOutUrl = logoutUrl ?? (authBaseUrl ? `${authBaseUrl.replace(/\/$/, '')}/api/auth/sign-out` : null)
+      const signOutUrl =
+        logoutUrl ?? (authBaseUrl ? `${authBaseUrl.replace(/\/$/, '')}/api/auth/sign-out` : null)
 
       if (signOutUrl) {
         try {
@@ -51,7 +52,7 @@ const BetterAuthLogout = () => {
         }
       }
 
-      window.location.replace('/admin?loggedOut=1')
+      // window.location.replace('/admin?loggedOut=1')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unexpected logout error.')
       setPending(false)
