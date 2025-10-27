@@ -36,16 +36,16 @@ const BetterAuthLogout = () => {
     try {
       const { logoutUrl } = await logout()
 
-      const authBaseUrl = process.env.NEXT_PUBLIC_AUTH_BASE_URL
+      const authBaseUrl = process.env.NEXT_PUBLIC_AUTH_BASE_URL || 'https://auth.quanghuy.dev'
       const signOutUrl =
-        logoutUrl ?? (authBaseUrl ? `${authBaseUrl.replace(/\/$/, '')}/api/auth/logout` : null)
+        logoutUrl ?? (authBaseUrl ? `${authBaseUrl.replace(/\/$/, '')}/api/auth/sign-out` : null)
 
       if (signOutUrl) {
         try {
           await fetch(signOutUrl, {
             method: 'POST',
             credentials: 'include',
-            // mode: 'cors',
+            mode: 'cors',
           })
         } catch (fetchError) {
           console.warn('Failed to call Better Auth sign-out endpoint.', fetchError)
