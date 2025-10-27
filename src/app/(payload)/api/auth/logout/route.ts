@@ -7,6 +7,7 @@ import {
   getAuthBaseUrl,
 } from '@/lib/betterAuth/env'
 import { getNextTokenCookieOptions } from '@/lib/betterAuth/cookies'
+import { revokeBetterAuthTokens } from '@/lib/betterAuth/api'
 
 const clearTokenCookies = async (
   cookieStore?: Awaited<ReturnType<typeof cookies>>,
@@ -27,22 +28,11 @@ const clearTokenCookies = async (
 
 export async function POST() {
   const cookieStore = await cookies()
-  const token = cookieStore.get(BETTER_AUTH_TOKEN_COOKIE)?.value ?? null
+  const idToken = cookieStore.get(BETTER_AUTH_TOKEN_COOKIE)?.value ?? null
 
   await clearTokenCookies(cookieStore)
 
-  if (token) {
-    const logoutEndpoint = new URL('/api/auth/oauth2/logout', getAuthBaseUrl())
-
-    await fetch(logoutEndpoint.toString(), {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    }).catch(() => {
-      // Swallow logout errors to avoid blocking local logout.
-    })
-  }
+  await revokeBetterAuthTokens({ token: idToken })
 
   return NextResponse.json({ success: true }, { status: 200 })
 }

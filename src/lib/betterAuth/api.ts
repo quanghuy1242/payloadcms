@@ -5,6 +5,7 @@ import fetch from 'cross-fetch'
 import {
   getAuthBaseUrl,
   getBetterAuthSignupSecret,
+  getPayloadClientId,
   getPayloadClientSecret,
 } from './env'
 
@@ -115,16 +116,17 @@ export const signUpBetterAuthUser = async ({
     )
   }
 
-  const data = (await response.json().catch(() => null)) as
-    | {
-        id?: string
-        email?: string
-        name?: string | null
-      }
-    | null
+  const data = (await response.json().catch(() => null)) as {
+    id?: string
+    email?: string
+    name?: string | null
+  } | null
 
   if (!data?.id) {
-    throw new BetterAuthRequestError('Better Auth sign-up response missing user id.', response.status)
+    throw new BetterAuthRequestError(
+      'Better Auth sign-up response missing user id.',
+      response.status,
+    )
   }
 
   return {
@@ -139,4 +141,34 @@ export class BetterAuthUserExistsError extends BetterAuthRequestError {
     super(message, 409)
     this.name = 'BetterAuthUserExistsError'
   }
+}
+
+export const revokeBetterAuthTokens = async ({ token }: { token: string | null }) => {
+  if (!token) {
+    return
+  }
+
+  const baseUrl = getAuthBaseUrl()
+
+  await fetch(new URL('/api/auth/oauth2/revoke', baseUrl).toString(), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: new URLSearchParams({
+      token,
+      client_id: getPayloadClientId(),
+    }),
+  }).catch(() => {
+    // ignore revocation errors
+  })
+
+  await fetch(new URL('/api/auth/logout', baseUrl).toString(), {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  }).catch(() => {
+    // swallow errors to avoid blocking logout flow
+  })
 }
