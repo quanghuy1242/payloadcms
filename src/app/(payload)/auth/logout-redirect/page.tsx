@@ -15,6 +15,7 @@ export default function LogoutRedirect() {
 
         // POST to Better Auth's sign-out endpoint to clear their session
         // Note: This will clear Better Auth cookies via Set-Cookie headers
+        console.log('Logging out via Better Auth at:', `${authBaseUrl}/api/auth/sign-out`)
         const response = await fetch(`${authBaseUrl}/api/auth/sign-out`, {
           method: 'POST',
           credentials: 'include', // Important: include cookies in the request
@@ -22,16 +23,17 @@ export default function LogoutRedirect() {
             'Content-Type': 'application/json',
           },
         })
+        console.log('Logout response status:', response)
 
         // Whether it succeeds or fails, redirect back
         // (it might fail if already logged out, which is fine)
-        window.location.href = returnUrl
+        // window.location.href = returnUrl
       } catch (err) {
         console.error('Error during logout:', err)
         // Still redirect even on error
-        const params = new URLSearchParams(window.location.search)
-        const returnUrl = params.get('returnUrl') || '/admin?loggedOut=1'
-        window.location.href = returnUrl
+        // const params = new URLSearchParams(window.location.search)
+        // const returnUrl = params.get('returnUrl') || '/admin?loggedOut=1'
+        // window.location.href = returnUrl
       }
     }
 
