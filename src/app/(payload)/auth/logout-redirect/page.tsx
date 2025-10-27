@@ -1,22 +1,41 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 
 export default function LogoutRedirect() {
+  const [error, setError] = useState<string | null>(null)
+
   useEffect(() => {
-    // Get the Better Auth base URL from the query params
-    const params = new URLSearchParams(window.location.search)
-    const authBaseUrl = params.get('authBaseUrl') || 'https://auth.quanghuy.dev'
-    const returnUrl = params.get('returnUrl') || '/admin?loggedOut=1'
+    const performLogout = async () => {
+      try {
+        // Get the Better Auth base URL from the query params
+        const params = new URLSearchParams(window.location.search)
+        const authBaseUrl = params.get('authBaseUrl') || 'https://auth.quanghuy.dev'
+        const returnUrl = params.get('returnUrl') || '/admin?loggedOut=1'
 
-    // Redirect to Better Auth's logout endpoint with a return URL
-    // This ensures Better Auth clears its own session cookies
-    const logoutUrl = new URL(`${authBaseUrl}/api/auth/sign-out`)
-    logoutUrl.searchParams.set('callbackURL', returnUrl)
+        // POST to Better Auth's sign-out endpoint to clear their session
+        // Note: This will clear Better Auth cookies via Set-Cookie headers
+        const response = await fetch(`${authBaseUrl}/api/auth/sign-out`, {
+          method: 'POST',
+          credentials: 'include', // Important: include cookies in the request
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        })
 
-    // Use window.location.href for a full page navigation
-    // This allows Better Auth to set cookies to clear the session
-    window.location.href = logoutUrl.toString()
+        // Whether it succeeds or fails, redirect back
+        // (it might fail if already logged out, which is fine)
+        window.location.href = returnUrl
+      } catch (err) {
+        console.error('Error during logout:', err)
+        // Still redirect even on error
+        const params = new URLSearchParams(window.location.search)
+        const returnUrl = params.get('returnUrl') || '/admin?loggedOut=1'
+        window.location.href = returnUrl
+      }
+    }
+
+    performLogout()
   }, [])
 
   return (
