@@ -38,7 +38,7 @@ const BetterAuthLogout = () => {
 
       const authBaseUrl = process.env.NEXT_PUBLIC_AUTH_BASE_URL
       const signOutUrl =
-        logoutUrl ?? (authBaseUrl ? `${authBaseUrl.replace(/\/$/, '')}/api/auth/sign-out` : null)
+        logoutUrl ?? (authBaseUrl ? `${authBaseUrl.replace(/\/$/, '')}/auth/logout` : null)
 
       if (signOutUrl) {
         try {
