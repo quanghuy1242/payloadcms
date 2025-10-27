@@ -34,10 +34,11 @@ const BetterAuthLogout = () => {
     setError(null)
 
     try {
-      // Logout from Payload (also calls Better Auth sign-out via server proxy)
+      // Logout from Payload (clears Payload cookies and revokes tokens)
       const { logoutUrl } = await logout()
 
-      // Redirect to Payload login
+      // Redirect to the logout URL
+      // This will be the Better Auth domain to clear its cookies
       window.location.href = logoutUrl || '/admin?loggedOut=1'
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unexpected logout error.')

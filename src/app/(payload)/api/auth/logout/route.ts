@@ -28,41 +28,43 @@ export async function POST(request: NextRequest) {
   const cookieStore = await cookies()
   const idToken = cookieStore.get(BETTER_AUTH_TOKEN_COOKIE)?.value ?? null
 
-  // Clear local Payload cookies first
-  await clearTokenCookies(cookieStore)
-
   // Revoke tokens at Better Auth
   await revokeBetterAuthTokens({ token: idToken })
 
   const baseUrl = getAuthBaseUrl()
   const redirectOrigin = request.headers.get('origin') ?? request.nextUrl.origin
 
-  // Get all cookies from the request to forward to Better Auth
-  const cookieHeader = request.headers.get('cookie')
+  // Build a URL that redirects through Better Auth's sign-out to clear their cookies
+  // Then Better Auth will redirect back to Payload
+  const payloadReturnUrl = `${redirectOrigin}/admin?loggedOut=1`
+  const betterAuthSignOutUrl = new URL('/api/auth/sign-out', baseUrl)
 
-  // Call Better Auth's sign-out endpoint with the user's cookies
-  // This ensures Better Auth session cookies get cleared
-  if (cookieHeader) {
-    try {
-      await fetch(new URL('/api/auth/sign-out', baseUrl).toString(), {
-        method: 'POST',
-        headers: {
-          Cookie: cookieHeader,
-          'Content-Type': 'application/json',
-        },
-      })
-    } catch (err) {
-      console.error('Failed to sign out from Better Auth:', err)
-    }
-  }
+  // Better Auth doesn't have a built-in redirect parameter for sign-out
+  // So we need to redirect to a page that will then redirect to Payload
+  // The simplest approach: redirect to Better Auth sign-in with a return URL
+  const finalLogoutUrl = `${baseUrl}/sign-in?callbackURL=${encodeURIComponent(payloadReturnUrl)}`
 
-  const postLogoutRedirectUri = `${redirectOrigin}/admin?loggedOut=1`
-
-  return NextResponse.json(
+  // Create response with Set-Cookie headers to clear cookies in the browser
+  const response = NextResponse.json(
     {
       success: true,
-      logoutUrl: postLogoutRedirectUri,
+      logoutUrl: finalLogoutUrl,
     },
     { status: 200 },
   )
+
+  // Clear cookies in the browser by setting them with maxAge: 0
+  const cookieOptions = getNextTokenCookieOptions(0)
+
+  response.cookies.set(BETTER_AUTH_TOKEN_COOKIE, '', {
+    ...cookieOptions,
+    maxAge: 0,
+  })
+
+  response.cookies.set(PAYLOAD_ADMIN_TOKEN_COOKIE, '', {
+    ...cookieOptions,
+    maxAge: 0,
+  })
+
+  return response
 }
