@@ -85,7 +85,9 @@ export default buildConfig({
     },
     components: {
       beforeLogin: ['./components/admin/BetterAuthLoginRedirect.tsx'],
-      afterNavLinks: ['./components/admin/BetterAuthLogout.tsx'],
+      logout: {
+        Button: './components/admin/BetterAuthLogout.tsx',
+      },
     },
   },
   collections: [Users, Media, Posts, Categories],
