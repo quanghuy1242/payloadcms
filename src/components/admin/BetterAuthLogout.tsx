@@ -62,7 +62,7 @@ const BetterAuthLogout = () => {
           fontFamily: 'inherit',
         }}
       >
-        {pending ? 'Signing out…' : 'Sign out'}
+        {pending ? 'Signing out..' : 'Sign out'}
       </button>
       {error ? (
         <p
