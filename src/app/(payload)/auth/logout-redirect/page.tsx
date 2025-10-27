@@ -9,30 +9,14 @@ export default function LogoutRedirect() {
     const authBaseUrl = params.get('authBaseUrl') || 'https://auth.quanghuy.dev'
     const returnUrl = params.get('returnUrl') || '/admin?loggedOut=1'
 
-    // Create a form to POST to Better Auth's sign-out endpoint
-    // This is a workaround for CORS - using a form submission instead of fetch
-    const form = document.createElement('form')
-    form.method = 'POST'
-    form.action = `${authBaseUrl}/api/auth/sign-out`
-    form.style.display = 'none'
+    // Redirect to Better Auth's logout endpoint with a return URL
+    // This ensures Better Auth clears its own session cookies
+    const logoutUrl = new URL(`${authBaseUrl}/api/auth/sign-out`)
+    logoutUrl.searchParams.set('callbackURL', returnUrl)
 
-    // Add a hidden input for the return URL (if Better Auth supports it)
-    const input = document.createElement('input')
-    input.type = 'hidden'
-    input.name = 'redirect'
-    input.value = returnUrl
-    form.appendChild(input)
-
-    document.body.appendChild(form)
-
-    // Submit the form, which will clear Better Auth cookies
-    // Then use a meta refresh to redirect back
-    form.submit()
-
-    // Fallback: redirect after a short delay
-    setTimeout(() => {
-      window.location.href = returnUrl
-    }, 1000)
+    // Use window.location.href for a full page navigation
+    // This allows Better Auth to set cookies to clear the session
+    window.location.href = logoutUrl.toString()
   }, [])
 
   return (

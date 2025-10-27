@@ -45,6 +45,15 @@ export async function GET(request: NextRequest) {
     return response
   }
 
+  // Check if user already has a valid session - prevent reusing old OAuth flow
+  const existingToken = request.cookies.get(BETTER_AUTH_TOKEN_COOKIE)?.value
+  if (existingToken) {
+    // User already authenticated, just redirect to admin
+    const response = buildRedirectResponse(`${url.origin}/admin`)
+    clearPkceCookie(response)
+    return response
+  }
+
   const pkceCookie = request.cookies.get(BETTER_AUTH_STATE_COOKIE)?.value ?? null
   const pkcePayload = readPkceCookie(pkceCookie)
 
