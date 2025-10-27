@@ -22,6 +22,7 @@ export default function LogoutRedirect() {
           headers: {
             'Content-Type': 'application/json',
           },
+          body: JSON.stringify({}), // Send empty JSON object to avoid parsing errors
         })
         console.log('Logout response status:', response)
 
