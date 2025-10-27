@@ -7,7 +7,6 @@ export const betterAuthStrategy: AuthStrategy = {
   name: 'better-auth',
   authenticate: async ({ headers, payload }) => {
     const token = extractTokenFromHeaders(headers)
-    console.log('Strategy: Better Auth token extracted:', token)
 
     if (!token) {
       return { user: null }
@@ -31,7 +30,7 @@ export const betterAuthStrategy: AuthStrategy = {
       }
     } catch (error) {
       if (error instanceof BetterAuthTokenError) {
-        payload.logger.error(`[auth] Better Auth token rejected: ${error.message}`)
+        payload.logger.debug(`[auth] Better Auth token rejected: ${error.message}`)
 
         return {
           user: null,

@@ -1,10 +1,14 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 
-import { BETTER_AUTH_TOKEN_COOKIE, getAuthBaseUrl } from '@/lib/betterAuth/env'
+import {
+  BETTER_AUTH_TOKEN_COOKIE,
+  PAYLOAD_ADMIN_TOKEN_COOKIE,
+  getAuthBaseUrl,
+} from '@/lib/betterAuth/env'
 import { getNextTokenCookieOptions } from '@/lib/betterAuth/cookies'
 
-const clearTokenCookie = async (
+const clearTokenCookies = async (
   cookieStore?: Awaited<ReturnType<typeof cookies>>,
 ) => {
   const store = cookieStore ?? (await cookies())
@@ -14,13 +18,18 @@ const clearTokenCookie = async (
     ...options,
     maxAge: 0,
   })
+
+  store.set(PAYLOAD_ADMIN_TOKEN_COOKIE, '', {
+    ...options,
+    maxAge: 0,
+  })
 }
 
 export async function POST() {
   const cookieStore = await cookies()
   const token = cookieStore.get(BETTER_AUTH_TOKEN_COOKIE)?.value ?? null
 
-  await clearTokenCookie(cookieStore)
+  await clearTokenCookies(cookieStore)
 
   if (token) {
     const logoutEndpoint = new URL('/api/auth/oauth2/logout', getAuthBaseUrl())
