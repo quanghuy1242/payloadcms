@@ -9,9 +9,7 @@ import {
 import { getNextTokenCookieOptions } from '@/lib/betterAuth/cookies'
 import { revokeBetterAuthTokens } from '@/lib/betterAuth/api'
 
-const clearTokenCookies = async (
-  cookieStore?: Awaited<ReturnType<typeof cookies>>,
-) => {
+const clearTokenCookies = async (cookieStore?: Awaited<ReturnType<typeof cookies>>) => {
   const store = cookieStore ?? (await cookies())
   const options = getNextTokenCookieOptions(0)
 
@@ -64,12 +62,12 @@ export async function POST(request: NextRequest) {
       }
     }
     if (!logoutUrl) {
-      logoutUrl = new URL('/api/auth/sign-out', baseUrl).toString()
+      logoutUrl = new URL('/sign-out', baseUrl).toString()
     }
   } catch (error) {
     console.warn('Failed to resolve Better Auth end session endpoint.', error)
     try {
-      logoutUrl = new URL('/api/auth/sign-out', getAuthBaseUrl()).toString()
+      logoutUrl = new URL('/sign-out', getAuthBaseUrl()).toString()
     } catch {
       logoutUrl = null
     }

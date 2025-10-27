@@ -163,7 +163,7 @@ export const revokeBetterAuthTokens = async ({ token }: { token: string | null }
     console.error('Failed to revoke Better Auth OAuth2 token', err)
   })
 
-  await fetch(new URL('/api/auth/sign-out', baseUrl).toString(), {
+  await fetch(new URL('/sign-out', baseUrl).toString(), {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
