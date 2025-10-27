@@ -45,7 +45,7 @@ const BetterAuthLogout = () => {
           await fetch(signOutUrl, {
             method: 'POST',
             credentials: 'include',
-            mode: 'cors',
+            // mode: 'cors',
           })
         } catch (fetchError) {
           console.warn('Failed to call Better Auth sign-out endpoint.', fetchError)
