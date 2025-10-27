@@ -1,10 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 
 export default function LogoutRedirect() {
-  const [error, setError] = useState<string | null>(null)
-
   useEffect(() => {
     const performLogout = async () => {
       try {
@@ -14,27 +12,23 @@ export default function LogoutRedirect() {
         const returnUrl = params.get('returnUrl') || '/admin?loggedOut=1'
 
         // POST to Better Auth's sign-out endpoint to clear their session
-        // Note: This will clear Better Auth cookies via Set-Cookie headers
-        console.log('Logging out via Better Auth at:', `${authBaseUrl}/api/auth/sign-out`)
-        const response = await fetch(`${authBaseUrl}/api/auth/sign-out`, {
+        await fetch(`${authBaseUrl}/api/auth/sign-out`, {
           method: 'POST',
-          credentials: 'include', // Important: include cookies in the request
+          credentials: 'include',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({}), // Send empty JSON object to avoid parsing errors
+          body: JSON.stringify({}),
         })
-        console.log('Logout response status:', response)
 
-        // Whether it succeeds or fails, redirect back
-        // (it might fail if already logged out, which is fine)
-        // window.location.href = returnUrl
+        // Redirect back after sign-out
+        window.location.href = returnUrl
       } catch (err) {
         console.error('Error during logout:', err)
         // Still redirect even on error
-        // const params = new URLSearchParams(window.location.search)
-        // const returnUrl = params.get('returnUrl') || '/admin?loggedOut=1'
-        // window.location.href = returnUrl
+        const params = new URLSearchParams(window.location.search)
+        const returnUrl = params.get('returnUrl') || '/admin?loggedOut=1'
+        window.location.href = returnUrl
       }
     }
 

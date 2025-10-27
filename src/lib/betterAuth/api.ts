@@ -142,34 +142,3 @@ export class BetterAuthUserExistsError extends BetterAuthRequestError {
     this.name = 'BetterAuthUserExistsError'
   }
 }
-
-export const revokeBetterAuthTokens = async ({ token }: { token: string | null }) => {
-  if (!token) {
-    return
-  }
-
-  const baseUrl = getAuthBaseUrl()
-
-  await fetch(new URL('/api/auth/oauth2/revoke', baseUrl).toString(), {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: new URLSearchParams({
-      token,
-      client_id: getPayloadClientId(),
-    }),
-  }).catch((err) => {
-    console.error('Failed to revoke Better Auth OAuth2 token', err)
-  })
-
-  await fetch(new URL('/api/auth/sign-out', baseUrl).toString(), {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  }).catch((err) => {
-    // swallow errors to avoid blocking logout flow
-    console.error('Failed to sign out Better Auth user', err)
-  })
-}

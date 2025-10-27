@@ -7,29 +7,9 @@ import {
   getAuthBaseUrl,
 } from '@/lib/betterAuth/env'
 import { getNextTokenCookieOptions } from '@/lib/betterAuth/cookies'
-import { revokeBetterAuthTokens } from '@/lib/betterAuth/api'
-
-const clearTokenCookies = async (cookieStore?: Awaited<ReturnType<typeof cookies>>) => {
-  const store = cookieStore ?? (await cookies())
-  const options = getNextTokenCookieOptions(0)
-
-  store.set(BETTER_AUTH_TOKEN_COOKIE, '', {
-    ...options,
-    maxAge: 0,
-  })
-
-  store.set(PAYLOAD_ADMIN_TOKEN_COOKIE, '', {
-    ...options,
-    maxAge: 0,
-  })
-}
 
 export async function POST(request: NextRequest) {
   const cookieStore = await cookies()
-  const idToken = cookieStore.get(BETTER_AUTH_TOKEN_COOKIE)?.value ?? null
-
-  // Revoke tokens at Better Auth
-  await revokeBetterAuthTokens({ token: idToken })
 
   const baseUrl = getAuthBaseUrl()
   const redirectOrigin = request.headers.get('origin') ?? request.nextUrl.origin
