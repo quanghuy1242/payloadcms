@@ -36,13 +36,20 @@ const BetterAuthLogout = () => {
   }
 
   return (
-    <div style={{ padding: '1rem' }}>
+    <div>
       <button
         type="button"
         onClick={handleLogout}
-        className="btn btn--style-primary"
         disabled={pending}
-        style={{ width: '100%' }}
+        style={{
+          background: 'none',
+          border: 'none',
+          padding: 0,
+          textDecoration: 'underline',
+          cursor: 'pointer',
+          fontSize: 'inherit',
+          fontFamily: 'inherit',
+        }}
       >
         {pending ? 'Signing out…' : 'Sign out'}
       </button>
