@@ -34,24 +34,10 @@ const BetterAuthLogout = () => {
     setError(null)
 
     try {
-      // First, logout from Payload (clears Payload cookies and revokes tokens)
+      // Logout from Payload (also calls Better Auth sign-out via server proxy)
       const { logoutUrl } = await logout()
 
-      // Get Better Auth base URL from env
-      const authBaseUrl = process.env.NEXT_PUBLIC_AUTH_BASE_URL || 'https://auth.quanghuy.dev'
-
-      // Call Better Auth's sign-out endpoint to clear their session cookies
-      // This must be done from the browser to clear HttpOnly cookies
-      try {
-        await fetch(`${authBaseUrl}/api/auth/sign-out`, {
-          method: 'POST',
-          credentials: 'include', // Important: include cookies
-        })
-      } catch (err) {
-        console.warn('Failed to sign out from Better Auth:', err)
-      }
-
-      // Now redirect to Payload login
+      // Redirect to Payload login
       window.location.href = logoutUrl || '/admin?loggedOut=1'
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unexpected logout error.')
