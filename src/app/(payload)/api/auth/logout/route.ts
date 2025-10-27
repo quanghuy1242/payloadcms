@@ -28,24 +28,29 @@ export async function POST(request: NextRequest) {
   const cookieStore = await cookies()
   const idToken = cookieStore.get(BETTER_AUTH_TOKEN_COOKIE)?.value ?? null
 
-  // Clear local cookies first
+  // Clear local Payload cookies first
   await clearTokenCookies(cookieStore)
 
-  // Try to revoke tokens at Better Auth (non-blocking)
+  // Revoke tokens at Better Auth
   await revokeBetterAuthTokens({ token: idToken })
 
-  // Build the redirect URL to Better Auth sign-in page
   const baseUrl = getAuthBaseUrl()
   const redirectOrigin = request.headers.get('origin') ?? request.nextUrl.origin
 
-  // Redirect to Better Auth's sign-in page with a return URL
-  const signInUrl = new URL('/sign-in', baseUrl)
-  signInUrl.searchParams.set('callbackURL', `${redirectOrigin}/admin?loggedOut=1`)
+  // Build Better Auth sign-out URL with post-logout redirect
+  // This will clear the Better Auth session and redirect to sign-in
+  const signOutUrl = new URL('/api/auth/sign-out', baseUrl)
 
+  // After Better Auth signs out, we want to redirect back to Payload login
+  const postLogoutRedirectUri = `${redirectOrigin}/admin?loggedOut=1`
+
+  // Return the sign-out URL for the frontend to redirect to
+  // Note: Better Auth's /sign-out endpoint doesn't support post_logout_redirect_uri
+  // So we'll return the Payload login URL directly and rely on cookie clearing
   return NextResponse.json(
     {
       success: true,
-      logoutUrl: signInUrl.toString(),
+      logoutUrl: postLogoutRedirectUri,
     },
     { status: 200 },
   )
