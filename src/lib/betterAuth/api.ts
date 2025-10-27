@@ -159,16 +159,17 @@ export const revokeBetterAuthTokens = async ({ token }: { token: string | null }
       token,
       client_id: getPayloadClientId(),
     }),
-  }).catch(() => {
-    // ignore revocation errors
+  }).catch((err) => {
+    console.error('Failed to revoke Better Auth OAuth2 token', err)
   })
 
-  await fetch(new URL('/api/auth/logout', baseUrl).toString(), {
+  await fetch(new URL('/api/auth/sign-out', baseUrl).toString(), {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
     },
-  }).catch(() => {
+  }).catch((err) => {
     // swallow errors to avoid blocking logout flow
+    console.error('Failed to sign out Better Auth user', err)
   })
 }
