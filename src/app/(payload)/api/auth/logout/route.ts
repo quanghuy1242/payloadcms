@@ -28,50 +28,25 @@ export async function POST(request: NextRequest) {
   const cookieStore = await cookies()
   const idToken = cookieStore.get(BETTER_AUTH_TOKEN_COOKIE)?.value ?? null
 
+  // Clear local cookies first
   await clearTokenCookies(cookieStore)
 
+  // Try to revoke tokens at Better Auth (non-blocking)
   await revokeBetterAuthTokens({ token: idToken })
 
-  let logoutUrl: string | null = null
+  // Build the redirect URL to Better Auth sign-in page
+  const baseUrl = getAuthBaseUrl()
+  const redirectOrigin = request.headers.get('origin') ?? request.nextUrl.origin
 
-  try {
-    const baseUrl = getAuthBaseUrl()
-    const discoveryResponse = await fetch(
-      new URL('/.well-known/openid-configuration', baseUrl).toString(),
-    )
+  // Redirect to Better Auth's sign-in page with a return URL
+  const signInUrl = new URL('/sign-in', baseUrl)
+  signInUrl.searchParams.set('callbackURL', `${redirectOrigin}/admin?loggedOut=1`)
 
-    if (discoveryResponse.ok) {
-      const discovery = (await discoveryResponse.json()) as { end_session_endpoint?: string }
-      if (discovery.end_session_endpoint) {
-        const redirectOrigin = request.headers.get('origin') ?? request.nextUrl.origin
-        const postLogoutRedirect = redirectOrigin
-          ? `${redirectOrigin}/admin?loggedOut=1`
-          : undefined
-
-        const endSessionUrl = new URL(discovery.end_session_endpoint)
-
-        if (idToken) {
-          endSessionUrl.searchParams.set('id_token_hint', idToken)
-        }
-
-        if (postLogoutRedirect) {
-          endSessionUrl.searchParams.set('post_logout_redirect_uri', postLogoutRedirect)
-        }
-
-        logoutUrl = endSessionUrl.toString()
-      }
-    }
-    if (!logoutUrl) {
-      logoutUrl = new URL('/sign-out', baseUrl).toString()
-    }
-  } catch (error) {
-    console.warn('Failed to resolve Better Auth end session endpoint.', error)
-    try {
-      logoutUrl = new URL('/sign-out', getAuthBaseUrl()).toString()
-    } catch {
-      logoutUrl = null
-    }
-  }
-
-  return NextResponse.json({ success: true, logoutUrl }, { status: 200 })
+  return NextResponse.json(
+    {
+      success: true,
+      logoutUrl: signInUrl.toString(),
+    },
+    { status: 200 },
+  )
 }
