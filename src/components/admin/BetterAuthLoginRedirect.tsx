@@ -44,7 +44,8 @@ const BetterAuthLoginRedirect = () => {
   }, [])
 
   useEffect(() => {
-    void beginRedirect()
+    // Start the redirect in a microtask to avoid synchronous setState in effect
+    Promise.resolve().then(() => beginRedirect())
   }, [beginRedirect])
 
   return (
