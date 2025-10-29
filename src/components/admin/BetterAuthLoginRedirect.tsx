@@ -58,7 +58,7 @@ const BetterAuthLoginRedirect = () => {
         gap: '1rem',
       }}
     >
-      <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>Redirecting…</div>
+      <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>Signing in...</div>
       <p style={{ color: '#666' }}>Please wait while we send you to the sign-in page.</p>
       {error ? (
         <>
