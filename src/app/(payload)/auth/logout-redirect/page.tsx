@@ -36,19 +36,22 @@ export default function LogoutRedirect() {
   }, [])
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: '100vh',
-        fontFamily: 'system-ui, sans-serif',
-        flexDirection: 'column',
-        gap: '1rem',
-      }}
-    >
-      <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>Signing out...</div>
-      <div style={{ color: '#666' }}>Please wait while we complete the sign-out process.</div>
-    </div>
+    <section className="template-minimal template-minimal--width-normal">
+      <div className="template-minimal__wrapper">
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontFamily: 'system-ui, sans-serif',
+            flexDirection: 'column',
+            gap: '1rem',
+          }}
+        >
+          <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>Signing out...</div>
+          <div style={{ color: '#666' }}>Please wait while we complete the sign-out process.</div>
+        </div>
+      </div>
+    </section>
   )
 }

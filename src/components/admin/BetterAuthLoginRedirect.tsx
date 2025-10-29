@@ -53,7 +53,6 @@ const BetterAuthLoginRedirect = () => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        minHeight: '100vh',
         fontFamily: 'system-ui, sans-serif',
         flexDirection: 'column',
         gap: '1rem',
