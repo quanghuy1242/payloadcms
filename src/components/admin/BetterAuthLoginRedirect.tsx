@@ -51,16 +51,16 @@ const BetterAuthLoginRedirect = () => {
     <div
       style={{
         display: 'flex',
-        flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
+        minHeight: '100vh',
+        fontFamily: 'system-ui, sans-serif',
+        flexDirection: 'column',
         gap: '1rem',
-        padding: '2rem',
-        textAlign: 'center',
       }}
     >
-      <h1>Redirecting…</h1>
-      <p>Please wait while we send you to the Better Auth sign-in page.</p>
+      <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>Redirecting…</div>
+      <p style={{ color: '#666' }}>Please wait while we send you to the sign-in page.</p>
       {error ? (
         <>
           <p style={{ color: 'var(--theme-error-500, #c00)', maxWidth: '32rem' }}>{error}</p>
