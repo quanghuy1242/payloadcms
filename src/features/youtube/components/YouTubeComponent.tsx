@@ -18,30 +18,37 @@ export const YouTubeComponent: React.FC<YouTubeComponentProps> = ({ videoId }) =
   return (
     <div
       style={{
-        position: 'relative',
-        paddingBottom: '56.25%', // 16:9 aspect ratio
-        height: 0,
-        overflow: 'hidden',
-        maxWidth: '100%',
-        margin: '1em 0',
-        border: '2px solid #ccc',
+        width: '100%',
+        maxWidth: '800px',
+        margin: '1em auto',
+        border: '2px solid #e0e0e0',
         borderRadius: '8px',
+        overflow: 'hidden',
+        backgroundColor: '#000',
       }}
     >
-      <iframe
-        src={`https://www.youtube.com/embed/${videoId}`}
+      <div
         style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
+          position: 'relative',
           width: '100%',
-          height: '100%',
-          border: 0,
+          paddingBottom: '56.25%', // 16:9 aspect ratio
         }}
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-        allowFullScreen
-        title={`YouTube video ${videoId}`}
-      />
+      >
+        <iframe
+          src={`https://www.youtube.com/embed/${videoId}`}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            border: 0,
+          }}
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+          title={`YouTube video ${videoId}`}
+        />
+      </div>
     </div>
   )
 }

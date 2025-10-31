@@ -111,7 +111,8 @@ export class YouTubeNode extends DecoratorNode<React.ReactElement> {
   createDOM(config: EditorConfig): HTMLElement {
     const div = document.createElement('div')
     div.className = 'youtube-embed-container'
-    div.style.maxWidth = '100%'
+    div.style.width = '100%'
+    div.style.display = 'block'
     div.style.margin = '1em 0'
     return div
   }

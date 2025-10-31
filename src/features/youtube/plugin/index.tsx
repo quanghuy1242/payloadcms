@@ -32,12 +32,8 @@ export const YouTubePlugin: PluginComponent = () => {
     return editor.registerCommand(
       INSERT_YOUTUBE_COMMAND,
       (payload: InsertYouTubePayload) => {
-        console.log('INSERT_YOUTUBE_COMMAND called with payload:', payload)
-
         const { url } = payload
         const videoId = extractYouTubeVideoId(url)
-
-        console.log('Extracted videoId:', videoId)
 
         if (!videoId) {
           console.error('Invalid YouTube URL:', url)
@@ -58,7 +54,6 @@ export const YouTubePlugin: PluginComponent = () => {
           if (focusNode !== null) {
             const youtubeNode = $createYouTubeNode(videoId, url)
             $insertNodeToNearestRoot(youtubeNode)
-            console.log('YouTube node inserted successfully')
           }
         })
 
