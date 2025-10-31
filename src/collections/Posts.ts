@@ -9,6 +9,9 @@ import {
   ItalicFeature,
   ParagraphFeature,
   UnderlineFeature,
+  BlocksFeature,
+  CodeBlock,
+  EXPERIMENTAL_TableFeature,
 } from '@payloadcms/richtext-lexical'
 
 import { authenticatedAccess, ownerAccess, postsReadAccess } from '../utils/access'
@@ -82,6 +85,93 @@ export const Posts: CollectionConfig = {
             FixedToolbarFeature(),
             InlineToolbarFeature(),
             HorizontalRuleFeature(),
+            // Table support (experimental)
+            EXPERIMENTAL_TableFeature(),
+            // Code block, YouTube embed, and Collapsible container
+            BlocksFeature({
+              blocks: [
+                // Code block with syntax highlighting
+                CodeBlock({
+                  defaultLanguage: 'typescript',
+                  languages: {
+                    js: 'JavaScript',
+                    ts: 'TypeScript',
+                    tsx: 'TSX',
+                    jsx: 'JSX',
+                    html: 'HTML',
+                    css: 'CSS',
+                    python: 'Python',
+                    bash: 'Bash',
+                    json: 'JSON',
+                    plaintext: 'Plain Text',
+                  },
+                }),
+                // YouTube video embed
+                {
+                  slug: 'youtube',
+                  interfaceName: 'YouTubeBlock',
+                  admin: {
+                    components: {
+                      Block: '@/components/lexical/YouTubeBlock#YouTubeBlock',
+                    },
+                  },
+                  fields: [
+                    {
+                      name: 'url',
+                      type: 'text',
+                      required: true,
+                      label: 'YouTube URL',
+                      admin: {
+                        description:
+                          'Paste the full YouTube URL (e.g., https://www.youtube.com/watch?v=...)',
+                      },
+                    },
+                    {
+                      name: 'title',
+                      type: 'text',
+                      label: 'Video Title',
+                      admin: {
+                        description: 'Optional title to display above the video',
+                      },
+                    },
+                  ],
+                },
+                // Collapsible container
+                {
+                  slug: 'collapsible',
+                  interfaceName: 'CollapsibleBlock',
+                  admin: {
+                    components: {
+                      Block: '@/components/lexical/CollapsibleBlock#CollapsibleBlock',
+                    },
+                  },
+                  fields: [
+                    {
+                      name: 'title',
+                      type: 'text',
+                      required: true,
+                      label: 'Collapsible Title',
+                      admin: {
+                        description: 'The heading shown in the collapsible bar',
+                      },
+                    },
+                    {
+                      name: 'content',
+                      type: 'richText',
+                      required: true,
+                      label: 'Content',
+                      editor: lexicalEditor(),
+                    },
+                    {
+                      name: 'defaultOpen',
+                      type: 'checkbox',
+                      label: 'Open by Default',
+                      defaultValue: false,
+                    },
+                  ],
+                },
+              ],
+            }),
           ]
         },
       }),
