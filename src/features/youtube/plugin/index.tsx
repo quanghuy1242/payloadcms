@@ -32,26 +32,35 @@ export const YouTubePlugin: PluginComponent = () => {
     return editor.registerCommand(
       INSERT_YOUTUBE_COMMAND,
       (payload: InsertYouTubePayload) => {
+        console.log('INSERT_YOUTUBE_COMMAND called with payload:', payload)
+
         const { url } = payload
         const videoId = extractYouTubeVideoId(url)
 
+        console.log('Extracted videoId:', videoId)
+
         if (!videoId) {
-          // Invalid YouTube URL
+          console.error('Invalid YouTube URL:', url)
+          alert('Invalid YouTube URL. Please use a valid YouTube video URL.')
           return false
         }
 
-        const selection = $getSelection()
+        editor.update(() => {
+          const selection = $getSelection()
 
-        if (!$isRangeSelection(selection)) {
-          return false
-        }
+          if (!$isRangeSelection(selection)) {
+            console.error('No range selection available')
+            return false
+          }
 
-        const focusNode = selection.focus.getNode()
+          const focusNode = selection.focus.getNode()
 
-        if (focusNode !== null) {
-          const youtubeNode = $createYouTubeNode(videoId, url)
-          $insertNodeToNearestRoot(youtubeNode)
-        }
+          if (focusNode !== null) {
+            const youtubeNode = $createYouTubeNode(videoId, url)
+            $insertNodeToNearestRoot(youtubeNode)
+            console.log('YouTube node inserted successfully')
+          }
+        })
 
         return true
       },

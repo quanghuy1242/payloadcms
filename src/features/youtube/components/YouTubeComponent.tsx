@@ -13,6 +13,8 @@ export interface YouTubeComponentProps {
  * React component that renders the YouTube embed in the editor
  */
 export const YouTubeComponent: React.FC<YouTubeComponentProps> = ({ videoId }) => {
+  console.log('YouTubeComponent rendering with videoId:', videoId)
+
   return (
     <div
       style={{
@@ -22,6 +24,8 @@ export const YouTubeComponent: React.FC<YouTubeComponentProps> = ({ videoId }) =
         overflow: 'hidden',
         maxWidth: '100%',
         margin: '1em 0',
+        border: '2px solid #ccc',
+        borderRadius: '8px',
       }}
     >
       <iframe

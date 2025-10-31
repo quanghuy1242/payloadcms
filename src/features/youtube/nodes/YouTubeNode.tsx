@@ -149,7 +149,15 @@ export class YouTubeNode extends DecoratorNode<React.ReactElement> {
    * Render the React component inside the editor
    */
   decorate(): React.ReactElement {
-    return <YouTubeComponent nodeKey={this.__key} videoId={this.__videoId} url={this.__url} />
+    return (
+      <React.Suspense
+        fallback={
+          <div style={{ padding: '1em', textAlign: 'center' }}>Loading YouTube video...</div>
+        }
+      >
+        <YouTubeComponent nodeKey={this.__key} videoId={this.__videoId} url={this.__url} />
+      </React.Suspense>
+    )
   }
 
   /**
