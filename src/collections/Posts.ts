@@ -87,7 +87,7 @@ export const Posts: CollectionConfig = {
             HorizontalRuleFeature(),
             // Table support (experimental)
             EXPERIMENTAL_TableFeature(),
-            // Code block, YouTube embed, and Collapsible container
+            // Code block and YouTube embed
             BlocksFeature({
               blocks: [
                 // Code block with syntax highlighting
@@ -110,6 +110,10 @@ export const Posts: CollectionConfig = {
                 {
                   slug: 'youtube',
                   interfaceName: 'YouTubeBlock',
+                  labels: {
+                    singular: 'YouTube Video',
+                    plural: 'YouTube Videos',
+                  },
                   admin: {
                     components: {
                       Block: '@/components/lexical/YouTubeBlock#YouTubeBlock',
@@ -123,50 +127,16 @@ export const Posts: CollectionConfig = {
                       label: 'YouTube URL',
                       admin: {
                         description:
-                          'Paste the full YouTube URL (e.g., https://www.youtube.com/watch?v=...)',
+                          'Paste the full YouTube URL (e.g., https://www.youtube.com/watch?v=dQw4w9WgXcQ or https://youtu.be/dQw4w9WgXcQ)',
                       },
                     },
                     {
                       name: 'title',
                       type: 'text',
-                      label: 'Video Title',
+                      label: 'Video Title (Optional)',
                       admin: {
                         description: 'Optional title to display above the video',
                       },
-                    },
-                  ],
-                },
-                // Collapsible container
-                {
-                  slug: 'collapsible',
-                  interfaceName: 'CollapsibleBlock',
-                  admin: {
-                    components: {
-                      Block: '@/components/lexical/CollapsibleBlock#CollapsibleBlock',
-                    },
-                  },
-                  fields: [
-                    {
-                      name: 'title',
-                      type: 'text',
-                      required: true,
-                      label: 'Collapsible Title',
-                      admin: {
-                        description: 'The heading shown in the collapsible bar',
-                      },
-                    },
-                    {
-                      name: 'content',
-                      type: 'richText',
-                      required: true,
-                      label: 'Content',
-                      editor: lexicalEditor(),
-                    },
-                    {
-                      name: 'defaultOpen',
-                      type: 'checkbox',
-                      label: 'Open by Default',
-                      defaultValue: false,
                     },
                   ],
                 },

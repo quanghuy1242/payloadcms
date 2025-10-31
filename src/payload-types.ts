@@ -479,7 +479,7 @@ export interface HomepageSelect<T extends boolean = true> {
  */
 export interface YouTubeBlock {
   /**
-   * Paste the full YouTube URL (e.g., https://www.youtube.com/watch?v=...)
+   * Paste the full YouTube URL (e.g., https://www.youtube.com/watch?v=dQw4w9WgXcQ or https://youtu.be/dQw4w9WgXcQ)
    */
   url: string;
   /**
@@ -489,35 +489,6 @@ export interface YouTubeBlock {
   id?: string | null;
   blockName?: string | null;
   blockType: 'youtube';
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "CollapsibleBlock".
- */
-export interface CollapsibleBlock {
-  /**
-   * The heading shown in the collapsible bar
-   */
-  title: string;
-  content: {
-    root: {
-      type: string;
-      children: {
-        type: any;
-        version: number;
-        [k: string]: unknown;
-      }[];
-      direction: ('ltr' | 'rtl') | null;
-      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
-      indent: number;
-      version: number;
-    };
-    [k: string]: unknown;
-  };
-  defaultOpen?: boolean | null;
-  id?: string | null;
-  blockName?: string | null;
-  blockType: 'collapsible';
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
