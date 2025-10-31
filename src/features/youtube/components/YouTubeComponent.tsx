@@ -1,0 +1,43 @@
+'use client'
+
+import type { NodeKey } from '@payloadcms/richtext-lexical/lexical'
+import React from 'react'
+
+export interface YouTubeComponentProps {
+  nodeKey: NodeKey
+  videoId: string
+  url: string
+}
+
+/**
+ * React component that renders the YouTube embed in the editor
+ */
+export const YouTubeComponent: React.FC<YouTubeComponentProps> = ({ videoId }) => {
+  return (
+    <div
+      style={{
+        position: 'relative',
+        paddingBottom: '56.25%', // 16:9 aspect ratio
+        height: 0,
+        overflow: 'hidden',
+        maxWidth: '100%',
+        margin: '1em 0',
+      }}
+    >
+      <iframe
+        src={`https://www.youtube.com/embed/${videoId}`}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          border: 0,
+        }}
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowFullScreen
+        title={`YouTube video ${videoId}`}
+      />
+    </div>
+  )
+}

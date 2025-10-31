@@ -17,6 +17,7 @@ import {
 import { authenticatedAccess, ownerAccess, postsReadAccess } from '../utils/access'
 import { enforceOwnershipHook } from '../utils/ownership'
 import { createRandomizedSlugHook, validateImmutableSlug } from '../utils/slug'
+import { YouTubeFeature } from '../features/youtube/feature.server'
 
 export const Posts: CollectionConfig = {
   slug: 'posts',
@@ -85,6 +86,8 @@ export const Posts: CollectionConfig = {
             FixedToolbarFeature(),
             InlineToolbarFeature(),
             HorizontalRuleFeature(),
+            // YouTube video embeds
+            YouTubeFeature(),
             // Table support (experimental)
             EXPERIMENTAL_TableFeature(),
             BlocksFeature({
