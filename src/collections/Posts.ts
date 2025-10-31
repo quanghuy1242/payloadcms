@@ -87,7 +87,6 @@ export const Posts: CollectionConfig = {
             HorizontalRuleFeature(),
             // Table support (experimental)
             EXPERIMENTAL_TableFeature(),
-            // Code block and YouTube embed
             BlocksFeature({
               blocks: [
                 // Code block with syntax highlighting
@@ -106,40 +105,6 @@ export const Posts: CollectionConfig = {
                     plaintext: 'Plain Text',
                   },
                 }),
-                // YouTube video embed
-                {
-                  slug: 'youtube',
-                  interfaceName: 'YouTubeBlock',
-                  labels: {
-                    singular: 'YouTube Video',
-                    plural: 'YouTube Videos',
-                  },
-                  admin: {
-                    components: {
-                      Block: '@/components/lexical/YouTubeBlock#YouTubeBlock',
-                    },
-                  },
-                  fields: [
-                    {
-                      name: 'url',
-                      type: 'text',
-                      required: true,
-                      label: 'YouTube URL',
-                      admin: {
-                        description:
-                          'Paste the full YouTube URL (e.g., https://www.youtube.com/watch?v=dQw4w9WgXcQ or https://youtu.be/dQw4w9WgXcQ)',
-                      },
-                    },
-                    {
-                      name: 'title',
-                      type: 'text',
-                      label: 'Video Title (Optional)',
-                      admin: {
-                        description: 'Optional title to display above the video',
-                      },
-                    },
-                  ],
-                },
               ],
             }),
           ]
