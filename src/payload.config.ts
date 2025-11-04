@@ -89,6 +89,7 @@ export default buildConfig({
         Button: './components/admin/BetterAuthLogout.tsx',
       },
     },
+    autoRefresh: true, // Enable automatic token refresh to keep users logged in
   },
   collections: [Users, Media, Posts, Categories],
   editor: lexicalEditor({}),

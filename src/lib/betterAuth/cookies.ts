@@ -12,9 +12,9 @@ const encodePkcePayload = (payload: BetterAuthPkceCookiePayload): string => {
 
 const decodePkcePayload = (value: string): BetterAuthPkceCookiePayload | null => {
   try {
-    const parsed = JSON.parse(Buffer.from(value, 'base64url').toString('utf8')) as
-      | BetterAuthPkceCookiePayload
-      | null
+    const parsed = JSON.parse(
+      Buffer.from(value, 'base64url').toString('utf8'),
+    ) as BetterAuthPkceCookiePayload | null
 
     if (
       parsed &&
@@ -35,7 +35,9 @@ export const createPkceCookieValue = (payload: BetterAuthPkceCookiePayload): str
   return encodePkcePayload(payload)
 }
 
-export const parsePkceCookieValue = (value: string | null | undefined): BetterAuthPkceCookiePayload | null => {
+export const parsePkceCookieValue = (
+  value: string | null | undefined,
+): BetterAuthPkceCookiePayload | null => {
   if (!value) {
     return null
   }
@@ -43,7 +45,10 @@ export const parsePkceCookieValue = (value: string | null | undefined): BetterAu
   return decodePkcePayload(value)
 }
 
-export const isPkcePayloadExpired = (payload: BetterAuthPkceCookiePayload, now: number = Date.now()): boolean => {
+export const isPkcePayloadExpired = (
+  payload: BetterAuthPkceCookiePayload,
+  now: number = Date.now(),
+): boolean => {
   const ageSeconds = (now - payload.createdAt) / 1000
 
   return ageSeconds > PKCE_COOKIE_MAX_AGE_SECONDS
@@ -73,7 +78,7 @@ const clampCookieAge = (seconds: number): number => {
     return PKCE_COOKIE_MAX_AGE_SECONDS
   }
 
-  return Math.min(Math.floor(seconds), 24 * 60 * 60) // cap at 1 day
+  return Math.min(Math.floor(seconds), 24 * 60 * 60) // cap at 24 hours
 }
 
 export const getExpressTokenCookieOptions = (maxAgeSeconds: number) => ({

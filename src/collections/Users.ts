@@ -46,6 +46,7 @@ export const Users: CollectionConfig = {
     useAPIKey: true,
     disableLocalStrategy: true,
     strategies: [betterAuthStrategy],
+    tokenExpiration: 86400, // 24 hours in seconds (matches Better Auth session time)
   },
   hooks: {
     beforeValidate: [
