@@ -282,3 +282,5 @@ These are the concrete behaviors we verified while implementing the foundation a
 - Playwright HTML reports should stay static-only in local validation runs. Use `reporter: [['html', { open: 'never' }]]` so failures do not auto-open the interactive report page.
 - Local Payload integration tests need the ignored `.payload/` directory for SQLite state. If the folder is missing, recreate it before running API-level smoke tests.
 - TypeScript 6 warns about `baseUrl`. Keep `ignoreDeprecations: "6.0"` in `tsconfig.json` while the path alias setup still depends on it.
+
+For blog-facing usage examples of the new `books` and `chapters` APIs, see [docs/book-integration.md](docs/book-integration.md).
