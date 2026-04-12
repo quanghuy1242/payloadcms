@@ -17,4 +17,20 @@ describe('API', () => {
     })
     expect(users).toBeDefined()
   })
+
+  it('fetches the books and chapters collections', async () => {
+    const [books, chapters] = await Promise.all([
+      payload.find({
+        collection: 'books',
+        overrideAccess: true,
+      }),
+      payload.find({
+        collection: 'chapters',
+        overrideAccess: true,
+      }),
+    ])
+
+    expect(books).toBeDefined()
+    expect(chapters).toBeDefined()
+  })
 })

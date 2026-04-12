@@ -7,9 +7,11 @@ import { buildConfig } from 'payload'
 import { fileURLToPath } from 'url'
 
 import { Categories } from './collections/Categories'
+import { Chapters } from './collections/Chapters'
 import { Posts } from './collections/Posts'
 import { Users } from './collections/Users'
 import { Media } from './collections/Media'
+import { Books } from './collections/Books'
 import { getR2PublicBaseUrl } from './lib/env'
 import { generateSeoDescription, generateSeoImage, generateSeoTitle } from './lib/postsSeo'
 import { createR2BucketFromEnv } from './lib/r2Bucket'
@@ -91,7 +93,7 @@ export default buildConfig({
     },
     autoRefresh: true, // Enable automatic token refresh to keep users logged in
   },
-  collections: [Users, Media, Posts, Categories],
+  collections: [Users, Media, Books, Chapters, Posts, Categories],
   editor: lexicalEditor({}),
   secret: process.env.PAYLOAD_SECRET || '',
   typescript: {

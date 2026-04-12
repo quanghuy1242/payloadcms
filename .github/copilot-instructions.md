@@ -23,6 +23,7 @@ This is a **PayloadCMS 3.60 + Next.js 15** headless CMS with a **pluggable stora
 | `utils/strings.ts` | Safe string conversions | `toNullableString()`, `isNonEmptyString()` |
 | `utils/numbers.ts` | Numeric safety net (`isFiniteNumber`, `clampNumber`, `sanitizeDimension`, `sanitizeQuality`). | Media sanitization, storage configuration. |
 | `utils/identifiers.ts` | ID normalization across types | Shared API handlers use this for type-safe ID handling |
+| `src/utils/http.ts` | Shared browser/server-safe request helpers (`requestJSON`, `requestJSONWithRetry`, `HttpRequestError`) | Custom admin components and browser-side API clients |
 
 **Before adding any validation, parsing, or access logic**: Check if a utility exists. If it doesn't, extend `src/utils/` instead of inlining code. See the Agentic Utilities Blueprint below for the full philosophy.
 
@@ -38,6 +39,7 @@ Our agentic coding workflow relies on a consistent, reusable utilities layer so 
 - **Document intent through names.** Functions should read like instructions (`sanitizeIdentifiers`, `toNullableString`, `clampNumber`) so other agents immediately understand behavior.
 - **Tests before trust.** Whenever practical, add unit coverage that demonstrates the contract. Utilities are the foundation—bugs here cascade everywhere.
 - **Prefer extension over duplication.** If an edge case isn’t covered, extend the existing helper or create a nearby sibling module instead of writing new inline logic.
+- **Do not inline reusable transport helpers.** If code needs to call Payload REST endpoints, parse responses, normalize request errors, or retry network requests, put that logic in `src/utils/http.ts` and import it. Inline functions are fine for JSX event handlers and one-off local closures, but not for reusable fetch wrappers.
 
 ### Current Utility Surface
 
@@ -66,6 +68,7 @@ These files replaced the legacy `src/collections/utils` folder so future helpers
 - **Planner:** When breaking down a task, identify which utilities will be reused and note any needed extensions.
 - **Architect:** Ensure new features integrate via existing helpers instead of redefining validation, parsing, or access rules.
 - **Implementer:** Import from the relevant utility module; do not inline string/number sanitization, slug logic, or access control (use helpers like `adminOrSelfFieldAccess`).
+- **Implementer:** Import from the relevant utility module; do not inline string/number sanitization, slug logic, access control, or reusable request/response handling (use helpers like `requestJSON` and `requestJSONWithRetry` from `src/utils/http.ts`).
 - **Reviewer:** Reject patches that duplicate functionality or bypass existing helpers without justification.
 - **Integrator:** When wiring configuration or storage backends, lean on shared utilities so environment parsing and error handling stay consistent.
 - **Operator:** Feed runtime learnings (unexpected inputs, edge cases) back into utilities to strengthen the shared foundation.
