@@ -8,6 +8,7 @@ import { convertHtmlToChapterLexicalState } from '@/utils/epubLexical'
 import {
   buildChapterSourceKey,
   buildStableHash,
+  buildStableBinaryHash,
   createImportedBookSlug,
   createImportedBookTitle,
   createStableMediaFilename,
@@ -205,6 +206,15 @@ describe('EPUB import utilities', () => {
     )
   })
 
+  it('builds stable hashes from epub bytes', () => {
+    const first = buildStableBinaryHash(new Uint8Array([1, 2, 3, 4]))
+    const second = buildStableBinaryHash(new Uint8Array([1, 2, 3, 4]))
+    const different = buildStableBinaryHash(new Uint8Array([4, 3, 2, 1]))
+
+    expect(first).toBe(second)
+    expect(first).not.toBe(different)
+  })
+
   it('derives imported book titles and slugs', () => {
     expect(createImportedBookTitle('  The Wild Robot Escapes  ', 'fallback.epub')).toBe(
       'The Wild Robot Escapes',
@@ -241,5 +251,16 @@ describe('EPUB import utilities', () => {
     )
 
     expect(editorState.root.children.length).toBeGreaterThan(0)
+  })
+
+  it('drops unsupported relative links before lexical conversion', () => {
+    const editorState = convertHtmlToChapterLexicalState(
+      '<p><a href="../chapter-2.xhtml">Next chapter</a> and <a href="https://payloadcms.com">Payload</a></p>',
+    )
+
+    const lexicalText = collectLexicalText(editorState.root)
+
+    expect(lexicalText).toContain('Next chapter')
+    expect(lexicalText).toContain('Payload')
   })
 })

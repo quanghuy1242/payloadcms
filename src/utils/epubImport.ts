@@ -141,6 +141,28 @@ export const sanitizeURLAttributeValue = (
   return value
 }
 
+export const sanitizeLexicalLinkURLValue = (rawValue: string): string | null => {
+  const value = trimToNull(rawValue)
+
+  if (!value || value.startsWith('#')) {
+    return null
+  }
+
+  let parsedURL: URL
+
+  try {
+    parsedURL = new URL(value)
+  } catch {
+    return null
+  }
+
+  if (!URL_PROTOCOL_ALLOWLIST.has(parsedURL.protocol)) {
+    return null
+  }
+
+  return value
+}
+
 const removeDisallowedNodes = (document: Document) => {
   for (const tagName of DISALLOWED_TAGS) {
     for (const element of Array.from(document.querySelectorAll(tagName))) {
@@ -305,6 +327,18 @@ export const buildStableHash = (value: string): string => {
 
   for (let index = 0; index < value.length; index += 1) {
     hash ^= value.charCodeAt(index)
+    hash = Math.imul(hash, 16777619)
+  }
+
+  return (hash >>> 0).toString(16)
+}
+
+export const buildStableBinaryHash = (value: ArrayBuffer | Uint8Array): string => {
+  const bytes = value instanceof Uint8Array ? value : new Uint8Array(value)
+  let hash = 2166136261
+
+  for (const byte of bytes) {
+    hash ^= byte
     hash = Math.imul(hash, 16777619)
   }
 

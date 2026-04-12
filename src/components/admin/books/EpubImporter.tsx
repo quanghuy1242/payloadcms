@@ -9,6 +9,7 @@ import { convertHtmlToChapterLexicalState } from '@/utils/epubLexical'
 import {
   buildChapterSourceKey,
   buildStableHash,
+  buildStableBinaryHash,
   createImportBatchID,
   createImportedBookSlug,
   createImportedBookTitle,
@@ -640,7 +641,7 @@ export const EpubImporter: React.FC = () => {
         typeof metadata.creator === 'string' && metadata.creator.trim().length > 0
           ? metadata.creator.trim()
           : null
-      const sourceHash = buildStableHash(`${file.name}:${file.size}:${file.lastModified}`)
+      const sourceHash = buildStableBinaryHash(epubData)
 
       const existingBooks = await findExistingBooksBySourceHash(sourceHash, abortController.signal)
       const reusableBook = existingBooks[0] ?? null
@@ -868,12 +869,13 @@ export const EpubImporter: React.FC = () => {
       <style jsx>{`
         .epub-importer {
           border: 1px solid var(--theme-elevation-200);
-          border-radius: 8px;
-          padding: 1.25rem;
-          margin-bottom: 1.5rem;
+          border-radius: 12px;
+          padding: 1.5rem;
+          margin: 1rem 1rem 1.5rem;
           background: var(--theme-elevation-50);
           display: grid;
           gap: 1rem;
+          box-sizing: border-box;
         }
 
         .epub-importer__header h3 {
