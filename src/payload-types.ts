@@ -69,6 +69,8 @@ export interface Config {
   collections: {
     users: User;
     media: Media;
+    books: Book;
+    chapters: Chapter;
     posts: Post;
     categories: Category;
     'payload-locked-documents': PayloadLockedDocument;
@@ -79,6 +81,8 @@ export interface Config {
   collectionsSelect: {
     users: UsersSelect<false> | UsersSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
+    books: BooksSelect<false> | BooksSelect<true>;
+    chapters: ChaptersSelect<false> | ChaptersSelect<true>;
     posts: PostsSelect<false> | PostsSelect<true>;
     categories: CategoriesSelect<false> | CategoriesSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
@@ -191,6 +195,81 @@ export interface Media {
   focalY?: number | null;
 }
 /**
+ * Books support manual authoring and EPUB imports. Import status fields are managed automatically.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "books".
+ */
+export interface Book {
+  id: number;
+  title: string;
+  author?: string | null;
+  /**
+   * Generated from title and locked after publishing.
+   */
+  slug: string;
+  cover?: (number | null) | Media;
+  origin: 'manual' | 'epub-imported' | 'synced';
+  sourceType: 'manual' | 'epub-upload' | 'meap-feed' | 'external-sync';
+  sourceId?: string | null;
+  sourceHash?: string | null;
+  sourceVersion?: string | null;
+  syncStatus: 'clean' | 'pending' | 'conflicted' | 'diverged';
+  importBatchId?: string | null;
+  importStatus: 'idle' | 'importing' | 'ready' | 'failed';
+  importTotalChapters?: number | null;
+  importCompletedChapters?: number | null;
+  importStartedAt?: string | null;
+  importFinishedAt?: string | null;
+  importFailedAt?: string | null;
+  lastImportedAt?: string | null;
+  /**
+   * Only populated when the latest import attempt failed.
+   */
+  importErrorSummary?: string | null;
+  createdBy: number | User;
+  updatedAt: string;
+  createdAt: string;
+  _status?: ('draft' | 'published') | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "chapters".
+ */
+export interface Chapter {
+  id: number;
+  title: string;
+  book: number | Book;
+  /**
+   * Chapter order is unique per book and defines reader sequencing.
+   */
+  order: number;
+  slug: string;
+  chapterSourceKey?: string | null;
+  chapterSourceHash?: string | null;
+  importBatchId?: string | null;
+  manualEditedAt?: string | null;
+  content: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  };
+  createdBy: number | User;
+  updatedAt: string;
+  createdAt: string;
+  _status?: ('draft' | 'published') | null;
+}
+/**
  * Drafts are private until you publish. Publishing will lock in the current content for readers.
  *
  * This interface was referenced by `Config`'s JSON-Schema
@@ -271,6 +350,14 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'media';
         value: number | Media;
+      } | null)
+    | ({
+        relationTo: 'books';
+        value: number | Book;
+      } | null)
+    | ({
+        relationTo: 'chapters';
+        value: number | Chapter;
       } | null)
     | ({
         relationTo: 'posts';
@@ -359,6 +446,54 @@ export interface MediaSelect<T extends boolean = true> {
   height?: T;
   focalX?: T;
   focalY?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "books_select".
+ */
+export interface BooksSelect<T extends boolean = true> {
+  title?: T;
+  author?: T;
+  slug?: T;
+  cover?: T;
+  origin?: T;
+  sourceType?: T;
+  sourceId?: T;
+  sourceHash?: T;
+  sourceVersion?: T;
+  syncStatus?: T;
+  importBatchId?: T;
+  importStatus?: T;
+  importTotalChapters?: T;
+  importCompletedChapters?: T;
+  importStartedAt?: T;
+  importFinishedAt?: T;
+  importFailedAt?: T;
+  lastImportedAt?: T;
+  importErrorSummary?: T;
+  createdBy?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "chapters_select".
+ */
+export interface ChaptersSelect<T extends boolean = true> {
+  title?: T;
+  book?: T;
+  order?: T;
+  slug?: T;
+  chapterSourceKey?: T;
+  chapterSourceHash?: T;
+  importBatchId?: T;
+  manualEditedAt?: T;
+  content?: T;
+  createdBy?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  _status?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -472,23 +607,6 @@ export interface HomepageSelect<T extends boolean = true> {
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "YouTubeBlock".
- */
-export interface YouTubeBlock {
-  /**
-   * Paste the full YouTube URL (e.g., https://www.youtube.com/watch?v=dQw4w9WgXcQ or https://youtu.be/dQw4w9WgXcQ)
-   */
-  url: string;
-  /**
-   * Optional title to display above the video
-   */
-  title?: string | null;
-  id?: string | null;
-  blockName?: string | null;
-  blockType: 'youtube';
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

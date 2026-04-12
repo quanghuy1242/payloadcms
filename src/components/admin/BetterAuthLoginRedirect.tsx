@@ -1,30 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-
-const fetchAuthorizeUrl = async (): Promise<string> => {
-  const response = await fetch('/api/auth/url', {
-    method: 'GET',
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  })
-
-  if (!response.ok) {
-    const body = await response.text().catch(() => response.statusText)
-    throw new Error(body || `Failed to generate authorize URL (${response.status}).`)
-  }
-
-  const payload = (await response.json()) as { authorizeURL?: string; authorizeUrl?: string }
-  const url = payload.authorizeURL ?? payload.authorizeUrl
-
-  if (!url) {
-    throw new Error('Authorize URL missing from response.')
-  }
-
-  return url
-}
+import { requestJSON } from '@/utils/http'
 
 const BetterAuthLoginRedirect = () => {
   const [error, setError] = useState<string | null>(null)
@@ -35,7 +12,18 @@ const BetterAuthLoginRedirect = () => {
     setError(null)
 
     try {
-      const authorizeUrl = await fetchAuthorizeUrl()
+      const payload = await requestJSON<{
+        authorizeURL?: string
+        authorizeUrl?: string
+      }>('/api/auth/url', {
+        method: 'GET',
+      })
+      const authorizeUrl = payload.authorizeURL ?? payload.authorizeUrl
+
+      if (!authorizeUrl) {
+        throw new Error('Authorize URL missing from response.')
+      }
+
       window.location.replace(authorizeUrl)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unexpected error preparing Better Auth login.')

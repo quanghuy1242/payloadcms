@@ -1,24 +1,11 @@
 'use client'
 
 import { useState } from 'react'
+import { requestJSON } from '@/utils/http'
 
 type LogoutResponse = {
   success: boolean
   logoutUrl?: string | null
-}
-
-const logout = async (): Promise<LogoutResponse> => {
-  const response = await fetch('/api/auth/logout', {
-    method: 'POST',
-    credentials: 'include',
-  })
-
-  if (!response.ok) {
-    const message = await response.text()
-    throw new Error(message || `Logout failed with status ${response.status}.`)
-  }
-
-  return (await response.json()) as LogoutResponse
 }
 
 const BetterAuthLogout = () => {
@@ -35,7 +22,9 @@ const BetterAuthLogout = () => {
 
     try {
       // Logout from Payload (clears Payload cookies and revokes tokens)
-      const { logoutUrl } = await logout()
+      const { logoutUrl } = await requestJSON<LogoutResponse>('/api/auth/logout', {
+        method: 'POST',
+      })
 
       // Redirect to the logout URL
       // This will be the Better Auth domain to clear its cookies

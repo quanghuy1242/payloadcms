@@ -16,6 +16,9 @@
 /.next/
 /out/
 
+# payload local sqlite state
+/.payload/
+
 # production
 /build
 
