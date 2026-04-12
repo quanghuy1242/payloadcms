@@ -4,6 +4,7 @@ import ePub, { type Book } from 'epubjs'
 import type { SpineItem } from 'epubjs/types/section'
 import React, { useRef, useState } from 'react'
 
+import { normalizeEntityId } from '@/utils/access'
 import { convertHtmlToChapterLexicalState } from '@/utils/epubLexical'
 import {
   buildChapterSourceKey,
@@ -69,13 +70,11 @@ const isAbortError = (value: unknown): boolean => {
   return value instanceof DOMException && value.name === 'AbortError'
 }
 
-const normalizeDocumentID = (value: unknown): string => {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return String(value)
-  }
+const normalizeDocumentID = (value: unknown): string | number => {
+  const normalized = normalizeEntityId(value)
 
-  if (typeof value === 'string' && value.trim().length > 0) {
-    return value.trim()
+  if (normalized != null) {
+    return normalized
   }
 
   throw new Error('Expected a valid document identifier in the API response.')
@@ -114,7 +113,7 @@ export const EpubImporter: React.FC = () => {
   }
 
   const updateBookProgress = async (
-    bookID: string,
+    bookID: string | number,
     data: Record<string, unknown>,
     signal?: AbortSignal,
   ) => {
@@ -173,14 +172,14 @@ export const EpubImporter: React.FC = () => {
   }
 
   const findExistingChapterByOrder = async (
-    bookID: string,
+    bookID: string | number,
     chapterOrder: number,
     signal: AbortSignal,
   ): Promise<ChapterDocument | null> => {
     const query = new URLSearchParams({
       depth: '0',
       limit: '1',
-      'where[book][equals]': bookID,
+      'where[book][equals]': String(bookID),
       'where[order][equals]': String(chapterOrder),
     })
 
@@ -328,7 +327,7 @@ export const EpubImporter: React.FC = () => {
 
   const upsertChapterDocument = async (
     chapterData: Record<string, unknown>,
-    bookID: string,
+    bookID: string | number,
     chapterOrder: number,
     signal: AbortSignal,
   ) => {
@@ -369,7 +368,7 @@ export const EpubImporter: React.FC = () => {
     )
   }
 
-  const patchBookFailureState = async (bookID: string, reason: string) => {
+  const patchBookFailureState = async (bookID: string | number, reason: string) => {
     try {
       await updateBookProgress(bookID, {
         importStatus: 'failed',
@@ -380,7 +379,7 @@ export const EpubImporter: React.FC = () => {
     }
   }
 
-  const patchBookReadyState = async (bookID: string, completedChapters: number) => {
+  const patchBookReadyState = async (bookID: string | number, completedChapters: number) => {
     await updateBookProgress(bookID, {
       importStatus: 'ready',
       importCompletedChapters: completedChapters,
@@ -389,7 +388,7 @@ export const EpubImporter: React.FC = () => {
 
   const processChapter = async (
     book: Book,
-    bookID: string,
+    bookID: string | number,
     importBatchID: string,
     spineItem: SpineItem,
     chapterIndex: number,
@@ -538,7 +537,7 @@ export const EpubImporter: React.FC = () => {
 
   const processBookCover = async (
     book: Book,
-    bookID: string,
+    bookID: string | number,
     title: string,
     mediaCache: Map<string, UploadedMedia>,
     signal: AbortSignal,
@@ -615,7 +614,7 @@ export const EpubImporter: React.FC = () => {
     abortControllerRef.current = abortController
 
     let openedBook: Book | null = null
-    let createdBookID: string | null = null
+    let createdBookID: string | number | null = null
 
     try {
       const epubData = await file.arrayBuffer()
