@@ -20,7 +20,7 @@ import {
   sanitizeChapterHTML,
   sleep,
 } from '@/utils/epubImport'
-import { requestJSONWithRetry } from '@/utils/http'
+import { requestDocumentJSONWithRetry, requestJSONWithRetry } from '@/utils/http'
 
 type ImportPhase =
   | 'Idle'
@@ -193,6 +193,29 @@ export const EpubImporter: React.FC = () => {
     )
 
     return listResponse.docs[0] ?? null
+  }
+
+  const findExistingBooksBySourceHash = async (
+    sourceHash: string,
+    signal: AbortSignal,
+  ): Promise<BookDocument[]> => {
+    const query = new URLSearchParams({
+      depth: '0',
+      limit: '10',
+      sort: '-updatedAt',
+      'where[origin][equals]': 'epub-imported',
+      'where[sourceHash][equals]': sourceHash,
+    })
+
+    const listResponse = await requestJSONWithRetry<PayloadListResponse<BookDocument>>(
+      `/api/books?${query.toString()}`,
+      {
+        method: 'GET',
+      },
+      { signal },
+    )
+
+    return listResponse.docs
   }
 
   const readArchiveBlob = async (book: Book, assetPath: string): Promise<Blob> => {
@@ -620,19 +643,29 @@ export const EpubImporter: React.FC = () => {
           : null
       const sourceHash = buildStableHash(`${file.name}:${file.size}:${file.lastModified}`)
 
-      setStatusMessage('Creating book record...')
+      const existingBooks = await findExistingBooksBySourceHash(sourceHash, abortController.signal)
+      const reusableBook = existingBooks[0] ?? null
+      const duplicateBooks = existingBooks.slice(1)
 
-      const createdBook = await requestJSONWithRetry<BookDocument>(
-        '/api/books',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
+      if (duplicateBooks.length > 0) {
+        appendWarnings([
+          `Found ${duplicateBooks.length} older duplicate book record${duplicateBooks.length === 1 ? '' : 's'} for this EPUB. The importer will reuse the newest record and mark older duplicates as failed.`,
+        ])
+      }
+
+      if (reusableBook) {
+        createdBookID = normalizeDocumentID(reusableBook.id)
+        setStatusMessage('Reusing existing book record...')
+
+        await updateBookProgress(
+          createdBookID,
+          {
             author: importedAuthor,
             importBatchId: importBatchID,
             importCompletedChapters: 0,
+            importErrorSummary: null,
+            importFailedAt: null,
+            importFinishedAt: null,
             importStartedAt: new Date().toISOString(),
             importStatus: 'importing',
             importTotalChapters: spineItems.length,
@@ -641,18 +674,58 @@ export const EpubImporter: React.FC = () => {
             sourceType: 'epub-upload',
             syncStatus: 'pending',
             title: importedTitle,
-          }),
-        },
-        {
-          signal: abortController.signal,
-          onRetry: (attempt, retries) => {
-            setPhase('Retrying')
-            setStatusMessage(`Retrying request (${attempt}/${retries})...`)
           },
-        },
-      )
+          abortController.signal,
+        )
+      } else {
+        setStatusMessage('Creating book record...')
 
-      createdBookID = normalizeDocumentID(createdBook.id)
+        const createdBook = await requestDocumentJSONWithRetry<BookDocument>(
+          '/api/books',
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              author: importedAuthor,
+              importBatchId: importBatchID,
+              importCompletedChapters: 0,
+              importStartedAt: new Date().toISOString(),
+              importStatus: 'importing',
+              importTotalChapters: spineItems.length,
+              origin: 'epub-imported',
+              sourceHash,
+              sourceType: 'epub-upload',
+              syncStatus: 'pending',
+              title: importedTitle,
+            }),
+          },
+          {
+            signal: abortController.signal,
+            onRetry: (attempt, retries) => {
+              setPhase('Retrying')
+              setStatusMessage(`Retrying request (${attempt}/${retries})...`)
+            },
+          },
+        )
+
+        createdBookID = normalizeDocumentID(createdBook.id)
+      }
+
+      for (const duplicateBook of duplicateBooks) {
+        const duplicateBookID = normalizeDocumentID(duplicateBook.id)
+
+        await updateBookProgress(
+          duplicateBookID,
+          {
+            importErrorSummary: 'Superseded by a later import of the same EPUB.',
+            importStatus: 'failed',
+            syncStatus: 'conflicted',
+          },
+          abortController.signal,
+        )
+      }
 
       const mediaCache = new Map<string, UploadedMedia>()
 
@@ -797,11 +870,11 @@ export const EpubImporter: React.FC = () => {
         .epub-importer {
           border: 1px solid var(--theme-elevation-200);
           border-radius: 8px;
-          padding: 1rem;
-          margin-bottom: 1rem;
+          padding: 1.25rem;
+          margin-bottom: 1.5rem;
           background: var(--theme-elevation-50);
           display: grid;
-          gap: 0.9rem;
+          gap: 1rem;
         }
 
         .epub-importer__header h3 {

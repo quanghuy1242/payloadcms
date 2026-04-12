@@ -26,6 +26,10 @@ export type RequestJSONWithRetryOptions = RequestTransportOptions & {
   retries?: number
 }
 
+type DocumentEnvelope<T> = {
+  doc?: T
+}
+
 const DEFAULT_RETRY_COUNT = 2
 const DEFAULT_RETRY_DELAY_MS = 400
 
@@ -132,4 +136,26 @@ export const requestJSONWithRetry = async <T>(
   }
 
   throw new Error('Unexpected retry state while performing request.')
+}
+
+const unwrapDocumentResponse = <T>(payload: T | DocumentEnvelope<T>): T => {
+  if (payload && typeof payload === 'object' && 'doc' in payload) {
+    const envelope = payload as DocumentEnvelope<T>
+
+    if (envelope.doc != null) {
+      return envelope.doc
+    }
+  }
+
+  return payload as T
+}
+
+export const requestDocumentJSONWithRetry = async <T>(
+  url: string,
+  init: RequestInit = {},
+  options: RequestJSONWithRetryOptions = {},
+): Promise<T> => {
+  const payload = await requestJSONWithRetry<T | DocumentEnvelope<T>>(url, init, options)
+
+  return unwrapDocumentResponse(payload)
 }

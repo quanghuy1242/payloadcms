@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { requestJSON, requestJSONWithRetry } from '@/utils/http'
+import { requestDocumentJSONWithRetry, requestJSON, requestJSONWithRetry } from '@/utils/http'
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -68,5 +68,25 @@ describe('HTTP utilities', () => {
     ).resolves.toEqual({ ok: true })
     expect(fetchMock).toHaveBeenCalledTimes(2)
     expect(onRetry).toHaveBeenCalledWith(1, 1)
+  })
+
+  it('unwraps payload doc envelopes for create responses', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ doc: { id: 42, title: 'Created book' } }), {
+          status: 201,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }),
+      ),
+    )
+
+    await expect(
+      requestDocumentJSONWithRetry<{ id: number; title: string }>('/api/books', {
+        method: 'POST',
+      }),
+    ).resolves.toEqual({ id: 42, title: 'Created book' })
   })
 })
