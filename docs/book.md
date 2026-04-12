@@ -39,7 +39,7 @@ Goal: install the browser-side EPUB and Lexical HTML import helpers, then regist
 ```ts
 admin: {
   components: {
-    BeforeList: ['@/components/admin/books/EpubImporter'],
+    beforeList: ['./components/admin/books/EpubImporter'],
   },
 }
 ```
@@ -51,14 +51,15 @@ admin: {
 - Fields:
   - `title` (text, required)
   - `book` (relationship, relationTo: `books`, required, hasMany: false)
-  - `order` (number, required) - critical for sorting the spine
+  - `order` (number, required, indexed) - critical for sorting the spine; enforce uniqueness per book
   - `slug` (text, required)
   - `content` (richText) - use the default Lexical editor from `editor: lexicalEditor({})`
 
 ### Registration
 
 - Register both collections in `src/payload.config.ts`.
-- Keep the rich text editor configuration aligned with the default Payload Lexical schema used by the rest of the app.
+- Keep the rich text editor configuration aligned with the chapter editor and browser importer by using one shared Lexical node registry.
+- Apply consistent access, ownership, draft, and version settings to both collections from the start.
 
 ## Phase 2: Browser-Only EPUB Import
 
@@ -72,7 +73,13 @@ Goal: turn an uploaded `.epub` into canonical `books` and `chapters` records ent
 
 - Include `'use client';` at the top.
 - Render an `<input type="file" accept=".epub" />`.
-- Track progress states such as `Idle`, `Parsing`, `Uploading Images`, `Uploading Chapter X`, and `Done`.
+- Track progress states such as `Idle`, `Parsing`, `Uploading Images`, `Uploading Chapter X`, `Finalizing`, `Done`, `Failed`, `Canceled`, and `Retrying`.
+
+### Import Lifecycle
+
+- Treat each upload as an import batch with a stable `importBatchId` so retries can resume or dedupe instead of duplicating records.
+- Create the book in an `importing` or staging state first, then mark it complete only after all chapters and media have been written successfully.
+- Keep partial imports visible as recoverable failures instead of silently promoting them to finished books.
 
 ### Processing Flow
 
@@ -80,7 +87,7 @@ Goal: turn an uploaded `.epub` into canonical `books` and `chapters` records ent
 2. On file select, instantiate `const book = ePub(file)`.
 3. Wait for `book.ready`.
 4. Read metadata from `book.loaded.metadata`.
-5. Generate a URL-friendly slug.
+5. Generate a URL-friendly slug and resolve collisions with the existing randomized slug policy if needed.
 6. `POST` to `/api/books` with `credentials: 'include'` and store the returned `doc.id`.
 7. Read the spine via `book.loaded.spine`.
 8. Iterate through `spine.spineItems` sequentially with a `for...of` loop, not `Promise.all`.
@@ -94,11 +101,13 @@ For each chapter:
 - Parse the HTML string with the browser's native `DOMParser`.
 - Find all `<img>` tags.
 - For each image:
-  - Extract the relative `src`.
-  - Try `book.archive.getBlob(src)` first.
-  - If that fails because of relative path issues, use `book.archive.createUrl(src)` and then `fetch(url).then(r => r.blob())`.
+  - Resolve the relative `src` against the current chapter href before asking EPUB.js for the asset.
+  - Try `book.archive.getBlob(resolvedSrc)` first.
+  - If that fails because of relative path issues, use `book.archive.createUrl(resolvedSrc)` and then `fetch(url).then(r => r.blob())`.
+  - If the extracted asset is not in the current Media upload mime allowlist, either convert it client-side or skip it with a warning.
   - Wrap the blob in `FormData`.
-  - Use `formData.append('file', imageBlob, 'extracted-image.jpg')` so Payload receives the expected file field and filename.
+  - Use `formData.append('file', imageBlob, stableFilename)` so Payload receives the expected file field and a stable filename.
+  - Derive `alt` from the EPUB image metadata or chapter context so the Media record passes validation.
   - `POST` to `/api/media` with `credentials: 'include'` so the active admin session is recognized.
   - Replace the `img.src` in the DOM with the returned Cloudflare R2 URL.
 
@@ -106,16 +115,16 @@ For each chapter:
 
 Before chapter creation:
 
-- Strip out all `<style>` tags.
-- Remove `class` and `style` attributes from all elements.
-- Unwrap useless nested `<div>` elements and convert them into standard `<p>` tags where needed.
+- Strip out all `<style>`, `<script>`, `<iframe>`, `<object>`, and `<embed>` tags, and remove event-handler attributes such as `onload` and `onclick`.
+- Remove `class` and `style` attributes only when they are layout-only and do not carry semantic meaning.
+- Unwrap wrapper `<div>` elements only when they are semantically empty; do not flatten structure that would alter reading order or destroy lists, tables, figures, or notes.
 - Serialize the cleaned DOM back to an HTML string.
 
 Convert that HTML in the browser using the Lexical import path:
 
 - Parse the cleaned HTML string with `DOMParser`.
 - Pass the DOM into `@lexical/html`'s `$generateNodesFromDOM`.
-- Build the temporary Lexical editor using the same rich-text node schema as Payload's Lexical editor, driven by `editor: lexicalEditor({})` in `src/payload.config.ts`.
+- Build the temporary Lexical editor using the same shared rich-text node schema as the chapter editor, and keep that node registry centralized instead of inferring the schema from a bare default editor.
 - Serialize the editor state with `editor.getEditorState().toJSON()`.
 
 Finally:
@@ -128,6 +137,7 @@ Finally:
 - The 150ms throttle must reduce database/network locking pressure.
 - Images inside the EPUB must upload into the Payload Media library and render in the chapter content.
 - Original EPUB styles must be stripped so the frontend can apply its own typography.
+- Partial imports must remain recoverable through the import batch id, rather than producing silent half-finished books.
 
 ## Phase 3: Book-Centric Admin Shell, Preview, and Manual Authoring
 
@@ -172,6 +182,8 @@ Recommended authoring behavior:
 - Treat manual books and imported books as separate origins, even though they share the same collections.
 - Add an `origin` or `sourceMode` field so the UI knows whether a book is `manual`, `epub-imported`, or `synced`.
 - Enable versions and drafts on both `Books` and `Chapters` so authors can compare revisions and roll back changes.
+- Reserve explicit sync metadata now: `sourceType`, `sourceId`, `sourceHash`, `sourceVersion`, `importBatchId`, and `syncStatus` on `books`, plus `chapterSourceKey`, `chapterSourceHash`, and `manualEditedAt` on `chapters`.
+- Make `(book, order)` the canonical chapter sort key and enforce it as unique per book.
 - Manual books should not be forced through EPUB logic unless the user explicitly chooses that path.
 
 ## Phase 4: Updates, Conflict Resolution, and EPUB Export
@@ -189,7 +201,7 @@ Goal: support MEAP-style updates, reimports, conflict resolution, and export whi
 ### Update Flow
 
 1. Detect the source change through a file hash, source id, or MEAP revision id.
-2. Import into a draft or staging version.
+2. Import into a draft or staging version tied to an `importBatchId` so retries are safe.
 3. Match chapters by stable source keys first, then by slug, order, and title as fallback.
 4. Highlight conflicts at the chapter level before considering field-level merges.
 5. Let the user keep current content, accept incoming content, merge selectively, or skip the chapter.
@@ -208,6 +220,7 @@ Goal: support MEAP-style updates, reimports, conflict resolution, and export whi
 - Track metadata such as `sourceType`, `sourceId`, `sourceHash`, `sourceVersion`, `importBatchId`, and `lastImportedAt`.
 - Add per-chapter keys such as `chapterSourceKey`, `chapterSourceHash`, and `manualEditedAt` so the diff engine can match content across reimports.
 - Use Payload versions and drafts to stage imports and preserve historical revisions.
+- Add abort, retry/backoff, and resume behavior so long imports can recover without reuploading already-confirmed media or chapters.
 - Keep the import path and export path separate so neither becomes a hidden side effect of the other.
 - If a manual book later gets EPUB updates, keep the human-edited state visible and let the user choose whether to merge or replace.
 
@@ -240,3 +253,10 @@ Goal: support MEAP-style updates, reimports, conflict resolution, and export whi
 - The admin UI should be book-centric, with chapters managed from the book screen.
 - Preview mode should live inside that same book shell as a read-only tab or panel.
 - The default policy should preserve human edits and require explicit replacement when an EPUB import would overwrite them.
+
+## Testing and Validation
+
+- Add unit coverage for slug collision handling, chapter path normalization, and sanitizer behavior.
+- Add integration coverage for the import lifecycle, media upload validation, and chapter creation retry behavior.
+- Add e2e coverage for the admin importer, book shell, preview mode, and conflict resolver flows.
+- Add fixture-based parser fidelity tests with representative EPUBs that cover lists, tables, notes, nested images, and malformed markup.
