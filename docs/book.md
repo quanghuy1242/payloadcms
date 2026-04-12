@@ -34,6 +34,10 @@ Goal: install the browser-side EPUB and Lexical HTML import helpers, then regist
   - `author` (text)
   - `slug` (text, unique, required)
   - `cover` (upload, relationTo: `media`)
+  - `importStatus` (select: `idle`, `importing`, `ready`, `failed`) so import lifecycle is queryable in admin and API
+  - `importStartedAt`, `importFinishedAt`, `importFailedAt` (date) for lifecycle auditing and resume logic
+  - `importErrorSummary` (textarea) for recoverable failure visibility
+  - `importBatchId` (text, indexed) to dedupe/retry imports safely
 - Admin enhancement: inject a custom component above the list view.
 
 ```ts
@@ -60,6 +64,7 @@ admin: {
 - Register both collections in `src/payload.config.ts`.
 - Keep the rich text editor configuration aligned with the chapter editor and browser importer by using one shared Lexical node registry.
 - Apply consistent access, ownership, draft, and version settings to both collections from the start.
+- Keep one admin component path convention (`./components/...`) across collections to avoid import map mismatches.
 
 ## Phase 2: Browser-Only EPUB Import
 
@@ -108,6 +113,7 @@ For each chapter:
   - Wrap the blob in `FormData`.
   - Use `formData.append('file', imageBlob, stableFilename)` so Payload receives the expected file field and a stable filename.
   - Derive `alt` from the EPUB image metadata or chapter context so the Media record passes validation.
+  - Explicitly append `alt` to the multipart payload (for example, `formData.append('alt', derivedAlt)`) because Media validation requires it.
   - `POST` to `/api/media` with `credentials: 'include'` so the active admin session is recognized.
   - Replace the `img.src` in the DOM with the returned Cloudflare R2 URL.
 
@@ -116,6 +122,7 @@ For each chapter:
 Before chapter creation:
 
 - Strip out all `<style>`, `<script>`, `<iframe>`, `<object>`, and `<embed>` tags, and remove event-handler attributes such as `onload` and `onclick`.
+- Normalize and validate all `href`/`src` values with a protocol allowlist (`http`, `https`, `mailto`, `tel`, and relative URLs), rejecting `javascript:`, unknown protocols, and unsafe `data:` payloads.
 - Remove `class` and `style` attributes only when they are layout-only and do not carry semantic meaning.
 - Unwrap wrapper `<div>` elements only when they are semantically empty; do not flatten structure that would alter reading order or destroy lists, tables, figures, or notes.
 - Serialize the cleaned DOM back to an HTML string.
@@ -183,7 +190,7 @@ Recommended authoring behavior:
 - Add an `origin` or `sourceMode` field so the UI knows whether a book is `manual`, `epub-imported`, or `synced`.
 - Enable versions and drafts on both `Books` and `Chapters` so authors can compare revisions and roll back changes.
 - Reserve explicit sync metadata now: `sourceType`, `sourceId`, `sourceHash`, `sourceVersion`, `importBatchId`, and `syncStatus` on `books`, plus `chapterSourceKey`, `chapterSourceHash`, and `manualEditedAt` on `chapters`.
-- Make `(book, order)` the canonical chapter sort key and enforce it as unique per book.
+- Make `(book, order)` the canonical chapter sort key and enforce it as unique per book using both application validation and a database-level composite unique index migration.
 - Manual books should not be forced through EPUB logic unless the user explicitly chooses that path.
 
 ## Phase 4: Updates, Conflict Resolution, and EPUB Export
@@ -221,6 +228,7 @@ Goal: support MEAP-style updates, reimports, conflict resolution, and export whi
 - Add per-chapter keys such as `chapterSourceKey`, `chapterSourceHash`, and `manualEditedAt` so the diff engine can match content across reimports.
 - Use Payload versions and drafts to stage imports and preserve historical revisions.
 - Add abort, retry/backoff, and resume behavior so long imports can recover without reuploading already-confirmed media or chapters.
+- Persist fine-grained checkpoints per import batch (chapter checkpoint and media checkpoint) using stable keys so retries skip already-created chapters and already-uploaded media.
 - Keep the import path and export path separate so neither becomes a hidden side effect of the other.
 - If a manual book later gets EPUB updates, keep the human-edited state visible and let the user choose whether to merge or replace.
 
@@ -260,3 +268,17 @@ Goal: support MEAP-style updates, reimports, conflict resolution, and export whi
 - Add integration coverage for the import lifecycle, media upload validation, and chapter creation retry behavior.
 - Add e2e coverage for the admin importer, book shell, preview mode, and conflict resolver flows.
 - Add fixture-based parser fidelity tests with representative EPUBs that cover lists, tables, notes, nested images, and malformed markup.
+
+## Implementation Notes From Phase 1 And 2
+
+These are the concrete behaviors we verified while implementing the foundation and browser import flow. Keep them in mind so later phases do not reintroduce the same surprises.
+
+- `book.loaded.spine` resolves to a `Spine` object, not a plain array. Iterate `spine.spineItems` or `book.spine.spineItems` instead of calling array methods directly on the loaded value.
+- `epubjs` can trigger replacement and archive-related side effects in tests. For fixture-driven parser tests, keep the importer logic isolated and disable replacement behavior where needed so the test only validates content conversion.
+- The importer must append `alt` when uploading media. Payload validation will reject file uploads that do not include accessible alt text.
+- Relative EPUB asset paths are common. Resolve chapter-relative image `src` values before attempting upload, and fall back from `getBlob` to `createUrl(...)+fetch(...)` when archive lookups fail.
+- Preserve semantic HTML metadata where possible. Strip unsafe tags, event handlers, and unsafe URL schemes, but do not blanket-remove class metadata if it carries meaning for later styling or preview rendering.
+- The admin route redirects to `/admin`, and the unauthenticated admin title is `Login - Payload`. Frontend smoke tests should assert that behavior instead of the default scaffold homepage.
+- Playwright HTML reports should stay static-only in local validation runs. Use `reporter: [['html', { open: 'never' }]]` so failures do not auto-open the interactive report page.
+- Local Payload integration tests need the ignored `.payload/` directory for SQLite state. If the folder is missing, recreate it before running API-level smoke tests.
+- TypeScript 6 warns about `baseUrl`. Keep `ignoreDeprecations: "6.0"` in `tsconfig.json` while the path alias setup still depends on it.
