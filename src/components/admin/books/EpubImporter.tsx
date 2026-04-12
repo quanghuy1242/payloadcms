@@ -195,17 +195,25 @@ export const EpubImporter: React.FC = () => {
     return listResponse.docs[0] ?? null
   }
 
-  const findExistingBooksBySourceHash = async (
-    sourceHash: string,
+  const findExistingBooksBySourceHashes = async (
+    sourceHashes: string[],
     signal: AbortSignal,
   ): Promise<BookDocument[]> => {
+    const uniqueSourceHashes = Array.from(new Set(sourceHashes.filter((value) => value.length > 0)))
     const query = new URLSearchParams({
       depth: '0',
       limit: '10',
       sort: '-updatedAt',
       'where[origin][equals]': 'epub-imported',
-      'where[sourceHash][equals]': sourceHash,
     })
+
+    if (uniqueSourceHashes.length === 1) {
+      query.set('where[sourceHash][equals]', uniqueSourceHashes[0])
+    } else {
+      uniqueSourceHashes.forEach((sourceHash, index) => {
+        query.set(`where[or][${index}][sourceHash][equals]`, sourceHash)
+      })
+    }
 
     const listResponse = await requestJSONWithRetry<PayloadListResponse<BookDocument>>(
       `/api/books?${query.toString()}`,
@@ -380,10 +388,22 @@ export const EpubImporter: React.FC = () => {
     }
   }
 
-  const patchBookReadyState = async (bookID: string | number, completedChapters: number) => {
+  const patchBookReadyState = async (
+    bookID: string | number,
+    completedChapters: number,
+    skippedChapters: number,
+  ) => {
     await updateBookProgress(bookID, {
+      importErrorSummary:
+        skippedChapters > 0
+          ? `${skippedChapters} chapter${skippedChapters === 1 ? '' : 's'} were skipped during import.`
+          : null,
+      importFailedAt: null,
+      importFinishedAt: new Date().toISOString(),
       importStatus: 'ready',
       importCompletedChapters: completedChapters,
+      lastImportedAt: new Date().toISOString(),
+      syncStatus: skippedChapters > 0 ? 'pending' : 'clean',
     })
   }
 
@@ -396,7 +416,7 @@ export const EpubImporter: React.FC = () => {
     totalChapters: number,
     mediaCache: Map<string, UploadedMedia>,
     signal: AbortSignal,
-  ) => {
+  ): Promise<boolean> => {
     ensureNotAborted(signal)
 
     const chapterOrder = chapterIndex + 1
@@ -456,14 +476,24 @@ export const EpubImporter: React.FC = () => {
           continue
         }
 
-        const uploadedMedia = await uploadAssetAsMedia(
-          book,
-          resolvedAssetPath,
-          deriveImageAltText(imageElement, chapterTitle, imageIndex),
-          imageIndex,
-          mediaCache,
-          signal,
-        )
+        let uploadedMedia: UploadedMedia | null = null
+
+        try {
+          uploadedMedia = await uploadAssetAsMedia(
+            book,
+            resolvedAssetPath,
+            deriveImageAltText(imageElement, chapterTitle, imageIndex),
+            imageIndex,
+            mediaCache,
+            signal,
+          )
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Unexpected image upload failure.'
+          appendWarnings([
+            `Skipped image ${imageIndex + 1} in chapter ${chapterOrder}: ${message}`,
+          ])
+          continue
+        }
 
         if (!uploadedMedia) {
           continue
@@ -531,6 +561,16 @@ export const EpubImporter: React.FC = () => {
       )
 
       await sleep(CHAPTER_DELAY_MS)
+
+      return true
+    } catch (error) {
+      if (isAbortError(error) || signal.aborted) {
+        throw error
+      }
+
+      const message = error instanceof Error ? error.message : 'Unexpected chapter import failure.'
+      appendWarnings([`Skipped chapter ${chapterOrder}: ${message}`])
+      return false
     } finally {
       section.unload()
     }
@@ -642,8 +682,12 @@ export const EpubImporter: React.FC = () => {
           ? metadata.creator.trim()
           : null
       const sourceHash = buildStableBinaryHash(epubData)
+      const legacySourceHash = buildStableHash(`${file.name}:${file.size}:${file.lastModified}`)
 
-      const existingBooks = await findExistingBooksBySourceHash(sourceHash, abortController.signal)
+      const existingBooks = await findExistingBooksBySourceHashes(
+        [sourceHash, legacySourceHash],
+        abortController.signal,
+      )
       const reusableBook = existingBooks[0] ?? null
       const duplicateBooks = existingBooks.slice(1)
 
@@ -728,6 +772,8 @@ export const EpubImporter: React.FC = () => {
       }
 
       const mediaCache = new Map<string, UploadedMedia>()
+      let completedChapters = 0
+      let skippedChapters = 0
 
       await processBookCover(
         openedBook,
@@ -740,7 +786,7 @@ export const EpubImporter: React.FC = () => {
       for (let chapterIndex = 0; chapterIndex < spineItems.length; chapterIndex += 1) {
         ensureNotAborted(abortController.signal)
 
-        await processChapter(
+        const chapterSucceeded = await processChapter(
           openedBook,
           createdBookID,
           importBatchID,
@@ -750,16 +796,24 @@ export const EpubImporter: React.FC = () => {
           mediaCache,
           abortController.signal,
         )
+
+        if (chapterSucceeded) {
+          completedChapters += 1
+        } else {
+          skippedChapters += 1
+        }
       }
 
       setPhase('Finalizing')
       setStatusMessage('Finalizing import status...')
 
-      await patchBookReadyState(createdBookID, spineItems.length)
+      await patchBookReadyState(createdBookID, completedChapters, skippedChapters)
 
       setPhase('Done')
       setStatusMessage(
-        `Import completed. ${spineItems.length} chapter${spineItems.length === 1 ? '' : 's'} created.`,
+        skippedChapters > 0
+          ? `Import completed with ${skippedChapters} skipped chapter${skippedChapters === 1 ? '' : 's'}.`
+          : `Import completed. ${completedChapters} chapter${completedChapters === 1 ? '' : 's'} created.`,
       )
     } catch (error) {
       if (isAbortError(error) || abortController.signal.aborted) {
