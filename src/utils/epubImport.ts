@@ -1,3 +1,4 @@
+import type { NavItem } from 'epubjs/types/navigation'
 import slugify from 'slugify'
 
 const DISALLOWED_TAGS = ['style', 'script', 'iframe', 'object', 'embed'] as const
@@ -274,6 +275,107 @@ export const extractChapterTitle = (
   }
 
   return `Chapter ${fallbackOrder}`
+}
+
+const normalizeTocPath = (value: string): string => {
+  return stripQueryAndHash(value)
+    .replace(/\\/g, '/')
+    .replace(/^\.\//, '')
+    .replace(/^\/+/, '')
+}
+
+const collapseDuplicateLabels = (labels: string[]): string[] => {
+  const deduped: string[] = []
+
+  for (const label of labels) {
+    if (deduped[deduped.length - 1] !== label) {
+      deduped.push(label)
+    }
+  }
+
+  return deduped
+}
+
+const normalizeTocLabel = (label: string | null | undefined, href: string): string => {
+  const trimmedLabel = trimToNull(label)
+  if (trimmedLabel) {
+    return trimmedLabel
+  }
+
+  const fallbackHref = trimToNull(stripQueryAndHash(href).split('/').pop() ?? '')
+  return fallbackHref ?? 'Untitled section'
+}
+
+const tocPathsMatch = (left: string, right: string): boolean => {
+  const normalizedLeft = normalizeTocPath(left)
+  const normalizedRight = normalizeTocPath(right)
+
+  if (!normalizedLeft || !normalizedRight) {
+    return false
+  }
+
+  return (
+    normalizedLeft === normalizedRight ||
+    normalizedLeft.endsWith(`/${normalizedRight}`) ||
+    normalizedRight.endsWith(`/${normalizedLeft}`)
+  )
+}
+
+type FlattenedTocItem = {
+  href: string
+  id: string | null
+  labels: string[]
+  depth: number
+}
+
+const flattenTocItems = (toc: NavItem[], ancestors: string[] = []): FlattenedTocItem[] => {
+  const flattened: FlattenedTocItem[] = []
+
+  for (const item of toc) {
+    const href = trimToNull(item.href) ?? ''
+    const labels = collapseDuplicateLabels([
+      ...ancestors,
+      normalizeTocLabel(item.label, href),
+    ])
+
+    flattened.push({
+      href,
+      id: trimToNull(item.id),
+      labels,
+      depth: labels.length,
+    })
+
+    if (item.subitems?.length) {
+      flattened.push(...flattenTocItems(item.subitems, labels))
+    }
+  }
+
+  return flattened
+}
+
+export const resolveChapterTocMetadata = (
+  toc: NavItem[] | undefined,
+  spineHref: string,
+): { title: string; href: string; id: string | null } | null => {
+  if (!toc?.length) {
+    return null
+  }
+
+  const matchingItems = flattenTocItems(toc).filter((item) => tocPathsMatch(item.href, spineHref))
+
+  if (matchingItems.length === 0) {
+    return null
+  }
+
+  const bestMatch = matchingItems.reduce((currentBest, item) => {
+    return item.depth > currentBest.depth ? item : currentBest
+  })
+
+  return {
+    title: bestMatch.labels.join(' > '),
+    href: bestMatch.href,
+    id: bestMatch.id,
+  }
 }
 
 export const resolveEpubAssetPath = (chapterHref: string, sourcePath: string): string | null => {

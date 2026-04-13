@@ -6,8 +6,15 @@ import EpubImporter from '@/components/admin/books/EpubImporter'
 
 type MockSection = {
   load: ReturnType<typeof vi.fn>
-  render: ReturnType<typeof vi.fn>
   unload: ReturnType<typeof vi.fn>
+  document?: Document | null
+}
+
+type MockNavItem = {
+  id: string
+  href: string
+  label: string
+  subitems?: MockNavItem[]
 }
 
 type MockBook = {
@@ -21,6 +28,7 @@ type MockBook = {
   loaded: {
     cover: Promise<string>
     metadata: Promise<{ creator: string; title: string }>
+    navigation: Promise<{ toc: MockNavItem[] }>
     spine: Promise<{
       spineItems: Array<{ href: string; idref: string; index: number; linear: true }>
     }>
@@ -62,6 +70,7 @@ vi.mock('epubjs', () => {
 vi.mock('@/utils/epubLexical', () => {
   return {
     convertHtmlToChapterLexicalState: vi.fn(() => simpleLexicalState),
+    isSubstantiveChapterContent: vi.fn(() => true),
   }
 })
 
@@ -83,7 +92,23 @@ afterEach(() => {
 beforeEach(() => {
   currentMockBook = createMockBook([
     '<h1>Chapter 1</h1><p>Intro</p><img src="images/cover.png" alt="Chapter art" />',
-  ])
+  ], {
+    navigationToc: [
+      {
+        href: 'OEBPS/ch1.xhtml#chapter-1',
+        id: 'toc-1',
+        label: 'Chapter 1',
+        subitems: [
+          {
+            href: 'OEBPS/ch1.xhtml#intro',
+            id: 'toc-1-1',
+            label: 'Intro',
+            subitems: [],
+          },
+        ],
+      },
+    ],
+  })
 })
 
 const createJsonResponse = (payload: unknown, status = 200): Response => {
@@ -113,20 +138,14 @@ const createTestEpubFile = () => {
 const createMockSection = (html: string, shouldThrow = false): MockSection => {
   return {
     load: vi.fn(async () => undefined),
-    render: vi.fn(() => {
-      if (shouldThrow) {
-        throw new Error('chapter rendering failed')
-      }
-
-      return html
-    }),
     unload: vi.fn(() => undefined),
+    document: shouldThrow ? undefined : new DOMParser().parseFromString(html, 'text/html'),
   }
 }
 
 const createMockBook = (
   chapterHtmls: string[],
-  options?: { failingChapterIndex?: number },
+  options?: { failingChapterIndex?: number; navigationToc?: MockNavItem[] },
 ): MockBook => {
   const sections = chapterHtmls.map((chapterHtml, index) => {
     return createMockSection(chapterHtml, options?.failingChapterIndex === index)
@@ -145,6 +164,9 @@ const createMockBook = (
       metadata: Promise.resolve({
         creator: 'Peter Brown',
         title: 'The Wild Robot Escapes',
+      }),
+      navigation: Promise.resolve({
+        toc: options?.navigationToc ?? [],
       }),
       spine: Promise.resolve({
         spineItems: chapterHtmls.map((_, index) => ({
@@ -272,6 +294,17 @@ describe('EpubImporter', () => {
         screen.getByText((_, element) => element?.textContent === 'Images Uploaded: 1'),
       ).toBeTruthy()
     })
+
+    const chapterCreateCall = fetchMock.mock.calls.find(([url, init]) => {
+      return String(url) === '/api/chapters' && init?.method === 'POST'
+    })
+
+    expect(chapterCreateCall).toBeTruthy()
+
+    const chapterBody = JSON.parse(String(chapterCreateCall?.[1]?.body ?? '{}'))
+
+    expect(chapterBody.title).toBe('Chapter 1 > Intro')
+    expect(chapterBody.chapterSourceKey).toBe('toc-1-1::OEBPS/ch1.xhtml::chapter-1')
 
     const mediaCall = fetchMock.mock.calls.find(([url, init]) => {
       return String(url) === '/api/media' && init?.method === 'POST'

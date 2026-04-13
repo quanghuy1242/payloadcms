@@ -4,7 +4,11 @@ import path from 'node:path'
 import ePub, { type Book } from 'epubjs'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { convertHtmlToChapterLexicalState } from '@/utils/epubLexical'
+import {
+  convertHtmlToChapterLexicalState,
+  htmlToPayloadLexical,
+  isSubstantiveChapterContent,
+} from '@/utils/epubLexical'
 import {
   createChapterBatches,
   buildChapterSourceKey,
@@ -16,6 +20,7 @@ import {
   extractChapterTitle,
   deriveImageAltText,
   estimateWordCountFromHTML,
+  resolveChapterTocMetadata,
   resolveEpubAssetPath,
   sanitizeChapterHTML,
   sanitizeURLAttributeValue,
@@ -56,6 +61,7 @@ const extractPlainText = (html: string): string => {
 type SpineItemLike = {
   index: number
   linear: boolean
+  href: string
 }
 
 describe('EPUB import utilities', () => {
@@ -84,6 +90,7 @@ describe('EPUB import utilities', () => {
     const spine = (await book.loaded.spine) as unknown as {
       spineItems: SpineItemLike[]
     }
+    const navigation = await book.loaded.navigation
     const spineItems = spine.spineItems.filter((spineItem: SpineItemLike) => spineItem.linear)
 
     expect(metadata.title).toBeTruthy()
@@ -119,8 +126,14 @@ describe('EPUB import utilities', () => {
           continue
         }
 
-        const chapterTitle = extractChapterTitle(sanitized.html, metadata.title, spineIndex + 1)
+        const tocMetadata = resolveChapterTocMetadata(navigation.toc, spineItem.href)
+        const chapterTitle =
+          tocMetadata?.title ?? extractChapterTitle(sanitized.html, metadata.title, spineIndex + 1)
         const lexicalState = convertHtmlToChapterLexicalState(sanitized.html)
+
+        if (!isSubstantiveChapterContent(lexicalState)) {
+          continue
+        }
 
         selectedChapter = {
           chapterHtml: sanitized.html,
@@ -208,6 +221,56 @@ describe('EPUB import utilities', () => {
     )
   })
 
+  it('resolves inherited chapter titles from the sample EPUB toc', async () => {
+    const fixturePath = path.resolve(
+      process.cwd(),
+      'data/The_Wild_Robot_Escapes_vi_book.epub',
+    )
+    const fixtureBuffer = await readFile(fixturePath)
+    const fixtureBase64 = fixtureBuffer.toString('base64')
+
+    const book = ePub({ replacements: 'none' })
+    const bookWithReplacementHook = book as unknown as {
+      replacements: () => Promise<void>
+    }
+
+    bookWithReplacementHook.replacements = async () => {
+      return undefined
+    }
+    openedBooks.push(book)
+
+    await book.open(fixtureBase64, 'base64')
+    await book.ready
+
+    const spine = (await book.loaded.spine) as unknown as {
+      spineItems: SpineItemLike[]
+    }
+    const navigation = await book.loaded.navigation
+    const chapter = spine.spineItems.find((spineItem: SpineItemLike) => spineItem.index === 2)
+
+    expect(chapter).toBeTruthy()
+
+    if (!chapter) {
+      return
+    }
+
+    const tocMetadata = resolveChapterTocMetadata(navigation.toc, chapter.href)
+
+    expect(tocMetadata).toEqual({
+      title: 'CHƯƠNG 1 > THÀNH PHỐ',
+      href: 'text/ch001.xhtml#thành-phố',
+      id: 'toc-li-2',
+    })
+
+    if (!tocMetadata) {
+      throw new Error('Expected TOC metadata for the selected chapter')
+    }
+
+    expect(buildChapterSourceKey(tocMetadata.href, tocMetadata.id, chapter.index + 1)).toBe(
+      'toc-li-2::text/ch001.xhtml::chapter-3',
+    )
+  })
+
   it('builds stable hashes from epub bytes', () => {
     const first = buildStableBinaryHash(new Uint8Array([1, 2, 3, 4]))
     const second = buildStableBinaryHash(new Uint8Array([1, 2, 3, 4]))
@@ -287,4 +350,107 @@ describe('EPUB import utilities', () => {
     expect(batches[0]?.map((chapter) => chapter.chapterOrder)).toEqual([1, 2])
     expect(batches[1]?.map((chapter) => chapter.chapterOrder)).toEqual([3, 4])
   })
+})
+
+type LexicalNodeLike = {
+  type?: string
+  children?: LexicalNodeLike[]
+  root?: LexicalNodeLike
+  fields?: unknown
+  version?: unknown
+  [key: string]: unknown
+}
+
+function findAllNodesOfType(state: unknown, type: string): LexicalNodeLike[] {
+  const results: LexicalNodeLike[] = []
+
+  function walk(node: unknown): void {
+    if (!node || typeof node !== 'object') return
+
+    const typedNode = node as LexicalNodeLike
+
+    if (typedNode.type === type) results.push(typedNode)
+    if (Array.isArray(typedNode.children)) typedNode.children.forEach(walk)
+    if (typedNode.root) walk(typedNode.root)
+  }
+
+  walk(state)
+
+  return results
+}
+
+describe('htmlToPayloadLexical with real EPUB fixtures', () => {
+  const EPUB_FIXTURES = [
+    {
+      name: 'The Wild Robot Escapes (Vietnamese)',
+      path: 'data/The_Wild_Robot_Escapes_vi_book.epub',
+      expectedTextFragment: '',
+    },
+    {
+      name: 'Coraline (Calibre fiction)',
+      path: 'data/Coraline (Neil G Gaiman) (Z-Library).epub',
+      expectedTextFragment: '',
+    },
+    {
+      name: 'Fast Python (Manning technical)',
+      path: 'data/Manning.Fast.Python.High.performance.techniques.for.large.datasets.1617297933.epub',
+      expectedTextFragment: '',
+    },
+    {
+      name: 'Disrupting the Game (EPUB3 non-fiction)',
+      path: "data/Disrupting the Game -- Reggie Fils-Aimé -- 1, 2022 -- HarperCollins Leadership -- 9781400226672 -- 5aea5b2983514cee72fd02de03337658 -- Anna\u2019s Archive.epub",
+      expectedTextFragment: '',
+    },
+  ]
+
+  for (const fixture of EPUB_FIXTURES) {
+    it(`produces at least one substantive chapter from ${fixture.name}`, async () => {
+      const buffer = await readFile(fixture.path)
+      const base64 = buffer.toString('base64')
+      const book = ePub({ replacements: 'none' })
+      await book.open(base64, 'base64')
+      await book.ready
+
+      const spine = (await book.loaded.spine) as unknown as {
+        spineItems: SpineItemLike[]
+      }
+      const spineItems = spine.spineItems.filter((item) => item.linear !== false)
+
+      expect(spineItems.length).toBeGreaterThan(0)
+
+      let foundSubstantive = false
+      for (const item of spineItems) {
+        const section = book.section(item.index)
+        try {
+          await section.load(book.load.bind(book))
+          const html = section.document?.documentElement?.outerHTML ?? ''
+          if (!html) continue
+
+          const sanitized = sanitizeChapterHTML(html)
+          const lexical = htmlToPayloadLexical(sanitized.html)
+
+          if (lexical.root.children.length > 0) {
+            const json = JSON.stringify(lexical)
+            expect(json).not.toContain('blob:')
+
+            const links = findAllNodesOfType(lexical, 'link')
+            for (const link of links) {
+              expect(link.version).toBe(3)
+              expect(link.fields).toBeDefined()
+            }
+
+            expect(lexical).toMatchSnapshot()
+
+            foundSubstantive = true
+            break
+          }
+        } finally {
+          section.unload()
+        }
+      }
+
+      book.destroy()
+      expect(foundSubstantive).toBe(true)
+    })
+  }
 })

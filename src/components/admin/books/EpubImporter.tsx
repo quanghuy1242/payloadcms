@@ -5,7 +5,7 @@ import type { SpineItem } from 'epubjs/types/section'
 import React, { useRef, useState } from 'react'
 
 import { normalizeEntityId } from '@/utils/access'
-import { convertHtmlToChapterLexicalState } from '@/utils/epubLexical'
+import { convertHtmlToChapterLexicalState, isSubstantiveChapterContent } from '@/utils/epubLexical'
 import {
   createChapterBatches,
   buildChapterSourceKey,
@@ -21,6 +21,7 @@ import {
   extractChapterTitle,
   MEDIA_UPLOAD_ALLOWED_MIME_TYPES,
   resolveEpubAssetPath,
+  resolveChapterTocMetadata,
   sanitizeChapterHTML,
   sleep,
 } from '@/utils/epubImport'
@@ -70,6 +71,9 @@ type UploadedMedia = {
 type PreparedChapter = {
   chapterHTML: string
   chapterOrder: number
+  tocHref: string | null
+  tocIdRef: string | null
+  tocTitle: string | null
   spineHref: string
   spineIdRef: string | null
   wordCount: number
@@ -241,9 +245,26 @@ export const EpubImporter: React.FC = () => {
   }
 
   const readArchiveBlob = async (book: Book, assetPath: string): Promise<Blob> => {
-    const candidatePaths = Array.from(
-      new Set([assetPath, decodeURIComponent(assetPath)].filter((candidate) => candidate.length > 0)),
-    )
+    const candidatePaths = new Set<string>()
+
+    const addCandidate = (candidate: string) => {
+      if (!candidate) {
+        return
+      }
+
+      candidatePaths.add(candidate)
+
+      if (candidate.startsWith('/')) {
+        candidatePaths.add(candidate.replace(/^\/+/, ''))
+      }
+    }
+
+    try {
+      addCandidate(assetPath)
+      addCandidate(decodeURIComponent(assetPath))
+    } catch {
+      addCandidate(assetPath)
+    }
 
     for (const candidatePath of candidatePaths) {
       try {
@@ -448,6 +469,15 @@ export const EpubImporter: React.FC = () => {
     signal: AbortSignal,
   ): Promise<PreparedChapter[]> => {
     const preparedChapters: PreparedChapter[] = []
+    const tocItems = await book.loaded.navigation
+      .then((navigation) => {
+        return navigation.toc ?? []
+      })
+      .catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : 'Unknown table of contents failure.'
+        appendWarnings([`Unable to load EPUB table of contents: ${message}`])
+        return []
+      })
 
     for (let chapterIndex = 0; chapterIndex < spineItems.length; chapterIndex += 1) {
       ensureNotAborted(signal)
@@ -461,21 +491,23 @@ export const EpubImporter: React.FC = () => {
 
       try {
         await Promise.resolve(section.load(book.load.bind(book)))
-
-        const renderedSection = await Promise.resolve(section.render(book.load.bind(book)))
-        const chapterHTML =
-          typeof renderedSection === 'string'
-            ? renderedSection
-            : section.document?.documentElement?.outerHTML ?? ''
+        // Skip render() — it rewrites img src to blob: URLs which breaks Phase 2 image resolution.
+        // section.document has the raw HTML with original relative paths after load().
+        const chapterHTML = section.document?.documentElement?.outerHTML ?? ''
 
         if (!chapterHTML) {
           appendWarnings([`Skipped chapter ${chapterOrder}: Unable to render chapter content.`])
           continue
         }
 
+        const tocMetadata = resolveChapterTocMetadata(tocItems, spineItem.href ?? '')
+
         preparedChapters.push({
           chapterHTML,
           chapterOrder,
+          tocHref: tocMetadata?.href ?? null,
+          tocIdRef: tocMetadata?.id ?? null,
+          tocTitle: tocMetadata?.title ?? null,
           spineHref: spineItem.href ?? '',
           spineIdRef: (spineItem as unknown as { idref?: string }).idref ?? null,
           wordCount: estimateWordCountFromHTML(chapterHTML),
@@ -517,15 +549,16 @@ export const EpubImporter: React.FC = () => {
     setPhase('Uploading Chapter')
     setStatusMessage(`Processing chapter ${chapterOrder} of ${totalChapters}...`)
 
-    try {
-      const parser = new DOMParser()
-      const chapterDocument = parser.parseFromString(preparedChapter.chapterHTML, 'text/html')
-      const chapterTitle = extractChapterTitle(
-        preparedChapter.chapterHTML,
-        `Chapter ${chapterOrder}`,
-        chapterOrder,
-      )
-      const chapterImages = Array.from(chapterDocument.querySelectorAll('img'))
+      try {
+        const parser = new DOMParser()
+        const chapterDocument = parser.parseFromString(preparedChapter.chapterHTML, 'text/html')
+        const rawSanitizedChapter = sanitizeChapterHTML(preparedChapter.chapterHTML)
+        const chapterTitle =
+          preparedChapter.tocTitle ??
+          extractChapterTitle(preparedChapter.chapterHTML, `Chapter ${chapterOrder}`, chapterOrder)
+        const chapterImages = Array.from(
+          chapterDocument.querySelectorAll('img[src], image[href], image[xlink\\:href]'),
+        )
 
       for (let imageIndex = 0; imageIndex < chapterImages.length; imageIndex += 1) {
         ensureNotAborted(signal)
@@ -536,7 +569,10 @@ export const EpubImporter: React.FC = () => {
         )
 
         const imageElement = chapterImages[imageIndex]
-        const imageSource = imageElement.getAttribute('src')
+        const imageSource =
+          imageElement.getAttribute('src') ??
+          imageElement.getAttribute('href') ??
+          imageElement.getAttribute('xlink:href')
 
         if (!imageSource) {
           continue
@@ -575,11 +611,21 @@ export const EpubImporter: React.FC = () => {
           continue
         }
 
-        imageElement.setAttribute('src', uploadedMedia.url)
-        imageElement.removeAttribute('srcset')
+        if (imageElement.tagName.toLowerCase() === 'image') {
+          imageElement.setAttribute('href', uploadedMedia.url)
+          imageElement.setAttribute('xlink:href', uploadedMedia.url)
+        } else {
+          imageElement.setAttribute('src', uploadedMedia.url)
+          imageElement.removeAttribute('srcset')
+        }
 
         const derivedAlt = deriveImageAltText(imageElement, chapterTitle, imageIndex)
-        imageElement.setAttribute('alt', derivedAlt)
+        if (imageElement.tagName.toLowerCase() === 'image') {
+          imageElement.setAttribute('aria-label', derivedAlt)
+          imageElement.setAttribute('title', derivedAlt)
+        } else {
+          imageElement.setAttribute('alt', derivedAlt)
+        }
       }
 
       setPhase('Uploading Chapter')
@@ -587,10 +633,10 @@ export const EpubImporter: React.FC = () => {
 
       const chapterHTMLWithUploadedImages = chapterDocument.documentElement.outerHTML
       const sanitizedChapter = sanitizeChapterHTML(chapterHTMLWithUploadedImages)
-      const chapterSourceHash = buildStableHash(sanitizedChapter.html)
+      const chapterSourceHash = buildStableHash(rawSanitizedChapter.html)
       const chapterSourceKey = buildChapterSourceKey(
-        preparedChapter.spineHref,
-        preparedChapter.spineIdRef,
+        preparedChapter.tocHref ?? preparedChapter.spineHref,
+        preparedChapter.tocIdRef ?? preparedChapter.spineIdRef,
         chapterOrder,
       )
 
@@ -601,6 +647,13 @@ export const EpubImporter: React.FC = () => {
       )
 
       const lexicalContent = convertHtmlToChapterLexicalState(sanitizedChapter.html)
+
+      // Skip navigation-only or empty chapters instead of sending them to the API
+      if (!isSubstantiveChapterContent(lexicalContent)) {
+        appendWarnings([`Skipped chapter ${chapterOrder}: navigation-only or empty content.`])
+        return false
+      }
+
       const chapterSlug = createImportedBookSlug(chapterTitle) || `chapter-${chapterOrder}`
 
       await upsertChapterDocument(
@@ -793,26 +846,43 @@ export const EpubImporter: React.FC = () => {
 
     let coverPath = ''
 
-    try {
-      coverPath = await book.loaded.cover
-    } catch {
-      return
+    const packaging = (book as any).packaging
+    const manifest = packaging?.manifest ?? {}
+    const metadata = packaging?.metadata ?? {}
+
+    // EPUB 3: manifest item with properties="cover-image"
+    let coverManifestItem = Object.values(manifest).find(
+      (item: any) => item?.properties?.includes('cover-image'),
+    ) as any
+
+    // EPUB 2: <meta name="cover" content="cover-id"/>
+    if (!coverManifestItem) {
+      const coverMetaId = metadata?.cover
+      if (coverMetaId && manifest[coverMetaId]) {
+        coverManifestItem = manifest[coverMetaId]
+      }
+    }
+
+    if (!coverManifestItem) {
+      const loadedCoverPath = await book.loaded.cover.catch(() => null)
+      if (loadedCoverPath && !loadedCoverPath.startsWith('blob:')) {
+        coverPath = loadedCoverPath
+      } else {
+        appendWarnings([`Cover upload skipped: no cover image found in EPUB manifest.`])
+        return
+      }
+    } else {
+      coverPath = coverManifestItem.href ?? ''
     }
 
     if (!coverPath) {
       return
     }
 
-    const resolvedCoverPath = resolveEpubAssetPath('', coverPath)
-
-    if (!resolvedCoverPath) {
-      return
-    }
-
     try {
       const uploadedMedia = await uploadAssetAsMedia(
         book,
-        resolvedCoverPath,
+        coverPath,
         `Cover image for ${title}`,
         0,
         mediaCache,

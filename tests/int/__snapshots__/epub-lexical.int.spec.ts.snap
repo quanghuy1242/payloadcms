@@ -1,0 +1,105 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`snapshots — regression gate > Payload v3 link node matches snapshot 1`] = `
+{
+  "children": [
+    {
+      "detail": 0,
+      "format": 0,
+      "mode": "normal",
+      "style": "",
+      "text": "link text",
+      "type": "text",
+      "version": 1,
+    },
+  ],
+  "direction": "ltr",
+  "fields": {
+    "linkType": "custom",
+    "newTab": false,
+    "url": "https://example.com",
+  },
+  "format": "",
+  "indent": 0,
+  "type": "link",
+  "version": 3,
+}
+`;
+
+exports[`snapshots — regression gate > ordered list structure matches snapshot 1`] = `
+{
+  "children": [
+    {
+      "checked": false,
+      "children": [
+        {
+          "detail": 0,
+          "format": 0,
+          "mode": "normal",
+          "style": "",
+          "text": "First item",
+          "type": "text",
+          "version": 1,
+        },
+      ],
+      "direction": "ltr",
+      "format": "",
+      "indent": 0,
+      "type": "listitem",
+      "value": 1,
+      "version": 1,
+    },
+    {
+      "checked": false,
+      "children": [
+        {
+          "detail": 0,
+          "format": 0,
+          "mode": "normal",
+          "style": "",
+          "text": "Second item",
+          "type": "text",
+          "version": 1,
+        },
+      ],
+      "direction": "ltr",
+      "format": "",
+      "indent": 0,
+      "type": "listitem",
+      "value": 2,
+      "version": 1,
+    },
+  ],
+  "direction": "ltr",
+  "format": "",
+  "indent": 0,
+  "listType": "number",
+  "start": 1,
+  "tag": "ol",
+  "type": "list",
+  "version": 1,
+}
+`;
+
+exports[`snapshots — regression gate > paragraph with bold+italic text matches snapshot 1`] = `
+{
+  "children": [
+    {
+      "detail": 0,
+      "format": 3,
+      "mode": "normal",
+      "style": "",
+      "text": "emphasized",
+      "type": "text",
+      "version": 1,
+    },
+  ],
+  "direction": "ltr",
+  "format": "",
+  "indent": 0,
+  "textFormat": 0,
+  "textStyle": "",
+  "type": "paragraph",
+  "version": 1,
+}
+`;
