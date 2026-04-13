@@ -551,7 +551,7 @@ const makeRoot = (children: AnyNode[]): SerializedEditorState => ({
   root: {
     type: 'root',
     version: 1,
-    format: '' as '',
+    format: '' as const,
     indent: 0,
     direction: 'ltr',
     children: children as unknown as SerializedLexicalNode[],
