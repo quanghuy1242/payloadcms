@@ -1,4 +1,6 @@
 import {
+  BlocksFeature,
+  CodeBlock,
   lexicalEditor,
   BlockquoteFeature,
   BoldFeature,
@@ -7,6 +9,7 @@ import {
   FixedToolbarFeature,
   HeadingFeature,
   InlineToolbarFeature,
+  InlineCodeFeature,
   ItalicFeature,
   LinkFeature,
   OrderedListFeature,
@@ -21,8 +24,16 @@ export const chapterRichTextFeatureProviders = () => {
     BoldFeature(),
     ItalicFeature(),
     UnderlineFeature(),
+    InlineCodeFeature(),
     HeadingFeature({ enabledHeadingSizes: ['h1', 'h2', 'h3', 'h4'] }),
     BlockquoteFeature(),
+    BlocksFeature({
+      blocks: [
+        CodeBlock({
+          defaultLanguage: 'plaintext',
+        }),
+      ],
+    }),
     LinkFeature(),
     OrderedListFeature(),
     UnorderedListFeature(),

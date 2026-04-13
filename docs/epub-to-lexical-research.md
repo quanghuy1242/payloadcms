@@ -847,9 +847,9 @@ Manning technical books produce `<pre>` like:
 </pre>
 ```
 
-Rule: when walking a `<pre>`, strip all child `<a>` elements and concatenate their text content with `\n` separators. Produce a single `paragraph` node with all text nodes carrying format `16` (code).
+Rule: when walking a `<pre>`, strip all child `<a>` elements, normalize leading/trailing blank lines, and emit a Payload `block` node using the built-in `CodeBlock` feature (`blockType: 'Code'`, `language: 'plaintext'`, `code: ...`).
 
-Reason we don't use a dedicated `code block` node: the Chapters feature registry uses no `CodeFeature`. The `pre` content becomes a monospace-formatted paragraph, which is visually equivalent.
+The chapter editor must register both `InlineCodeFeature` and `BlocksFeature({ blocks: [CodeBlock({ defaultLanguage: 'plaintext' })] })` so imported code samples render and edit correctly.
 
 ### 7.2 Inline Elements
 

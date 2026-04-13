@@ -53,3 +53,5 @@ node_modules/
 /playwright/.cache/
 
 images/
+data/
+debug*.ts

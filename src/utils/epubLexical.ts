@@ -17,7 +17,7 @@ type AnyNode = Record<string, unknown> & { type: string; version: number }
 // Node-type detection
 // ---------------------------------------------------------------------------
 
-const BLOCK_NODE_TYPES = new Set(['paragraph', 'heading', 'quote', 'list', 'table'])
+const BLOCK_NODE_TYPES = new Set(['block', 'paragraph', 'heading', 'quote', 'list', 'table'])
 
 const isBlockNode = (node: AnyNode): boolean => BLOCK_NODE_TYPES.has(node.type)
 
@@ -34,6 +34,18 @@ const makeParagraph = (children: AnyNode[]): AnyNode => ({
   children,
   textFormat: 0,
   textStyle: '',
+})
+
+const makeCodeBlock = (code: string, language = 'plaintext'): AnyNode => ({
+  type: 'block',
+  version: 2,
+  format: '',
+  fields: {
+    blockType: 'Code',
+    blockName: '',
+    code,
+    language,
+  },
 })
 
 const makeHeading = (tag: string, children: AnyNode[]): AnyNode => ({
@@ -271,14 +283,25 @@ const walkNode = (node: Node, ctx: WalkContext): AnyNode[] => {
       for (const a of Array.from(clone.querySelectorAll('a'))) {
         a.remove()
       }
-      const text = clone.textContent ?? ''
-      const parts = text.split('\n')
-      const children: AnyNode[] = []
-      for (let i = 0; i < parts.length; i++) {
-        if (parts[i].length > 0) children.push(makeText(parts[i], 16))
-        if (i < parts.length - 1) children.push(makeLineBreak())
+      const normalizedLines = (clone.textContent ?? '')
+        .replace(/\r\n?/g, '\n')
+        .split('\n')
+
+      while (normalizedLines.length > 0 && normalizedLines[0]?.trim().length === 0) {
+        normalizedLines.shift()
       }
-      return [makeParagraph(children)]
+
+      while (normalizedLines.length > 0 && normalizedLines[normalizedLines.length - 1]?.trim().length === 0) {
+        normalizedLines.pop()
+      }
+
+      const code = normalizedLines.join('\n')
+
+      if (code.trim().length === 0) {
+        return []
+      }
+
+      return [makeCodeBlock(code)]
     }
 
     case 'ul':
@@ -529,6 +552,15 @@ export function isSubstantiveChapterContent(state: SerializedEditorState): boole
 
     if (node.type === 'text' && typeof node.text === 'string' && node.text.trim().length > 0) {
       return true
+    }
+
+    if (node.type === 'block') {
+      const fields = node.fields as Record<string, unknown> | undefined
+      const code = fields?.code
+
+      if (typeof code === 'string' && code.trim().length > 0) {
+        return true
+      }
     }
 
     if (Array.isArray(node.children)) {

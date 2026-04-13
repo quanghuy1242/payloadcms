@@ -228,17 +228,22 @@ describe('htmlToPayloadLexical', () => {
     expect(quotes).toHaveLength(1)
   })
 
-  it('converts <pre> to code-formatted paragraph (format 16 on text)', () => {
+  it('converts <pre> to a code block node', () => {
     const result = htmlToPayloadLexical('<pre>code content</pre>')
-    const textNodes = findNodes(result, 'text')
-    expect(textNodes.some((n: any) => n.text === 'code content' && n.format === 16)).toBe(true)
+    const blockNodes = findNodes(result, 'block')
+
+    expect(blockNodes).toHaveLength(1)
+    expect(blockNodes[0].fields.blockType).toBe('Code')
+    expect(blockNodes[0].fields.language).toBe('plaintext')
+    expect(blockNodes[0].fields.code).toBe('code content')
   })
 
   it('strips anchor IDs from inside <pre> — Manning pattern', () => {
     const result = htmlToPayloadLexical('<pre><a id="L1"></a>const x = 1</pre>')
-    const textNodes = findNodes(result, 'text')
-    const combinedText = textNodes.map((n: any) => n.text).join('')
-    expect(combinedText).toContain('const x = 1')
+    const blockNodes = findNodes(result, 'block')
+
+    expect(blockNodes).toHaveLength(1)
+    expect(blockNodes[0].fields.code).toContain('const x = 1')
     expect(findNodes(result, 'link')).toHaveLength(0)
   })
 
@@ -308,6 +313,11 @@ describe('htmlToPayloadLexical', () => {
     expect(isSubstantiveChapterContent(result)).toBe(true)
   })
 
+  it('treats code-only chapters as substantive', () => {
+    const result = htmlToPayloadLexical('<pre>print("hello")</pre>')
+    expect(isSubstantiveChapterContent(result)).toBe(true)
+  })
+
   it('sets newTab when a link opens in a new window', () => {
     const result = htmlToPayloadLexical('<p><a href="https://example.com" target="_blank">click</a></p>')
     const links = findNodes(result, 'link')
@@ -336,7 +346,7 @@ describe('htmlToPayloadLexical', () => {
 
   // --- Key invariants ---
 
-  it('all block nodes have version 1, format "", indent 0, direction "ltr"', () => {
+  it('all non-code block nodes have version 1, format "", indent 0, direction "ltr"', () => {
     const result = htmlToPayloadLexical(
       '<p>text</p><h1>heading</h1><ul><li>item</li></ul><blockquote><p>q</p></blockquote>',
     )
