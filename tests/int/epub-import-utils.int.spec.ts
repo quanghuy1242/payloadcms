@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 import { convertHtmlToChapterLexicalState } from '@/utils/epubLexical'
 import {
+  createChapterBatches,
   buildChapterSourceKey,
   buildStableHash,
   buildStableBinaryHash,
@@ -14,6 +15,7 @@ import {
   createStableMediaFilename,
   extractChapterTitle,
   deriveImageAltText,
+  estimateWordCountFromHTML,
   resolveEpubAssetPath,
   sanitizeChapterHTML,
   sanitizeURLAttributeValue,
@@ -262,5 +264,27 @@ describe('EPUB import utilities', () => {
 
     expect(lexicalText).toContain('Next chapter')
     expect(lexicalText).toContain('Payload')
+  })
+
+  it('estimates chapter word count from html text content', () => {
+    expect(estimateWordCountFromHTML('<h1>Hello world</h1><p>Payload importer works</p>')).toBe(4)
+    expect(estimateWordCountFromHTML('<div><span>   </span></div>')).toBe(0)
+  })
+
+  it('creates chapter batches by chapter and word thresholds', () => {
+    const batches = createChapterBatches(
+      [
+        { chapterOrder: 1, wordCount: 1200 },
+        { chapterOrder: 2, wordCount: 1600 },
+        { chapterOrder: 3, wordCount: 2100 },
+        { chapterOrder: 4, wordCount: 400 },
+      ],
+      2,
+      3000,
+    )
+
+    expect(batches).toHaveLength(2)
+    expect(batches[0]?.map((chapter) => chapter.chapterOrder)).toEqual([1, 2])
+    expect(batches[1]?.map((chapter) => chapter.chapterOrder)).toEqual([3, 4])
   })
 })

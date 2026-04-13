@@ -33,7 +33,7 @@ type MockBook = {
 type FetchMockOptions = {
   createdBookID?: number
   existingBooksDocs?: Array<Record<string, unknown>>
-  existingChapterDocs?: Array<Record<string, unknown>>
+  existingChapterDocsByBook?: Array<Record<string, unknown>>
   existingMediaDocs?: Array<Record<string, unknown>>
   bookCreateRetryFailures?: number
   chapterCreateRetryFailures?: number
@@ -173,7 +173,7 @@ const installFetchMock = (options: FetchMockOptions = {}) => {
   const createdBookID = options.createdBookID ?? 101
   const existingBooksDocs = options.existingBooksDocs ?? []
   const existingMediaDocs = options.existingMediaDocs ?? []
-  const existingChapterDocs = options.existingChapterDocs ?? []
+  const existingChapterDocsByBook = options.existingChapterDocsByBook ?? []
   let bookCreateAttempts = 0
   let chapterCreateAttempts = 0
 
@@ -211,7 +211,7 @@ const installFetchMock = (options: FetchMockOptions = {}) => {
     }
 
     if (method === 'GET' && url.startsWith('/api/chapters?')) {
-      return createJsonResponse({ docs: existingChapterDocs })
+      return createJsonResponse({ docs: existingChapterDocsByBook })
     }
 
     if (method === 'POST' && url === '/api/chapters') {
@@ -324,7 +324,7 @@ describe('EpubImporter', () => {
     })
 
     await waitFor(() => {
-      expect(screen.getByText('Import completed with 1 skipped chapter.')).toBeTruthy()
+      expect(screen.getByText(/Import completed with 1 skipped chapter/)).toBeTruthy()
     })
 
     const chapterCreates = fetchMock.mock.calls.filter(([url, init]) => {
@@ -401,7 +401,7 @@ describe('EpubImporter', () => {
 
   it('reuses existing media and updates existing chapter instead of creating duplicates', async () => {
     const fetchMock = installFetchMock({
-      existingChapterDocs: [{ id: 444, title: 'Existing Chapter 1' }],
+      existingChapterDocsByBook: [{ id: 444, order: 1, title: 'Existing Chapter 1' }],
       existingMediaDocs: [{ id: 888, url: '/media/existing.png' }],
     })
 
@@ -439,6 +439,12 @@ describe('EpubImporter', () => {
 
     expect(chapterCreateCalls.length).toBe(0)
     expect(chapterPatchCalls.length).toBe(1)
+
+    const chapterLookupCalls = fetchMock.mock.calls.filter(([url, init]) => {
+      return String(url).startsWith('/api/chapters?') && (init?.method ?? 'GET') === 'GET'
+    })
+
+    expect(chapterLookupCalls.length).toBe(1)
   })
 
   it('skips chapter creation when content validation fails and still finalizes import', async () => {
@@ -460,7 +466,7 @@ describe('EpubImporter', () => {
     })
 
     await waitFor(() => {
-      expect(screen.getByText('Import completed with 1 skipped chapter.')).toBeTruthy()
+      expect(screen.getByText(/Import completed with 1 skipped chapter/)).toBeTruthy()
     })
 
     const finalBookPatch = fetchMock.mock.calls
@@ -537,5 +543,38 @@ describe('EpubImporter', () => {
     expect(finalPatchBody.importStatus).toBe('ready')
     expect(finalPatchBody.syncStatus).toBe('clean')
     expect(finalPatchBody.importCompletedChapters).toBe(1)
+  })
+
+  it('processes chapters in planned batches and keeps chapter lookups prefetched', async () => {
+    currentMockBook = createMockBook([
+      '<h1>Chapter 1</h1><p>one two three four five six seven eight nine ten</p>',
+      '<h1>Chapter 2</h1><p>one two three four five six seven eight nine ten</p>',
+      '<h1>Chapter 3</h1><p>one two three four five six seven eight nine ten</p>',
+    ])
+
+    const fetchMock = installFetchMock()
+
+    render(createElement(EpubImporter))
+
+    const input = screen.getByLabelText('Select EPUB file') as HTMLInputElement
+    const epubFile = createTestEpubFile()
+
+    fireEvent.change(input, { target: { files: [epubFile] } })
+
+    await waitFor(() => {
+      expect(
+        screen.getByText((_, element) => element?.textContent === 'Phase: Done'),
+      ).toBeTruthy()
+    })
+
+    const chapterLookupCalls = fetchMock.mock.calls.filter(([url, init]) => {
+      return String(url).startsWith('/api/chapters?') && (init?.method ?? 'GET') === 'GET'
+    })
+    const chapterCreateCalls = fetchMock.mock.calls.filter(([url, init]) => {
+      return String(url) === '/api/chapters' && init?.method === 'POST'
+    })
+
+    expect(chapterLookupCalls.length).toBe(1)
+    expect(chapterCreateCalls.length).toBe(3)
   })
 })

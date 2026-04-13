@@ -7,6 +7,7 @@ import React, { useRef, useState } from 'react'
 import { normalizeEntityId } from '@/utils/access'
 import { convertHtmlToChapterLexicalState } from '@/utils/epubLexical'
 import {
+  createChapterBatches,
   buildChapterSourceKey,
   buildStableHash,
   buildStableBinaryHash,
@@ -15,6 +16,7 @@ import {
   createImportedBookTitle,
   createStableMediaFilename,
   deriveImageAltText,
+  estimateWordCountFromHTML,
   ensureSupportedMediaBlob,
   extractChapterTitle,
   MEDIA_UPLOAD_ALLOWED_MIME_TYPES,
@@ -65,7 +67,20 @@ type UploadedMedia = {
   url: string
 }
 
-const CHAPTER_DELAY_MS = 150
+type PreparedChapter = {
+  chapterHTML: string
+  chapterOrder: number
+  spineHref: string
+  spineIdRef: string | null
+  wordCount: number
+}
+
+const MAX_CHAPTERS_PER_BATCH = 10
+const MAX_WORDS_PER_BATCH = 5000
+const MAX_PARALLEL_BATCHES = 5
+const MAX_CHAPTER_RETRY_ATTEMPTS = 2
+const MAX_BATCH_RETRY_ATTEMPTS = 1
+const PROGRESS_PATCH_INTERVAL = 5
 
 const isAbortError = (value: unknown): boolean => {
   return value instanceof DOMException && value.name === 'AbortError'
@@ -172,16 +187,15 @@ export const EpubImporter: React.FC = () => {
     }
   }
 
-  const findExistingChapterByOrder = async (
+  const findExistingChaptersByBook = async (
     bookID: string | number,
-    chapterOrder: number,
     signal: AbortSignal,
-  ): Promise<ChapterDocument | null> => {
+  ): Promise<ChapterDocument[]> => {
     const query = new URLSearchParams({
       depth: '0',
-      limit: '1',
+      limit: '1000',
       'where[book][equals]': String(bookID),
-      'where[order][equals]': String(chapterOrder),
+      sort: 'order',
     })
 
     const listResponse = await requestJSONWithRetry<PayloadListResponse<ChapterDocument>>(
@@ -192,7 +206,7 @@ export const EpubImporter: React.FC = () => {
       { signal },
     )
 
-    return listResponse.docs[0] ?? null
+    return listResponse.docs
   }
 
   const findExistingBooksBySourceHashes = async (
@@ -268,6 +282,7 @@ export const EpubImporter: React.FC = () => {
     mediaAltText: string,
     imageIndex: number,
     mediaCache: Map<string, UploadedMedia>,
+    mediaInFlight: Map<string, Promise<UploadedMedia | null>>,
     signal: AbortSignal,
   ): Promise<UploadedMedia | null> => {
     const cached = mediaCache.get(resolvedAssetPath)
@@ -276,74 +291,90 @@ export const EpubImporter: React.FC = () => {
       return cached
     }
 
-    const rawBlob = await readArchiveBlob(book, resolvedAssetPath)
-    const normalizedBlob = await ensureSupportedMediaBlob(rawBlob)
+    const inFlight = mediaInFlight.get(resolvedAssetPath)
 
-    if (!normalizedBlob) {
-      appendWarnings([
-        `Skipped unsupported image format for asset \"${resolvedAssetPath}\". Allowed MIME types: ${Array.from(MEDIA_UPLOAD_ALLOWED_MIME_TYPES).join(', ')}.`,
-      ])
-      return null
+    if (inFlight) {
+      return await inFlight
     }
 
-    const stableFilename = createStableMediaFilename(
-      resolvedAssetPath,
-      normalizedBlob.mimeType,
-      imageIndex + 1,
-    )
+    const uploadPromise = (async (): Promise<UploadedMedia | null> => {
+      const rawBlob = await readArchiveBlob(book, resolvedAssetPath)
+      const normalizedBlob = await ensureSupportedMediaBlob(rawBlob)
 
-    const existingMedia = await findExistingMediaByFilename(stableFilename, signal)
-
-    if (existingMedia) {
-      mediaCache.set(resolvedAssetPath, existingMedia)
-      return existingMedia
-    }
-
-    const mediaFormData = new FormData()
-    mediaFormData.append('file', normalizedBlob.blob, stableFilename)
-    mediaFormData.append('alt', mediaAltText)
-
-    const mediaResponse = await requestJSONWithRetry<MediaDocument>(
-      '/api/media',
-      {
-        method: 'POST',
-        body: mediaFormData,
-      },
-      {
-        signal,
-      },
-    )
-
-    if (typeof mediaResponse.url !== 'string' || mediaResponse.url.length === 0) {
-      throw new Error(`Media upload succeeded without a URL for asset ${resolvedAssetPath}.`)
-    }
-
-    const uploadedMedia: UploadedMedia = {
-      id: mediaResponse.id,
-      url: mediaResponse.url,
-    }
-
-    mediaCache.set(resolvedAssetPath, uploadedMedia)
-    setProgress((existingProgress) => {
-      return {
-        ...existingProgress,
-        uploadedImages: existingProgress.uploadedImages + 1,
+      if (!normalizedBlob) {
+        appendWarnings([
+          `Skipped unsupported image format for asset \"${resolvedAssetPath}\". Allowed MIME types: ${Array.from(MEDIA_UPLOAD_ALLOWED_MIME_TYPES).join(', ')}.`,
+        ])
+        return null
       }
-    })
 
-    return uploadedMedia
+      const stableFilename = createStableMediaFilename(
+        resolvedAssetPath,
+        normalizedBlob.mimeType,
+        imageIndex + 1,
+      )
+
+      const existingMedia = await findExistingMediaByFilename(stableFilename, signal)
+
+      if (existingMedia) {
+        mediaCache.set(resolvedAssetPath, existingMedia)
+        return existingMedia
+      }
+
+      const mediaFormData = new FormData()
+      mediaFormData.append('file', normalizedBlob.blob, stableFilename)
+      mediaFormData.append('alt', mediaAltText)
+
+      const mediaResponse = await requestJSONWithRetry<MediaDocument>(
+        '/api/media',
+        {
+          method: 'POST',
+          body: mediaFormData,
+        },
+        {
+          signal,
+        },
+      )
+
+      if (typeof mediaResponse.url !== 'string' || mediaResponse.url.length === 0) {
+        throw new Error(`Media upload succeeded without a URL for asset ${resolvedAssetPath}.`)
+      }
+
+      const uploadedMedia: UploadedMedia = {
+        id: mediaResponse.id,
+        url: mediaResponse.url,
+      }
+
+      mediaCache.set(resolvedAssetPath, uploadedMedia)
+      setProgress((existingProgress) => {
+        return {
+          ...existingProgress,
+          uploadedImages: existingProgress.uploadedImages + 1,
+        }
+      })
+
+      return uploadedMedia
+    })()
+
+    mediaInFlight.set(resolvedAssetPath, uploadPromise)
+
+    try {
+      return await uploadPromise
+    } finally {
+      mediaInFlight.delete(resolvedAssetPath)
+    }
   }
 
   const upsertChapterDocument = async (
     chapterData: Record<string, unknown>,
-    bookID: string | number,
     chapterOrder: number,
+    existingChaptersByOrder: Map<number, ChapterDocument>,
     signal: AbortSignal,
   ) => {
-    const existingChapter = await findExistingChapterByOrder(bookID, chapterOrder, signal)
+    const existingChapter = existingChaptersByOrder.get(chapterOrder) ?? null
 
     if (!existingChapter) {
-      await requestJSONWithRetry<ChapterDocument>(
+      const createdChapter = await requestDocumentJSONWithRetry<ChapterDocument>(
         '/api/chapters',
         {
           method: 'POST',
@@ -357,12 +388,14 @@ export const EpubImporter: React.FC = () => {
         },
       )
 
+      existingChaptersByOrder.set(chapterOrder, createdChapter)
+
       return
     }
 
     const existingChapterID = normalizeDocumentID(existingChapter.id)
 
-    await requestJSONWithRetry<ChapterDocument>(
+    const updatedChapter = await requestDocumentJSONWithRetry<ChapterDocument>(
       `/api/chapters/${existingChapterID}`,
       {
         method: 'PATCH',
@@ -375,6 +408,8 @@ export const EpubImporter: React.FC = () => {
         signal,
       },
     )
+
+    existingChaptersByOrder.set(chapterOrder, updatedChapter)
   }
 
   const patchBookFailureState = async (bookID: string | number, reason: string) => {
@@ -407,24 +442,74 @@ export const EpubImporter: React.FC = () => {
     })
   }
 
-  const processChapter = async (
+  const prepareChaptersForImport = async (
+    book: Book,
+    spineItems: SpineItem[],
+    signal: AbortSignal,
+  ): Promise<PreparedChapter[]> => {
+    const preparedChapters: PreparedChapter[] = []
+
+    for (let chapterIndex = 0; chapterIndex < spineItems.length; chapterIndex += 1) {
+      ensureNotAborted(signal)
+
+      const spineItem = spineItems[chapterIndex]
+      const chapterOrder = chapterIndex + 1
+      const section = book.section(spineItem.index)
+
+      setPhase('Parsing')
+      setStatusMessage(`Analyzing chapter ${chapterOrder} of ${spineItems.length}...`)
+
+      try {
+        await Promise.resolve(section.load(book.load.bind(book)))
+
+        const renderedSection = await Promise.resolve(section.render(book.load.bind(book)))
+        const chapterHTML =
+          typeof renderedSection === 'string'
+            ? renderedSection
+            : section.document?.documentElement?.outerHTML ?? ''
+
+        if (!chapterHTML) {
+          appendWarnings([`Skipped chapter ${chapterOrder}: Unable to render chapter content.`])
+          continue
+        }
+
+        preparedChapters.push({
+          chapterHTML,
+          chapterOrder,
+          spineHref: spineItem.href ?? '',
+          spineIdRef: (spineItem as unknown as { idref?: string }).idref ?? null,
+          wordCount: estimateWordCountFromHTML(chapterHTML),
+        })
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unexpected chapter preflight failure.'
+        appendWarnings([`Skipped chapter ${chapterOrder}: ${message}`])
+      } finally {
+        section.unload()
+      }
+    }
+
+    return preparedChapters
+  }
+
+  const processPreparedChapter = async (
     book: Book,
     bookID: string | number,
     importBatchID: string,
-    spineItem: SpineItem,
-    chapterIndex: number,
+    preparedChapter: PreparedChapter,
     totalChapters: number,
+    existingChaptersByOrder: Map<number, ChapterDocument>,
     mediaCache: Map<string, UploadedMedia>,
+    mediaInFlight: Map<string, Promise<UploadedMedia | null>>,
     signal: AbortSignal,
   ): Promise<boolean> => {
     ensureNotAborted(signal)
 
-    const chapterOrder = chapterIndex + 1
+    const chapterOrder = preparedChapter.chapterOrder
 
     setProgress((existingProgress) => {
       return {
         ...existingProgress,
-        currentChapter: chapterOrder,
+        currentChapter: Math.max(existingProgress.currentChapter, chapterOrder),
         totalChapters,
       }
     })
@@ -432,24 +517,14 @@ export const EpubImporter: React.FC = () => {
     setPhase('Uploading Chapter')
     setStatusMessage(`Processing chapter ${chapterOrder} of ${totalChapters}...`)
 
-    const section = book.section(spineItem.index)
-
     try {
-      await Promise.resolve(section.load(book.load.bind(book)))
-
-      const renderedSection = await Promise.resolve(section.render(book.load.bind(book)))
-      const chapterHTML =
-        typeof renderedSection === 'string'
-          ? renderedSection
-          : section.document?.documentElement?.outerHTML ?? ''
-
-      if (!chapterHTML) {
-        throw new Error(`Unable to render chapter ${chapterOrder}.`)
-      }
-
       const parser = new DOMParser()
-      const chapterDocument = parser.parseFromString(chapterHTML, 'text/html')
-      const chapterTitle = extractChapterTitle(chapterHTML, `Chapter ${chapterOrder}`, chapterOrder)
+      const chapterDocument = parser.parseFromString(preparedChapter.chapterHTML, 'text/html')
+      const chapterTitle = extractChapterTitle(
+        preparedChapter.chapterHTML,
+        `Chapter ${chapterOrder}`,
+        chapterOrder,
+      )
       const chapterImages = Array.from(chapterDocument.querySelectorAll('img'))
 
       for (let imageIndex = 0; imageIndex < chapterImages.length; imageIndex += 1) {
@@ -467,7 +542,7 @@ export const EpubImporter: React.FC = () => {
           continue
         }
 
-        const resolvedAssetPath = resolveEpubAssetPath(spineItem.href ?? '', imageSource)
+        const resolvedAssetPath = resolveEpubAssetPath(preparedChapter.spineHref, imageSource)
 
         if (!resolvedAssetPath) {
           appendWarnings([
@@ -485,6 +560,7 @@ export const EpubImporter: React.FC = () => {
             deriveImageAltText(imageElement, chapterTitle, imageIndex),
             imageIndex,
             mediaCache,
+            mediaInFlight,
             signal,
           )
         } catch (error) {
@@ -513,8 +589,8 @@ export const EpubImporter: React.FC = () => {
       const sanitizedChapter = sanitizeChapterHTML(chapterHTMLWithUploadedImages)
       const chapterSourceHash = buildStableHash(sanitizedChapter.html)
       const chapterSourceKey = buildChapterSourceKey(
-        spineItem.href ?? '',
-        section.idref ?? null,
+        preparedChapter.spineHref,
+        preparedChapter.spineIdRef,
         chapterOrder,
       )
 
@@ -540,27 +616,17 @@ export const EpubImporter: React.FC = () => {
           slug: chapterSlug,
           title: chapterTitle,
         },
-        bookID,
         chapterOrder,
+        existingChaptersByOrder,
         signal,
       )
 
       setProgress((existingProgress) => {
         return {
           ...existingProgress,
-          completedChapters: chapterOrder,
+          completedChapters: Math.min(totalChapters, existingProgress.completedChapters + 1),
         }
       })
-
-      await updateBookProgress(
-        bookID,
-        {
-          importCompletedChapters: chapterOrder,
-        },
-        signal,
-      )
-
-      await sleep(CHAPTER_DELAY_MS)
 
       return true
     } catch (error) {
@@ -571,9 +637,148 @@ export const EpubImporter: React.FC = () => {
       const message = error instanceof Error ? error.message : 'Unexpected chapter import failure.'
       appendWarnings([`Skipped chapter ${chapterOrder}: ${message}`])
       return false
-    } finally {
-      section.unload()
     }
+  }
+
+  const processPreparedChapterWithRetry = async (
+    book: Book,
+    bookID: string | number,
+    importBatchID: string,
+    preparedChapter: PreparedChapter,
+    totalChapters: number,
+    existingChaptersByOrder: Map<number, ChapterDocument>,
+    mediaCache: Map<string, UploadedMedia>,
+    mediaInFlight: Map<string, Promise<UploadedMedia | null>>,
+    signal: AbortSignal,
+  ): Promise<boolean> => {
+    for (let attempt = 0; attempt <= MAX_CHAPTER_RETRY_ATTEMPTS; attempt += 1) {
+      const success = await processPreparedChapter(
+        book,
+        bookID,
+        importBatchID,
+        preparedChapter,
+        totalChapters,
+        existingChaptersByOrder,
+        mediaCache,
+        mediaInFlight,
+        signal,
+      )
+
+      if (success) {
+        return true
+      }
+
+      if (attempt < MAX_CHAPTER_RETRY_ATTEMPTS) {
+        setPhase('Retrying')
+        setStatusMessage(
+          `Retrying chapter ${preparedChapter.chapterOrder} (${attempt + 1}/${MAX_CHAPTER_RETRY_ATTEMPTS})...`,
+        )
+        await sleep(150 * (attempt + 1))
+      }
+    }
+
+    return false
+  }
+
+  const processBatchWithRetry = async (
+    batch: PreparedChapter[],
+    batchIndex: number,
+    totalBatches: number,
+    book: Book,
+    bookID: string | number,
+    importBatchID: string,
+    totalChapters: number,
+    existingChaptersByOrder: Map<number, ChapterDocument>,
+    mediaCache: Map<string, UploadedMedia>,
+    mediaInFlight: Map<string, Promise<UploadedMedia | null>>,
+    signal: AbortSignal,
+  ): Promise<{ completedChapters: number; skippedChapters: number }> => {
+    for (let attempt = 0; attempt <= MAX_BATCH_RETRY_ATTEMPTS; attempt += 1) {
+      try {
+        setPhase('Uploading Chapter')
+        setStatusMessage(`Processing batch ${batchIndex + 1} of ${totalBatches}...`)
+
+        let completedChapters = 0
+        let skippedChapters = 0
+
+        for (const preparedChapter of batch) {
+          ensureNotAborted(signal)
+
+          const chapterSucceeded = await processPreparedChapterWithRetry(
+            book,
+            bookID,
+            importBatchID,
+            preparedChapter,
+            totalChapters,
+            existingChaptersByOrder,
+            mediaCache,
+            mediaInFlight,
+            signal,
+          )
+
+          if (chapterSucceeded) {
+            completedChapters += 1
+          } else {
+            skippedChapters += 1
+          }
+        }
+
+        return {
+          completedChapters,
+          skippedChapters,
+        }
+      } catch (error) {
+        if (isAbortError(error) || signal.aborted) {
+          throw error
+        }
+
+        if (attempt < MAX_BATCH_RETRY_ATTEMPTS) {
+          setPhase('Retrying')
+          setStatusMessage(`Retrying batch ${batchIndex + 1} (${attempt + 1}/${MAX_BATCH_RETRY_ATTEMPTS})...`)
+          await sleep(250 * (attempt + 1))
+          continue
+        }
+
+        const message = error instanceof Error ? error.message : 'Unexpected batch import failure.'
+        appendWarnings([`Skipped batch ${batchIndex + 1}: ${message}`])
+
+        return {
+          completedChapters: 0,
+          skippedChapters: batch.length,
+        }
+      }
+    }
+
+    return {
+      completedChapters: 0,
+      skippedChapters: batch.length,
+    }
+  }
+
+  const runWithConcurrency = async <T, R>(
+    items: T[],
+    maxConcurrency: number,
+    worker: (item: T, index: number) => Promise<R>,
+  ): Promise<R[]> => {
+    if (items.length === 0) {
+      return []
+    }
+
+    const results: R[] = new Array(items.length)
+    const concurrency = Math.max(1, Math.min(maxConcurrency, items.length))
+    let nextIndex = 0
+
+    const runWorker = async () => {
+      while (nextIndex < items.length) {
+        const currentIndex = nextIndex
+        nextIndex += 1
+        results[currentIndex] = await worker(items[currentIndex], currentIndex)
+      }
+    }
+
+    await Promise.all(Array.from({ length: concurrency }, () => runWorker()))
+
+    return results
   }
 
   const processBookCover = async (
@@ -581,6 +786,7 @@ export const EpubImporter: React.FC = () => {
     bookID: string | number,
     title: string,
     mediaCache: Map<string, UploadedMedia>,
+    mediaInFlight: Map<string, Promise<UploadedMedia | null>>,
     signal: AbortSignal,
   ) => {
     ensureNotAborted(signal)
@@ -610,6 +816,7 @@ export const EpubImporter: React.FC = () => {
         `Cover image for ${title}`,
         0,
         mediaCache,
+        mediaInFlight,
         signal,
       )
 
@@ -772,42 +979,106 @@ export const EpubImporter: React.FC = () => {
       }
 
       const mediaCache = new Map<string, UploadedMedia>()
+      const mediaInFlight = new Map<string, Promise<UploadedMedia | null>>()
       let completedChapters = 0
-      let skippedChapters = 0
+
+      if (createdBookID == null) {
+        throw new Error('Book record was not created before chapter import started.')
+      }
+
+      if (!openedBook) {
+        throw new Error('EPUB book context was not available for chapter import.')
+      }
+
+      const importBookID: string | number = createdBookID
+      const importBook: Book = openedBook
+
+      const existingChapters = await findExistingChaptersByBook(importBookID, abortController.signal)
+      const existingChaptersByOrder = new Map<number, ChapterDocument>()
+
+      for (const existingChapter of existingChapters) {
+        const chapterOrderValue = (existingChapter as { order?: unknown }).order
+
+        if (typeof chapterOrderValue === 'number' && Number.isFinite(chapterOrderValue)) {
+          existingChaptersByOrder.set(chapterOrderValue, existingChapter)
+        }
+      }
+
+      const preparedChapters = await prepareChaptersForImport(openedBook, spineItems, abortController.signal)
+      const chapterBatches = createChapterBatches(
+        preparedChapters,
+        MAX_CHAPTERS_PER_BATCH,
+        MAX_WORDS_PER_BATCH,
+      )
+      const preflightSkippedChapters = Math.max(0, spineItems.length - preparedChapters.length)
+      let skippedChapters = preflightSkippedChapters
+
+      if (preparedChapters.length === 0) {
+        throw new Error('No chapters could be prepared for import.')
+      }
+
+      setProgress((existingProgress) => {
+        return {
+          ...existingProgress,
+          currentChapter: 0,
+          totalChapters: spineItems.length,
+        }
+      })
 
       await processBookCover(
-        openedBook,
-        createdBookID,
+        importBook,
+        importBookID,
         importedTitle,
         mediaCache,
+        mediaInFlight,
         abortController.signal,
       )
 
-      for (let chapterIndex = 0; chapterIndex < spineItems.length; chapterIndex += 1) {
-        ensureNotAborted(abortController.signal)
+      const batchResults = await runWithConcurrency(
+        chapterBatches,
+        MAX_PARALLEL_BATCHES,
+        async (batch, batchIndex) => {
+          return await processBatchWithRetry(
+            batch,
+            batchIndex,
+            chapterBatches.length,
+            importBook,
+            importBookID,
+            importBatchID,
+            preparedChapters.length,
+            existingChaptersByOrder,
+            mediaCache,
+            mediaInFlight,
+            abortController.signal,
+          )
+        },
+      )
 
-        const chapterSucceeded = await processChapter(
-          openedBook,
-          createdBookID,
-          importBatchID,
-          spineItems[chapterIndex],
-          chapterIndex,
-          spineItems.length,
-          mediaCache,
-          abortController.signal,
-        )
+      for (const batchResult of batchResults) {
+        completedChapters += batchResult.completedChapters
+        skippedChapters += batchResult.skippedChapters
+      }
 
-        if (chapterSucceeded) {
-          completedChapters += 1
-        } else {
-          skippedChapters += 1
+      for (let index = 0; index < batchResults.length; index += 1) {
+        const runningCompleted = batchResults
+          .slice(0, index + 1)
+          .reduce((sum, result) => sum + result.completedChapters, 0)
+
+        if ((index + 1) % PROGRESS_PATCH_INTERVAL === 0 || index === batchResults.length - 1) {
+          await updateBookProgress(
+            importBookID,
+            {
+              importCompletedChapters: runningCompleted,
+            },
+            abortController.signal,
+          )
         }
       }
 
       setPhase('Finalizing')
       setStatusMessage('Finalizing import status...')
 
-      await patchBookReadyState(createdBookID, completedChapters, skippedChapters)
+      await patchBookReadyState(importBookID, completedChapters, skippedChapters)
 
       setPhase('Done')
       setStatusMessage(

@@ -442,6 +442,56 @@ export const buildChapterSourceKey = (
   return [normalizedItemID, normalizedHref, `chapter-${chapterOrder}`].filter(Boolean).join('::')
 }
 
+export const estimateWordCountFromHTML = (html: string): number => {
+  const parser = new DOMParser()
+  const document = parser.parseFromString(html, 'text/html')
+  const text = (document.body.textContent ?? '').replace(/\s+/g, ' ').trim()
+
+  if (text.length === 0) {
+    return 0
+  }
+
+  return text.split(' ').filter((word) => word.length > 0).length
+}
+
+export const createChapterBatches = <T extends { wordCount: number }>(
+  chapters: T[],
+  maxChaptersPerBatch: number,
+  maxWordsPerBatch: number,
+): T[][] => {
+  if (chapters.length === 0) {
+    return []
+  }
+
+  const chapterLimit = Math.max(1, Math.floor(maxChaptersPerBatch))
+  const wordLimit = Math.max(1, Math.floor(maxWordsPerBatch))
+
+  const batches: T[][] = []
+  let currentBatch: T[] = []
+  let currentWordCount = 0
+
+  for (const chapter of chapters) {
+    const chapterWordCount = Math.max(0, Math.floor(chapter.wordCount))
+    const exceedsChapterLimit = currentBatch.length >= chapterLimit
+    const exceedsWordLimit = currentBatch.length > 0 && currentWordCount + chapterWordCount > wordLimit
+
+    if (exceedsChapterLimit || exceedsWordLimit) {
+      batches.push(currentBatch)
+      currentBatch = []
+      currentWordCount = 0
+    }
+
+    currentBatch.push(chapter)
+    currentWordCount += chapterWordCount
+  }
+
+  if (currentBatch.length > 0) {
+    batches.push(currentBatch)
+  }
+
+  return batches
+}
+
 export const ensureSupportedMediaBlob = async (
   blob: Blob,
 ): Promise<{ blob: Blob; mimeType: string } | null> => {
