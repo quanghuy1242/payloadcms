@@ -595,8 +595,12 @@ export const createChapterBatches = <T extends { wordCount: number }>(
 }
 
 export const ensureSupportedMediaBlob = async (
-  blob: Blob,
+  blob: Blob | null | undefined,
 ): Promise<{ blob: Blob; mimeType: string } | null> => {
+  if (!blob) {
+    return null
+  }
+
   const normalizedMimeType = blob.type.toLowerCase()
 
   if (MEDIA_UPLOAD_ALLOWED_MIME_TYPES.has(normalizedMimeType)) {

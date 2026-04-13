@@ -20,6 +20,7 @@ import {
   extractChapterTitle,
   deriveImageAltText,
   estimateWordCountFromHTML,
+  ensureSupportedMediaBlob,
   resolveChapterTocMetadata,
   resolveEpubAssetPath,
   sanitizeChapterHTML,
@@ -308,6 +309,10 @@ describe('EPUB import utilities', () => {
 
     imageElement.removeAttribute('title')
     expect(deriveImageAltText(imageElement, 'Chapter 7', 0)).toBe('Image 1 from Chapter 7')
+  })
+
+  it('returns null when a media blob is missing', async () => {
+    await expect(ensureSupportedMediaBlob(undefined)).resolves.toBeNull()
   })
 
   it('converts sanitized html to lexical editor state', () => {

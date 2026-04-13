@@ -316,6 +316,7 @@ describe('EpubImporter', () => {
 
     expect(mediaBody).toBeInstanceOf(FormData)
     expect(mediaBody?.get('alt')).toBe('Chapter art')
+    expect(JSON.parse(String(mediaBody?.get('_payload') ?? '{}'))).toEqual({ alt: 'Chapter art' })
 
     const bookPatchCalls = fetchMock.mock.calls.filter(([url, init]) => {
       return String(url).startsWith('/api/books/101') && init?.method === 'PATCH'

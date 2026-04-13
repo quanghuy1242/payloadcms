@@ -268,7 +268,11 @@ export const EpubImporter: React.FC = () => {
 
     for (const candidatePath of candidatePaths) {
       try {
-        return await book.archive.getBlob(candidatePath)
+        const candidateBlob = await book.archive.getBlob(candidatePath)
+
+        if (candidateBlob instanceof Blob) {
+          return candidateBlob
+        }
       } catch {
         // fallback below
       }
@@ -345,6 +349,7 @@ export const EpubImporter: React.FC = () => {
       const mediaFormData = new FormData()
       mediaFormData.append('file', normalizedBlob.blob, stableFilename)
       mediaFormData.append('alt', mediaAltText)
+      mediaFormData.append('_payload', JSON.stringify({ alt: mediaAltText }))
 
       const mediaResponse = await requestJSONWithRetry<MediaDocument>(
         '/api/media',
