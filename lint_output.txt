@@ -1,0 +1,153 @@
+
+> with-vercel-postgres@1.0.0 lint /home/quanghuy1242/pjs/payloadcms
+> cross-env NODE_OPTIONS=--no-deprecation next lint
+
+
+./src/app/(payload)/api/auth/logout/route.ts
+12:9  Warning: 'cookieStore' is assigned a value but never used. Allowed unused vars must match /^_/u.  @typescript-eslint/no-unused-vars
+
+./src/app/my-route/route.ts
+4:27  Warning: 'request' is defined but never used. Allowed unused args must match /^_/u.  @typescript-eslint/no-unused-vars
+5:9  Warning: 'payload' is assigned a value but never used. Allowed unused vars must match /^_/u.  @typescript-eslint/no-unused-vars
+
+./src/collections/Books.ts
+83:7  Warning: Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free.  @typescript-eslint/ban-ts-comment
+
+./src/collections/Categories.ts
+36:7  Warning: Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free.  @typescript-eslint/ban-ts-comment
+
+./src/collections/Media.ts
+132:32  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/collections/Posts.ts
+66:7  Warning: Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free.  @typescript-eslint/ban-ts-comment
+
+./src/components/admin/books/EpubImporter.tsx
+887:32  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+893:14  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+894:10  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/components/admin/media/MediaGridView.tsx
+80:21  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+88:21  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./src/components/admin/posts/GenerateSlugButton.tsx
+11:18  Warning: 'slugValue' is assigned a value but never used. Allowed unused vars must match /^_/u.  @typescript-eslint/no-unused-vars
+
+./src/features/youtube/feature.client.ts
+3:15  Warning: 'ClientFeatureProviderMap' is defined but never used. Allowed unused vars must match /^_/u.  @typescript-eslint/no-unused-vars
+
+./src/features/youtube/nodes/YouTubeNode.tsx
+111:13  Warning: 'config' is defined but never used. Allowed unused args must match /^_/u.  @typescript-eslint/no-unused-vars
+
+./src/graphql/queries/SimilarPosts/index.ts
+5:39  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+5:53  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+5:78  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+5:83  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+13:54  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/graphql/queries/SimilarPosts/resolver.ts
+9:6  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+11:12  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+12:20  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+38:23  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/graphql/queries/index.ts
+3:34  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+3:48  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/lib/betterAuth/api.ts
+8:3  Warning: 'getPayloadClientId' is defined but never used. Allowed unused vars must match /^_/u.  @typescript-eslint/no-unused-vars
+
+./src/lib/postsSeo.ts
+41:25  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+55:25  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+67:25  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+79:25  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/migrations/20251020_174043.ts
+3:32  Warning: 'payload' is defined but never used. Allowed unused args must match /^_/u.  @typescript-eslint/no-unused-vars
+3:41  Warning: 'req' is defined but never used. Allowed unused args must match /^_/u.  @typescript-eslint/no-unused-vars
+66:34  Warning: 'payload' is defined but never used. Allowed unused args must match /^_/u.  @typescript-eslint/no-unused-vars
+66:43  Warning: 'req' is defined but never used. Allowed unused args must match /^_/u.  @typescript-eslint/no-unused-vars
+
+./src/migrations/20251021_044042.ts
+3:32  Warning: 'payload' is defined but never used. Allowed unused args must match /^_/u.  @typescript-eslint/no-unused-vars
+3:41  Warning: 'req' is defined but never used. Allowed unused args must match /^_/u.  @typescript-eslint/no-unused-vars
+83:34  Warning: 'payload' is defined but never used. Allowed unused args must match /^_/u.  @typescript-eslint/no-unused-vars
+83:43  Warning: 'req' is defined but never used. Allowed unused args must match /^_/u.  @typescript-eslint/no-unused-vars
+
+./src/migrations/20251021_064903_seo_meta.ts
+3:32  Warning: 'payload' is defined but never used. Allowed unused args must match /^_/u.  @typescript-eslint/no-unused-vars
+3:41  Warning: 'req' is defined but never used. Allowed unused args must match /^_/u.  @typescript-eslint/no-unused-vars
+34:34  Warning: 'payload' is defined but never used. Allowed unused args must match /^_/u.  @typescript-eslint/no-unused-vars
+34:43  Warning: 'req' is defined but never used. Allowed unused args must match /^_/u.  @typescript-eslint/no-unused-vars
+
+./src/migrations/20251021_132717_sync_20250305.ts
+3:32  Warning: 'payload' is defined but never used. Allowed unused args must match /^_/u.  @typescript-eslint/no-unused-vars
+3:41  Warning: 'req' is defined but never used. Allowed unused args must match /^_/u.  @typescript-eslint/no-unused-vars
+12:34  Warning: 'payload' is defined but never used. Allowed unused args must match /^_/u.  @typescript-eslint/no-unused-vars
+12:43  Warning: 'req' is defined but never used. Allowed unused args must match /^_/u.  @typescript-eslint/no-unused-vars
+
+./src/migrations/20251022_150330.ts
+3:32  Warning: 'payload' is defined but never used. Allowed unused args must match /^_/u.  @typescript-eslint/no-unused-vars
+3:41  Warning: 'req' is defined but never used. Allowed unused args must match /^_/u.  @typescript-eslint/no-unused-vars
+12:34  Warning: 'payload' is defined but never used. Allowed unused args must match /^_/u.  @typescript-eslint/no-unused-vars
+12:43  Warning: 'req' is defined but never used. Allowed unused args must match /^_/u.  @typescript-eslint/no-unused-vars
+
+./src/migrations/20251023_055030.ts
+3:32  Warning: 'payload' is defined but never used. Allowed unused args must match /^_/u.  @typescript-eslint/no-unused-vars
+3:41  Warning: 'req' is defined but never used. Allowed unused args must match /^_/u.  @typescript-eslint/no-unused-vars
+8:34  Warning: 'payload' is defined but never used. Allowed unused args must match /^_/u.  @typescript-eslint/no-unused-vars
+8:43  Warning: 'req' is defined but never used. Allowed unused args must match /^_/u.  @typescript-eslint/no-unused-vars
+
+./src/migrations/20251023_061046.ts
+3:32  Warning: 'payload' is defined but never used. Allowed unused args must match /^_/u.  @typescript-eslint/no-unused-vars
+3:41  Warning: 'req' is defined but never used. Allowed unused args must match /^_/u.  @typescript-eslint/no-unused-vars
+9:34  Warning: 'payload' is defined but never used. Allowed unused args must match /^_/u.  @typescript-eslint/no-unused-vars
+9:43  Warning: 'req' is defined but never used. Allowed unused args must match /^_/u.  @typescript-eslint/no-unused-vars
+
+./src/migrations/20251023_072210.ts
+3:32  Warning: 'payload' is defined but never used. Allowed unused args must match /^_/u.  @typescript-eslint/no-unused-vars
+3:41  Warning: 'req' is defined but never used. Allowed unused args must match /^_/u.  @typescript-eslint/no-unused-vars
+7:34  Warning: 'payload' is defined but never used. Allowed unused args must match /^_/u.  @typescript-eslint/no-unused-vars
+7:43  Warning: 'req' is defined but never used. Allowed unused args must match /^_/u.  @typescript-eslint/no-unused-vars
+
+./src/migrations/20251023_093702.ts
+3:32  Warning: 'payload' is defined but never used. Allowed unused args must match /^_/u.  @typescript-eslint/no-unused-vars
+3:41  Warning: 'req' is defined but never used. Allowed unused args must match /^_/u.  @typescript-eslint/no-unused-vars
+8:34  Warning: 'payload' is defined but never used. Allowed unused args must match /^_/u.  @typescript-eslint/no-unused-vars
+8:43  Warning: 'req' is defined but never used. Allowed unused args must match /^_/u.  @typescript-eslint/no-unused-vars
+
+./src/migrations/20251024_154251.ts
+3:32  Warning: 'payload' is defined but never used. Allowed unused args must match /^_/u.  @typescript-eslint/no-unused-vars
+3:41  Warning: 'req' is defined but never used. Allowed unused args must match /^_/u.  @typescript-eslint/no-unused-vars
+7:34  Warning: 'payload' is defined but never used. Allowed unused args must match /^_/u.  @typescript-eslint/no-unused-vars
+7:43  Warning: 'req' is defined but never used. Allowed unused args must match /^_/u.  @typescript-eslint/no-unused-vars
+
+./src/migrations/20251025_081558.ts
+3:32  Warning: 'payload' is defined but never used. Allowed unused args must match /^_/u.  @typescript-eslint/no-unused-vars
+3:41  Warning: 'req' is defined but never used. Allowed unused args must match /^_/u.  @typescript-eslint/no-unused-vars
+7:34  Warning: 'payload' is defined but never used. Allowed unused args must match /^_/u.  @typescript-eslint/no-unused-vars
+7:43  Warning: 'req' is defined but never used. Allowed unused args must match /^_/u.  @typescript-eslint/no-unused-vars
+
+./src/payload.config.ts
+102:3  Warning: Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free.  @typescript-eslint/ban-ts-comment
+105:3  Warning: Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free.  @typescript-eslint/ban-ts-comment
+
+./src/utils/access.ts
+141:1  Warning: Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free.  @typescript-eslint/ban-ts-comment
+324:12  Warning: 'error' is defined but never used. Allowed unused caught errors must match /^(_|ignore)/u.  @typescript-eslint/no-unused-vars
+
+./src/utils/epubLexical.ts
+579:35  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+582:36  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/utils/lowres.ts
+131:27  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/utils/slug.ts
+127:37  Warning: 'data' is assigned a value but never used. Allowed unused vars must match /^_/u.  @typescript-eslint/no-unused-vars
+
+info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/docs/app/api-reference/config/eslint#disabling-rules

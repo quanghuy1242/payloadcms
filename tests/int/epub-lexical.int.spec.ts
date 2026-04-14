@@ -316,7 +316,7 @@ describe('htmlToPayloadLexical', () => {
     const uploads = findNodes(result, 'upload')
     expect(uploads).toHaveLength(1)
     expect(uploads[0].relationTo).toBe('media')
-    expect(uploads[0].value).toBe('78')
+    expect(uploads[0].value).toBe(78)
     expect(uploads[0].fields.alt).toContain('Image from book Gatsby Vĩ Đại - ID 1 - ca4c1cd2')
   })
 

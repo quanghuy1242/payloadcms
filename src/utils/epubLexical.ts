@@ -66,6 +66,14 @@ const makeUploadNode = (
   fields: { alt },
 })
 
+const normalizeUploadValue = (value: string): string | number => {
+  if (/^-?\d+$/.test(value)) {
+    return Number(value)
+  }
+
+  return value
+}
+
 const makeHeading = (tag: string, children: AnyNode[]): AnyNode => ({
   type: 'heading',
   tag,
@@ -441,7 +449,7 @@ const walkNode = (node: Node, ctx: WalkContext): AnyNode[] => {
 
       if (uploadId.length > 0 && relationTo.length > 0) {
         const alt = (el.getAttribute('alt') ?? el.getAttribute('title') ?? '').trim()
-        return [makeUploadNode(ctx, relationTo, uploadId, alt)]
+        return [makeUploadNode(ctx, relationTo, normalizeUploadValue(uploadId), alt)]
       }
 
       const src = el.getAttribute('src') ?? ''
