@@ -151,13 +151,11 @@ export const Media: CollectionConfig = {
         const storageKey = getStorageKey(doc)
         const keysToDelete: string[] = []
 
-        // Clean up the optimized file
-        if (doc.optimizedUrl) {
-          const optimizedKey = storageKey
-            ? getOptimizedFilename(storageKey)
-            : getOptimizedFilename(doc.filename)
-          keysToDelete.push(optimizedKey)
-        }
+        // Clean up the optimized file even if the persisted document never stored optimizedUrl.
+        const optimizedKey = storageKey
+          ? getOptimizedFilename(storageKey)
+          : getOptimizedFilename(doc.filename)
+        keysToDelete.push(optimizedKey)
 
         // Clean up all 6 responsive variants
         for (const variant of RESPONSIVE_VARIANTS) {

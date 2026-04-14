@@ -455,6 +455,7 @@ export const createStableMediaFilename = (
   assetPath: string,
   mimeType: string,
   fallbackIndex: number,
+  namespace = '',
 ): string => {
   const cleanPath = stripQueryAndHash(assetPath)
   const pathSegments = cleanPath.split('/').filter((segment) => segment.length > 0)
@@ -467,7 +468,8 @@ export const createStableMediaFilename = (
     .replace(/^-+|-+$/g, '')
 
   const safeBaseName = baseName || `image-${fallbackIndex}`
-  const hash = buildStableHash(cleanPath || safeBaseName)
+  const hashSource = namespace ? `${namespace}::${cleanPath || safeBaseName}` : cleanPath || safeBaseName
+  const hash = buildStableHash(hashSource)
   const extension = inferFileExtension(mimeType)
 
   return `${safeBaseName}-${hash.slice(0, 10)}.${extension}`

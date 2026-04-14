@@ -311,6 +311,7 @@ export const EpubImporter: React.FC = () => {
     resolvedAssetPath: string,
     mediaAltText: string,
     imageIndex: number,
+    filenameScope: string,
     mediaCache: Map<string, UploadedMedia>,
     mediaInFlight: Map<string, Promise<UploadedMedia | null>>,
     signal: AbortSignal,
@@ -342,6 +343,7 @@ export const EpubImporter: React.FC = () => {
         resolvedAssetPath,
         normalizedBlob.mimeType,
         imageIndex + 1,
+        filenameScope,
       )
 
       const existingMedia = await findExistingMediaByFilename(stableFilename, signal)
@@ -605,6 +607,7 @@ export const EpubImporter: React.FC = () => {
             resolvedAssetPath,
             deriveImageAltText(imageElement, chapterTitle, imageIndex),
             imageIndex,
+            importBatchID,
             mediaCache,
             mediaInFlight,
             signal,
@@ -851,6 +854,7 @@ export const EpubImporter: React.FC = () => {
     book: Book,
     bookID: string | number,
     title: string,
+    importBatchID: string,
     mediaCache: Map<string, UploadedMedia>,
     mediaInFlight: Map<string, Promise<UploadedMedia | null>>,
     signal: AbortSignal,
@@ -898,6 +902,7 @@ export const EpubImporter: React.FC = () => {
         coverPath,
         `Cover image for ${title}`,
         0,
+        importBatchID,
         mediaCache,
         mediaInFlight,
         signal,
@@ -907,15 +912,25 @@ export const EpubImporter: React.FC = () => {
         return
       }
 
-      await updateBookProgress(
-        bookID,
-        {
-          cover: uploadedMedia.id,
-        },
-        signal,
-      )
-    } catch {
-      appendWarnings([`Cover upload failed for ${title}. The import will continue without a cover image.`])
+      try {
+        await updateBookProgress(
+          bookID,
+          {
+            cover: uploadedMedia.id,
+          },
+          signal,
+        )
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unexpected cover update failure.'
+        appendWarnings([
+          `Cover image uploaded for ${title}, but the book record could not be updated with the cover reference: ${message}`,
+        ])
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unexpected cover upload failure.'
+      appendWarnings([
+        `Cover upload failed for ${title}. The import will continue without a cover image. ${message}`,
+      ])
     }
   }
 
@@ -1112,6 +1127,7 @@ export const EpubImporter: React.FC = () => {
         importBook,
         importBookID,
         importedTitle,
+        importBatchID,
         mediaCache,
         mediaInFlight,
         abortController.signal,

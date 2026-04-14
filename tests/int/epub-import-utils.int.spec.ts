@@ -210,6 +210,13 @@ describe('EPUB import utilities', () => {
     expect(first.endsWith('.png')).toBe(true)
   })
 
+  it('scopes media filenames by import batch when provided', () => {
+    const first = createStableMediaFilename('images/cover.png', 'image/png', 0, 'batch-a')
+    const second = createStableMediaFilename('images/cover.png', 'image/png', 0, 'batch-b')
+
+    expect(first).not.toBe(second)
+  })
+
   it('builds stable hashes and chapter source keys', () => {
     const firstHash = buildStableHash('chapter-one')
     const secondHash = buildStableHash('chapter-one')
