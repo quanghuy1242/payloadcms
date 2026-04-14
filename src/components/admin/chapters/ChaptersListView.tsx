@@ -6,8 +6,9 @@ import {
   useConfig,
   useListDrawerContext,
 } from '@payloadcms/ui'
-import type { ListViewClientProps } from 'payload'
-import { useMemo } from 'react'
+import type { ClientCollectionConfig, ListViewClientProps } from 'payload'
+import { createPortal } from 'react-dom'
+import { useEffect, useMemo, useState } from 'react'
 
 const resolvePluralLabel = (label: unknown, fallback: string): string => {
   if (typeof label === 'string' && label.trim().length > 0) {
@@ -27,49 +28,110 @@ const resolvePluralLabel = (label: unknown, fallback: string): string => {
   return fallback
 }
 
+type DrawerSelectionPortalProps = {
+  collectionConfig: ClientCollectionConfig | null
+  enabled: boolean
+  label: string
+  viewType: ListViewClientProps['viewType']
+}
+
+const DrawerSelectionPortal = ({
+  collectionConfig,
+  enabled,
+  label,
+  viewType,
+}: DrawerSelectionPortalProps) => {
+  const [headerActionsTarget, setHeaderActionsTarget] = useState<HTMLElement | null>(null)
+
+  useEffect(() => {
+    if (!enabled) {
+      setHeaderActionsTarget(null)
+      return undefined
+    }
+
+    const findTarget = (): boolean => {
+      const nextTarget = document.querySelector('.list-drawer .list-header__actions')
+
+      if (nextTarget instanceof HTMLElement) {
+        setHeaderActionsTarget(nextTarget)
+        return true
+      }
+
+      return false
+    }
+
+    if (findTarget()) {
+      return undefined
+    }
+
+    const observer = new MutationObserver(() => {
+      if (findTarget()) {
+        observer.disconnect()
+      }
+    })
+
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+    })
+
+    return () => {
+      observer.disconnect()
+    }
+  }, [enabled])
+
+  if (!enabled || !collectionConfig || !headerActionsTarget) {
+    return null
+  }
+
+  return createPortal(
+    <ListSelection
+      collectionConfig={collectionConfig}
+      disableBulkDelete={false}
+      disableBulkEdit={false}
+      label={label}
+      showSelectAllAcrossPages
+      viewType={viewType}
+    />,
+    headerActionsTarget,
+  )
+}
+
 const ChaptersListView = (props: ListViewClientProps) => {
   const { getEntityConfig } = useConfig()
   const { isInDrawer } = useListDrawerContext()
 
   const collectionConfig = useMemo(() => {
-    return getEntityConfig({ collectionSlug: props.collectionSlug })
+    const entityConfig = getEntityConfig({ collectionSlug: props.collectionSlug })
+
+    if (!entityConfig || !('labels' in entityConfig)) {
+      return null
+    }
+
+    return entityConfig as ClientCollectionConfig
   }, [getEntityConfig, props.collectionSlug])
 
   const selectionLabel = useMemo(() => {
     return resolvePluralLabel(collectionConfig?.labels?.plural, props.collectionSlug)
   }, [collectionConfig?.labels?.plural, props.collectionSlug])
 
-  const drawerBulkActions = useMemo(() => {
-    if (!isInDrawer || !collectionConfig) {
-      return null
-    }
-
-    return (
-      <div className="chapters-list-view__bulk-actions">
-        <ListSelection
-          collectionConfig={collectionConfig}
-          disableBulkDelete={false}
-          disableBulkEdit={false}
-          label={selectionLabel}
-          showSelectAllAcrossPages
-          viewType={props.viewType}
-        />
-      </div>
-    )
-  }, [collectionConfig, isInDrawer, props.viewType, selectionLabel])
-
   const beforeList = useMemo(() => {
-    if (!props.BeforeList && !drawerBulkActions) {
+    if (!props.BeforeList && !isInDrawer) {
       return undefined
     }
 
     return (
       <>
         {props.BeforeList}
-        {drawerBulkActions}
+        <DrawerSelectionPortal
+          collectionConfig={collectionConfig}
+          enabled={isInDrawer}
+          label={selectionLabel}
+          viewType={props.viewType}
+        />
       </>
     )
-  }, [drawerBulkActions, props.BeforeList])
+  }, [collectionConfig, isInDrawer, props.BeforeList, props.viewType, selectionLabel])
 
   return <DefaultListView {...props} BeforeList={beforeList} />
 }
