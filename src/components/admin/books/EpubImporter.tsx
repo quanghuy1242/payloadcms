@@ -1309,13 +1309,13 @@ export const EpubImporter: React.FC = () => {
         )}
       </div>
 
-      {errorMessage && (
+      {errorMessage ? (
         <div className="epub-importer__error">
           <strong>Error:</strong> {errorMessage}
         </div>
-      )}
+      ) : null}
 
-      {warnings.length > 0 && (
+      {warnings.length > 0 ? (
         <details className="epub-importer__warnings">
           <summary>Warnings ({warnings.length})</summary>
           <ul>
@@ -1324,97 +1324,7 @@ export const EpubImporter: React.FC = () => {
             })}
           </ul>
         </details>
-      )}
-
-      <style jsx>{`
-        .epub-importer {
-          border: 1px solid var(--theme-elevation-200);
-          border-radius: 12px;
-          padding: 1.5rem;
-          margin: 1rem 1rem 1.5rem;
-          background: var(--theme-elevation-50);
-          display: grid;
-          gap: 1rem;
-          box-sizing: border-box;
-        }
-
-        .epub-importer__header h3 {
-          margin: 0;
-          font-size: 1rem;
-        }
-
-        .epub-importer__header p {
-          margin: 0.25rem 0 0;
-          font-size: 0.875rem;
-          color: var(--theme-elevation-700);
-        }
-
-        .epub-importer__controls {
-          display: flex;
-          flex-wrap: wrap;
-          align-items: center;
-          gap: 0.6rem;
-        }
-
-        .epub-importer__input-label {
-          font-size: 0.875rem;
-          font-weight: 600;
-        }
-
-        .epub-importer__cancel-button {
-          border: 1px solid var(--theme-error-400);
-          background: var(--theme-error-100);
-          color: var(--theme-error-900);
-          padding: 0.45rem 0.75rem;
-          border-radius: 4px;
-          cursor: pointer;
-          font-size: 0.85rem;
-        }
-
-        .epub-importer__cancel-button:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-        }
-
-        .epub-importer__status p {
-          margin: 0.1rem 0;
-          font-size: 0.9rem;
-        }
-
-        .epub-importer__progress {
-          margin-top: 0.35rem;
-          padding: 0.5rem;
-          border: 1px dashed var(--theme-elevation-250);
-          border-radius: 4px;
-        }
-
-        .epub-importer__error {
-          border: 1px solid var(--theme-error-400);
-          background: var(--theme-error-100);
-          color: var(--theme-error-900);
-          border-radius: 4px;
-          padding: 0.65rem;
-          font-size: 0.9rem;
-        }
-
-        .epub-importer__warnings {
-          border: 1px solid var(--theme-warning-300);
-          background: var(--theme-warning-100);
-          color: var(--theme-warning-900);
-          border-radius: 4px;
-          padding: 0.65rem;
-        }
-
-        .epub-importer__warnings ul {
-          margin: 0.5rem 0 0;
-          padding-left: 1.2rem;
-        }
-
-        .epub-importer__warnings li {
-          margin-bottom: 0.25rem;
-          font-size: 0.85rem;
-        }
-      `}</style>
+      ) : null}
     </div>
   )
 }

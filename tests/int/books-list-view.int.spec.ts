@@ -45,7 +45,7 @@ afterEach(() => {
 })
 
 describe('BooksListView', () => {
-  it('hides the create action and adds an import menu button', () => {
+  it('preserves create permission and does not use list menu items', () => {
     render(
       createElement(BooksListView, {
         Table: createElement('div'),
@@ -57,20 +57,8 @@ describe('BooksListView', () => {
       } as ListViewClientProps),
     )
 
-    expect(booksListMocks.lastDefaultListViewProps?.hasCreatePermission).toBe(false)
+    expect(booksListMocks.lastDefaultListViewProps?.hasCreatePermission).toBe(true)
     expect(booksListMocks.lastDefaultListViewProps?.collectionSlug).toBe('books')
-    expect(booksListMocks.lastDefaultListViewProps?.listMenuItems).toHaveLength(1)
-    expect(
-      booksListMocks.lastDefaultListViewProps?.listMenuItems?.[0],
-    ).toMatchObject({
-      props: {
-        buttonStyle: 'pill',
-        children: 'Import EPUB',
-        className: 'list-create-new-doc__create-new-button',
-        el: 'link',
-        size: 'small',
-        to: '/admin/collections/books/import',
-      },
-    })
+    expect(booksListMocks.lastDefaultListViewProps?.listMenuItems).toBeUndefined()
   })
 })

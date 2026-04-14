@@ -1,6 +1,6 @@
 'use client'
 
-import { Button, useConfig } from '@payloadcms/ui'
+import { Button, ViewDescription, useConfig } from '@payloadcms/ui'
 import { useMemo } from 'react'
 import { formatAdminURL } from 'payload/shared'
 
@@ -25,44 +25,21 @@ const BookImportPage = () => {
   return (
     <div className="books-import-page">
       <div className="books-import-page__header">
-        <div>
+        <div className="books-import-page__heading">
           <h1 className="books-import-page__title">Import Books</h1>
-          <p className="books-import-page__description">
-            Upload an EPUB to create the book and its chapters.
-          </p>
+          <ViewDescription
+            description="Upload an EPUB to create the book and its chapters."
+          />
         </div>
-        <Button buttonStyle="pill" el="link" size="small" to={backURL}>
-          Back to Books
-        </Button>
+
+        <div className="books-import-page__actions">
+          <Button buttonStyle="pill" el="link" size="small" to={backURL}>
+            Back to Books
+          </Button>
+        </div>
       </div>
 
       <EpubImporter />
-
-      <style jsx>{`
-        .books-import-page {
-          display: grid;
-          gap: 1rem;
-          padding: 1rem 1rem 1.5rem;
-        }
-
-        .books-import-page__header {
-          display: flex;
-          align-items: flex-start;
-          justify-content: space-between;
-          gap: 1rem;
-        }
-
-        .books-import-page__title {
-          margin: 0;
-          font-size: 1.5rem;
-          line-height: 1.1;
-        }
-
-        .books-import-page__description {
-          margin: 0.35rem 0 0;
-          color: var(--theme-elevation-700);
-        }
-      `}</style>
     </div>
   )
 }

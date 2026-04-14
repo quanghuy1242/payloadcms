@@ -41,6 +41,7 @@ import { MetaImageComponent as MetaImageComponent_a8a977ebc872c5d5ea7ee689724c08
 import { PreviewComponent as PreviewComponent_a8a977ebc872c5d5ea7ee689724c0860 } from '@payloadcms/plugin-seo/client'
 import { default as default_2f341c840ac97590f796719a63b02bee } from '../../../components/admin/BetterAuthLogout.tsx'
 import { default as default_eb2ccc2a31c57d79ed56e65807616fbd } from '../../../components/admin/BetterAuthLoginRedirect.tsx'
+import { default as default_1fff117f43b92c2acfdea8617c91d240 } from '../../../components/admin/books/BookImportAdminView.tsx'
 
 export const importMap = {
   "@payloadcms/richtext-lexical/rsc#RscEntryLexicalCell": RscEntryLexicalCell_44fe37237e0ebf4470c9990d8cb7b07e,
@@ -85,5 +86,6 @@ export const importMap = {
   "@payloadcms/plugin-seo/client#MetaImageComponent": MetaImageComponent_a8a977ebc872c5d5ea7ee689724c0860,
   "@payloadcms/plugin-seo/client#PreviewComponent": PreviewComponent_a8a977ebc872c5d5ea7ee689724c0860,
   "./components/admin/BetterAuthLogout.tsx#default": default_2f341c840ac97590f796719a63b02bee,
-  "./components/admin/BetterAuthLoginRedirect.tsx#default": default_eb2ccc2a31c57d79ed56e65807616fbd
+  "./components/admin/BetterAuthLoginRedirect.tsx#default": default_eb2ccc2a31c57d79ed56e65807616fbd,
+  "./components/admin/books/BookImportAdminView.tsx#default": default_1fff117f43b92c2acfdea8617c91d240
 }

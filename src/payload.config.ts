@@ -90,6 +90,13 @@ export default buildConfig({
       logout: {
         Button: './components/admin/BetterAuthLogout.tsx',
       },
+      views: {
+        booksImport: {
+          Component: './components/admin/books/BookImportAdminView.tsx',
+          exact: true,
+          path: '/collections/books/import',
+        },
+      },
     },
     autoRefresh: true, // Enable automatic token refresh to keep users logged in
   },

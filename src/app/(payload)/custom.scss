@@ -26,3 +26,130 @@
 .login__brand {
   display: none !important;
 }
+
+.collection-list--books .books-list-view__import-button {
+  margin-left: calc(var(--base) * 0.5);
+}
+
+.books-import-page {
+  display: grid;
+  gap: calc(var(--base) * 1.1);
+}
+
+.books-import-page__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--base);
+}
+
+.books-import-page__title {
+  margin: 0;
+  line-height: 1.1;
+}
+
+.books-import-page__heading .view-description {
+  margin-top: calc(var(--base) * 0.35);
+}
+
+.epub-importer {
+  display: grid;
+  gap: var(--base);
+  border: 1px solid var(--theme-elevation-150);
+  border-radius: var(--style-radius-s);
+  background: var(--theme-elevation-0);
+  padding: calc(var(--base) * 1.25);
+}
+
+.epub-importer__header h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.epub-importer__header p {
+  margin: calc(var(--base) * 0.25) 0 0;
+  color: var(--theme-elevation-700);
+}
+
+.epub-importer__controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(var(--base) * 0.5);
+}
+
+.epub-importer__input-label {
+  font-weight: 600;
+}
+
+.epub-importer__cancel-button {
+  border: 1px solid var(--theme-elevation-300);
+  border-radius: var(--style-radius-s);
+  background: var(--theme-elevation-50);
+  color: var(--theme-text);
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1;
+  padding: calc(var(--base) * 0.45) calc(var(--base) * 0.75);
+}
+
+.epub-importer__cancel-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.epub-importer__status {
+  display: grid;
+  gap: calc(var(--base) * 0.25);
+}
+
+.epub-importer__status p {
+  margin: 0;
+}
+
+.epub-importer__progress {
+  border: 1px dashed var(--theme-elevation-250);
+  border-radius: var(--style-radius-s);
+  padding: calc(var(--base) * 0.5);
+}
+
+.epub-importer__error {
+  border: 1px solid var(--theme-error-400);
+  border-radius: var(--style-radius-s);
+  background: var(--theme-error-100);
+  color: var(--theme-error-900);
+  padding: calc(var(--base) * 0.6);
+}
+
+.epub-importer__warnings {
+  border: 1px solid var(--theme-warning-300);
+  border-radius: var(--style-radius-s);
+  background: var(--theme-warning-100);
+  color: var(--theme-warning-900);
+  padding: calc(var(--base) * 0.6);
+}
+
+.epub-importer__warnings details {
+  width: 100%;
+}
+
+.epub-importer__warnings summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.epub-importer__warnings ul {
+  margin: calc(var(--base) * 0.5) 0 0;
+  padding-left: calc(var(--base) * 1.2);
+}
+
+@media (max-width: 768px) {
+  .books-import-page__header {
+    flex-direction: column;
+  }
+
+  .books-import-page__actions {
+    width: 100%;
+  }
+}
