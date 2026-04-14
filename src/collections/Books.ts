@@ -45,7 +45,11 @@ export const Books: CollectionConfig = {
     useAsTitle: 'title',
     defaultColumns: ['title', 'origin', 'importStatus', 'syncStatus', 'updatedAt'],
     components: {
-      beforeList: ['/components/admin/books/EpubImporter'],
+      views: {
+        list: {
+          Component: '/components/admin/books/BooksListView',
+        },
+      },
       edit: {
         beforeDocumentControls: [
           '/components/admin/books/DeleteBookButton',

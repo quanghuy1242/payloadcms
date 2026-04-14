@@ -23,9 +23,9 @@ import { RelationshipFeatureClient as RelationshipFeatureClient_e70f5e05f09f93e0
 import { BlockquoteFeatureClient as BlockquoteFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { UploadFeatureClient as UploadFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { default as default_d9b8e24dcaf6cbba6d4f26d06d55f32b } from '../../../components/admin/media/MediaGridView'
-import { default as default_020c0ac6da2d31e821d17aafb71e4e18 } from '../../../components/admin/books/ChapterListButton'
-import { default as default_c837fd768e731f3967ca55b0a2775304 } from '../../../components/admin/books/EpubImporter'
 import { default as default_316a711d8b21591f8137727cba9d2f57 } from '../../../components/admin/books/DeleteBookButton'
+import { default as default_020c0ac6da2d31e821d17aafb71e4e18 } from '../../../components/admin/books/ChapterListButton'
+import { default as default_9bfbdc9e46ef128724bf1d0c1a0576db } from '../../../components/admin/books/BooksListView'
 import { TableFeatureClient as TableFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { BlocksFeatureClient as BlocksFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { CodeComponent as CodeComponent_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
@@ -68,9 +68,9 @@ export const importMap = {
   "@payloadcms/richtext-lexical/client#BlockquoteFeatureClient": BlockquoteFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
   "@payloadcms/richtext-lexical/client#UploadFeatureClient": UploadFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
   "/components/admin/media/MediaGridView#default": default_d9b8e24dcaf6cbba6d4f26d06d55f32b,
-  "/components/admin/books/ChapterListButton#default": default_020c0ac6da2d31e821d17aafb71e4e18,
-  "/components/admin/books/EpubImporter#default": default_c837fd768e731f3967ca55b0a2775304,
   "/components/admin/books/DeleteBookButton#default": default_316a711d8b21591f8137727cba9d2f57,
+  "/components/admin/books/ChapterListButton#default": default_020c0ac6da2d31e821d17aafb71e4e18,
+  "/components/admin/books/BooksListView#default": default_9bfbdc9e46ef128724bf1d0c1a0576db,
   "@payloadcms/richtext-lexical/client#TableFeatureClient": TableFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
   "@payloadcms/richtext-lexical/client#BlocksFeatureClient": BlocksFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
   "@payloadcms/richtext-lexical/client#CodeComponent": CodeComponent_e70f5e05f09f93e00b997edb1ef0c864,
