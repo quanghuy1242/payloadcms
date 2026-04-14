@@ -12,6 +12,7 @@ import {
   buildStableHash,
   buildStableBinaryHash,
   createImportBatchID,
+  createImportedBookMediaAltText,
   createImportedBookSlug,
   createImportedBookTitle,
   createStableMediaFilename,
@@ -539,6 +540,8 @@ export const EpubImporter: React.FC = () => {
     book: Book,
     bookID: string | number,
     importBatchID: string,
+    importedTitle: string,
+    sourceHash: string,
     preparedChapter: PreparedChapter,
     totalChapters: number,
     existingChaptersByOrder: Map<number, ChapterDocument>,
@@ -600,14 +603,20 @@ export const EpubImporter: React.FC = () => {
         }
 
         let uploadedMedia: UploadedMedia | null = null
+        const mediaAltText = createImportedBookMediaAltText(
+          importedTitle,
+          sourceHash,
+          imageIndex + 1,
+          deriveImageAltText(imageElement, chapterTitle, imageIndex),
+        )
 
         try {
           uploadedMedia = await uploadAssetAsMedia(
             book,
             resolvedAssetPath,
-            deriveImageAltText(imageElement, chapterTitle, imageIndex),
+            mediaAltText,
             imageIndex,
-            importBatchID,
+            sourceHash,
             mediaCache,
             mediaInFlight,
             signal,
@@ -632,12 +641,11 @@ export const EpubImporter: React.FC = () => {
           imageElement.removeAttribute('srcset')
         }
 
-        const derivedAlt = deriveImageAltText(imageElement, chapterTitle, imageIndex)
         if (imageElement.tagName.toLowerCase() === 'image') {
-          imageElement.setAttribute('aria-label', derivedAlt)
-          imageElement.setAttribute('title', derivedAlt)
+          imageElement.setAttribute('aria-label', mediaAltText)
+          imageElement.setAttribute('title', mediaAltText)
         } else {
-          imageElement.setAttribute('alt', derivedAlt)
+          imageElement.setAttribute('alt', mediaAltText)
         }
       }
 
@@ -713,6 +721,8 @@ export const EpubImporter: React.FC = () => {
     book: Book,
     bookID: string | number,
     importBatchID: string,
+    importedTitle: string,
+    sourceHash: string,
     preparedChapter: PreparedChapter,
     totalChapters: number,
     existingChaptersByOrder: Map<number, ChapterDocument>,
@@ -725,6 +735,8 @@ export const EpubImporter: React.FC = () => {
         book,
         bookID,
         importBatchID,
+        importedTitle,
+        sourceHash,
         preparedChapter,
         totalChapters,
         existingChaptersByOrder,
@@ -756,6 +768,8 @@ export const EpubImporter: React.FC = () => {
     book: Book,
     bookID: string | number,
     importBatchID: string,
+    importedTitle: string,
+    sourceHash: string,
     totalChapters: number,
     existingChaptersByOrder: Map<number, ChapterDocument>,
     mediaCache: Map<string, UploadedMedia>,
@@ -777,6 +791,8 @@ export const EpubImporter: React.FC = () => {
             book,
             bookID,
             importBatchID,
+            importedTitle,
+            sourceHash,
             preparedChapter,
             totalChapters,
             existingChaptersByOrder,
@@ -854,7 +870,7 @@ export const EpubImporter: React.FC = () => {
     book: Book,
     bookID: string | number,
     title: string,
-    importBatchID: string,
+    sourceHash: string,
     mediaCache: Map<string, UploadedMedia>,
     mediaInFlight: Map<string, Promise<UploadedMedia | null>>,
     signal: AbortSignal,
@@ -897,12 +913,19 @@ export const EpubImporter: React.FC = () => {
     }
 
     try {
+      const coverAltText = createImportedBookMediaAltText(
+        title,
+        sourceHash,
+        'cover',
+        `Cover image for ${title}`,
+      )
+
       const uploadedMedia = await uploadAssetAsMedia(
         book,
         coverPath,
-        `Cover image for ${title}`,
+        coverAltText,
         0,
-        importBatchID,
+        sourceHash,
         mediaCache,
         mediaInFlight,
         signal,
@@ -1127,7 +1150,7 @@ export const EpubImporter: React.FC = () => {
         importBook,
         importBookID,
         importedTitle,
-        importBatchID,
+        sourceHash,
         mediaCache,
         mediaInFlight,
         abortController.signal,
@@ -1144,6 +1167,8 @@ export const EpubImporter: React.FC = () => {
             importBook,
             importBookID,
             importBatchID,
+            importedTitle,
+            sourceHash,
             preparedChapters.length,
             existingChaptersByOrder,
             mediaCache,

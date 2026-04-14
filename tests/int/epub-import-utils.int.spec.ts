@@ -16,6 +16,7 @@ import {
   buildStableBinaryHash,
   createImportedBookSlug,
   createImportedBookTitle,
+  createImportedBookMediaAltText,
   createStableMediaFilename,
   extractChapterTitle,
   deriveImageAltText,
@@ -203,18 +204,24 @@ describe('EPUB import utilities', () => {
   })
 
   it('produces deterministic media filenames', () => {
-    const first = createStableMediaFilename('images/cover.png', 'image/png', 0)
-    const second = createStableMediaFilename('images/cover.png', 'image/png', 0)
+    const first = createStableMediaFilename('images/cover.png', 'image/png', 0, 'book-hash-a')
+    const second = createStableMediaFilename('images/cover.png', 'image/png', 0, 'book-hash-a')
+    const third = createStableMediaFilename('images/cover.png', 'image/png', 0, 'book-hash-b')
 
     expect(first).toBe(second)
+    expect(first).not.toBe(third)
     expect(first.endsWith('.png')).toBe(true)
   })
 
-  it('scopes media filenames by import batch when provided', () => {
-    const first = createStableMediaFilename('images/cover.png', 'image/png', 0, 'batch-a')
-    const second = createStableMediaFilename('images/cover.png', 'image/png', 0, 'batch-b')
+  it('prefixes imported book media alt text for filtering', () => {
+    const altText = createImportedBookMediaAltText(
+      'Fast Python',
+      'book-hash-123',
+      7,
+      'Chapter art',
+    )
 
-    expect(first).not.toBe(second)
+    expect(altText).toBe('Image from book Fast Python - ID 7 - book-hash-123 - Chapter art')
   })
 
   it('builds stable hashes and chapter source keys', () => {

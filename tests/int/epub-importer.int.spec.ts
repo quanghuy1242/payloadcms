@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { createElement } from 'react'
 
 import EpubImporter from '@/components/admin/books/EpubImporter'
-import { createImportedBookSlug } from '@/utils/epubImport'
+import { createImportedBookMediaAltText, createImportedBookSlug } from '@/utils/epubImport'
 
 type MockSection = {
   load: ReturnType<typeof vi.fn>
@@ -305,6 +305,10 @@ describe('EpubImporter', () => {
     expect(chapterCreateCall).toBeTruthy()
 
     const chapterBody = JSON.parse(String(chapterCreateCall?.[1]?.body ?? '{}'))
+    const bookCreateCall = fetchMock.mock.calls.find(([url, init]) => {
+      return String(url) === '/api/books' && init?.method === 'POST'
+    })
+    const bookBody = JSON.parse(String(bookCreateCall?.[1]?.body ?? '{}'))
 
     expect(chapterBody.title).toBe('Chapter 1 > Intro')
     expect(chapterBody.chapterSourceKey).toBe('toc-1-1::OEBPS/ch1.xhtml::chapter-1')
@@ -319,8 +323,12 @@ describe('EpubImporter', () => {
     const mediaBody = mediaCall?.[1]?.body as FormData | undefined
 
     expect(mediaBody).toBeInstanceOf(FormData)
-    expect(mediaBody?.get('alt')).toBe('Chapter art')
-    expect(JSON.parse(String(mediaBody?.get('_payload') ?? '{}'))).toEqual({ alt: 'Chapter art' })
+    expect(mediaBody?.get('alt')).toBe(
+      createImportedBookMediaAltText(bookBody.title, bookBody.sourceHash, 1, 'Chapter art'),
+    )
+    expect(JSON.parse(String(mediaBody?.get('_payload') ?? '{}'))).toEqual({
+      alt: createImportedBookMediaAltText(bookBody.title, bookBody.sourceHash, 1, 'Chapter art'),
+    })
 
     const bookPatchCalls = fetchMock.mock.calls.filter(([url, init]) => {
       return String(url).startsWith('/api/books/101') && init?.method === 'PATCH'

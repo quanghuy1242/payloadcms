@@ -475,6 +475,21 @@ export const createStableMediaFilename = (
   return `${safeBaseName}-${hash.slice(0, 10)}.${extension}`
 }
 
+export const createImportedBookMediaAltText = (
+  bookTitle: string,
+  bookHash: string,
+  identifier: string | number,
+  detail?: string,
+): string => {
+  const normalizedTitle = trimToNull(bookTitle) ?? 'Untitled EPUB Import'
+  const normalizedHash = trimToNull(bookHash) ?? 'unknown'
+  const normalizedIdentifier = trimToNull(String(identifier)) ?? 'unknown'
+  const prefix = `Image from book ${normalizedTitle} - ID ${normalizedIdentifier} - ${normalizedHash}`
+  const normalizedDetail = trimToNull(detail)
+
+  return normalizedDetail ? `${prefix} - ${normalizedDetail}` : prefix
+}
+
 export const deriveImageAltText = (
   imageElement: Element,
   chapterTitle: string,
