@@ -1,13 +1,22 @@
 'use client'
 
-import { Button, useDocumentInfo, useListDrawer } from '@payloadcms/ui'
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { Button, useConfig, useDocumentInfo, useListDrawer } from '@payloadcms/ui'
+import { useRouter } from 'next/navigation'
+import type { Data } from 'payload'
+import { formatAdminURL } from 'payload/shared'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { BOOK_CHAPTERS_UPDATED_EVENT, fetchBookChapterCount } from '@/utils/books'
 
 const BOOK_CHAPTERS_COLLECTION = 'chapters' as const
 
 const ChapterListButton: React.FC = () => {
+  const router = useRouter()
+  const {
+    config: {
+      routes: { admin: adminRoute },
+    },
+  } = useConfig()
   const { id } = useDocumentInfo()
   const bookId = typeof id === 'string' || typeof id === 'number' ? id : null
   const collectionSlugs = useMemo(() => [BOOK_CHAPTERS_COLLECTION], [])
@@ -28,11 +37,25 @@ const ChapterListButton: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(bookId != null)
   const wasDrawerOpen = useRef(false)
 
-  const [ListDrawer, , { isDrawerOpen, openDrawer }] = useListDrawer({
+  const [ListDrawer, , { closeDrawer, isDrawerOpen, openDrawer }] = useListDrawer({
     collectionSlugs,
     filterOptions,
     selectedCollection: BOOK_CHAPTERS_COLLECTION,
   })
+
+  const handleChapterSelect = useCallback(
+    ({ collectionSlug, docID }: { collectionSlug: string; doc: Data; docID: string }) => {
+      closeDrawer()
+
+      router.push(
+        formatAdminURL({
+          adminRoute,
+          path: `/collections/${collectionSlug}/${docID}`,
+        }),
+      )
+    },
+    [adminRoute, closeDrawer, router],
+  )
 
   useEffect(() => {
     let isMounted = true
@@ -103,7 +126,7 @@ const ChapterListButton: React.FC = () => {
 
   return (
     <>
-      <ListDrawer />
+      <ListDrawer onSelect={handleChapterSelect} />
       <Button
         buttonStyle="secondary"
         size="medium"
