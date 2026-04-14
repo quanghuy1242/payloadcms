@@ -1,9 +1,12 @@
 'use client'
 
-import { Button, useConfig, useDocumentInfo, useListDrawer } from '@payloadcms/ui'
-import { useRouter } from 'next/navigation'
-import type { Data } from 'payload'
-import { formatAdminURL } from 'payload/shared'
+import {
+  Button,
+  useDocumentDrawer,
+  useDocumentInfo,
+  useListDrawer,
+} from '@payloadcms/ui'
+import type { ListDrawerProps } from '@payloadcms/ui'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { BOOK_CHAPTERS_UPDATED_EVENT, fetchBookChapterCount } from '@/utils/books'
@@ -11,12 +14,6 @@ import { BOOK_CHAPTERS_UPDATED_EVENT, fetchBookChapterCount } from '@/utils/book
 const BOOK_CHAPTERS_COLLECTION = 'chapters' as const
 
 const ChapterListButton: React.FC = () => {
-  const router = useRouter()
-  const {
-    config: {
-      routes: { admin: adminRoute },
-    },
-  } = useConfig()
   const { id } = useDocumentInfo()
   const bookId = typeof id === 'string' || typeof id === 'number' ? id : null
   const collectionSlugs = useMemo(() => [BOOK_CHAPTERS_COLLECTION], [])
@@ -35,27 +32,61 @@ const ChapterListButton: React.FC = () => {
   )
   const [chapterCount, setChapterCount] = useState<number | null>(null)
   const [isLoading, setIsLoading] = useState<boolean>(bookId != null)
+  const [selectedChapterId, setSelectedChapterId] = useState<number | null>(null)
   const wasDrawerOpen = useRef(false)
+  const wasChapterDrawerOpen = useRef(false)
+  const pendingChapterDrawerOpen = useRef(false)
 
-  const [ListDrawer, , { closeDrawer, isDrawerOpen, openDrawer }] = useListDrawer({
+  const [ChapterDrawer, , { isDrawerOpen: isChapterDrawerOpen, openDrawer: openChapterDrawer }] =
+    useDocumentDrawer({
+      collectionSlug: BOOK_CHAPTERS_COLLECTION,
+      id: selectedChapterId,
+    })
+
+  const [ListDrawer, , { isDrawerOpen, openDrawer }] = useListDrawer({
     collectionSlugs,
     filterOptions,
     selectedCollection: BOOK_CHAPTERS_COLLECTION,
   })
 
   const handleChapterSelect = useCallback(
-    ({ collectionSlug, docID }: { collectionSlug: string; doc: Data; docID: string }) => {
-      closeDrawer()
+    ({ docID }: Parameters<NonNullable<ListDrawerProps['onSelect']>>[0]) => {
+      const parsedChapterId = Number(docID)
 
-      router.push(
-        formatAdminURL({
-          adminRoute,
-          path: `/collections/${collectionSlug}/${docID}`,
-        }),
-      )
+      if (!Number.isFinite(parsedChapterId)) {
+        return
+      }
+
+      setSelectedChapterId(parsedChapterId)
     },
-    [adminRoute, closeDrawer, router],
+    [],
   )
+
+  useEffect(() => {
+    if (selectedChapterId == null) {
+      return undefined
+    }
+
+    pendingChapterDrawerOpen.current = true
+    openChapterDrawer()
+
+    return undefined
+  }, [openChapterDrawer, selectedChapterId])
+
+  useEffect(() => {
+    if (isChapterDrawerOpen) {
+      pendingChapterDrawerOpen.current = false
+      wasChapterDrawerOpen.current = true
+      return undefined
+    }
+
+    if (!pendingChapterDrawerOpen.current && wasChapterDrawerOpen.current && selectedChapterId != null) {
+      wasChapterDrawerOpen.current = false
+      setSelectedChapterId(null)
+    }
+
+    return undefined
+  }, [isChapterDrawerOpen, selectedChapterId])
 
   useEffect(() => {
     let isMounted = true
@@ -127,6 +158,9 @@ const ChapterListButton: React.FC = () => {
   return (
     <>
       <ListDrawer onSelect={handleChapterSelect} />
+      {selectedChapterId != null && (
+        <ChapterDrawer />
+      )}
       <Button
         buttonStyle="secondary"
         size="medium"

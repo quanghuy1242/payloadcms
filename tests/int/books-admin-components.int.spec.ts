@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { createElement } from 'react'
 import type { ComponentProps, ReactElement, ReactNode } from 'react'
 
@@ -23,6 +23,13 @@ const chapterUiMocks = vi.hoisted(() => ({
         onSelect?: (args: { collectionSlug: string; doc: { id: string | number }; docID: string }) => void
       }
     | undefined,
+  lastDocumentDrawerProps: undefined as
+    | {
+        collectionSlug?: string
+        drawerSlug?: string
+        id?: string | number | null
+      }
+    | undefined,
   lastUseListDrawerArgs: undefined as
     | {
         collectionSlugs?: string[]
@@ -35,6 +42,7 @@ const chapterUiMocks = vi.hoisted(() => ({
   routerPush: vi.fn(),
   useConfig: vi.fn(),
   useDocumentInfo: vi.fn(),
+  useDocumentDrawer: vi.fn(),
   useListDrawer: vi.fn(),
 }))
 
@@ -75,12 +83,41 @@ vi.mock('@payloadcms/ui', async () => {
   return {
     Button: MockButton,
     useConfig: chapterUiMocks.useConfig,
+    useDocumentDrawer: chapterUiMocks.useDocumentDrawer,
     useDocumentInfo: chapterUiMocks.useDocumentInfo,
     useListDrawer: chapterUiMocks.useListDrawer,
   }
 })
 
 const installListDrawerMock = (): void => {
+  chapterUiMocks.useDocumentDrawer.mockImplementation((args) => {
+    const MockDocumentDrawer = (
+      props: Record<string, unknown> & {
+        children?: ReactNode
+      },
+    ): ReactElement => {
+      chapterUiMocks.lastDocumentDrawerProps = {
+        ...args,
+        ...props,
+      }
+
+      return createElement('div', { 'data-testid': 'chapter-document-drawer' }, props.children)
+    }
+
+    return [
+      MockDocumentDrawer,
+      () => null,
+      {
+        closeDrawer: chapterUiMocks.closeDrawer,
+        drawerDepth: 0,
+        drawerSlug: 'chapter-document-drawer',
+        isDrawerOpen: false,
+        openDrawer: chapterUiMocks.openDrawer,
+        toggleDrawer: vi.fn(),
+      },
+    ]
+  })
+
   chapterUiMocks.useListDrawer.mockImplementation((args) => {
     chapterUiMocks.lastUseListDrawerArgs = args
 
@@ -127,8 +164,10 @@ beforeEach(() => {
 afterEach(() => {
   cleanup()
   chapterUiMocks.closeDrawer.mockReset()
+  chapterUiMocks.lastDocumentDrawerProps = undefined
   chapterUiMocks.lastListDrawerProps = undefined
   chapterUiMocks.useDocumentInfo.mockReset()
+  chapterUiMocks.useDocumentDrawer.mockReset()
   chapterUiMocks.useListDrawer.mockReset()
   chapterUiMocks.openDrawer.mockReset()
   chapterUiMocks.routerPush.mockReset()
@@ -194,14 +233,26 @@ describe('Book admin components', () => {
 
     expect(chapterUiMocks.lastListDrawerProps?.onSelect).toEqual(expect.any(Function))
 
-    chapterUiMocks.lastListDrawerProps?.onSelect?.({
-      collectionSlug: 'chapters',
-      doc: { id: 'chapter-1' },
-      docID: 'chapter-1',
+    await act(async () => {
+      chapterUiMocks.lastListDrawerProps?.onSelect?.({
+        collectionSlug: 'chapters',
+        doc: { id: 1 },
+        docID: '1',
+      })
     })
 
-    expect(chapterUiMocks.closeDrawer).toHaveBeenCalledTimes(1)
-    expect(chapterUiMocks.routerPush).toHaveBeenCalledWith('/admin/collections/chapters/chapter-1')
+    await waitFor(() => {
+      expect(chapterUiMocks.openDrawer).toHaveBeenCalledTimes(2)
+    })
+
+    await waitFor(() => {
+      expect(chapterUiMocks.lastDocumentDrawerProps).toMatchObject({
+        collectionSlug: 'chapters',
+        id: 1,
+      })
+    })
+
+    expect(screen.getByTestId('chapter-document-drawer')).toBeTruthy()
   })
 
   it('disables the chapter drawer trigger before the book is saved', () => {
