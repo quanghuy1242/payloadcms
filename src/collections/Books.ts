@@ -220,7 +220,6 @@ export const Books: CollectionConfig = {
       label: 'Chapters',
       admin: {
         position: 'sidebar',
-        description: 'Open the chapter drawer for this book.',
         components: {
           Field: '/components/admin/books/ChapterListButton',
         },
