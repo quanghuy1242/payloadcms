@@ -20,6 +20,9 @@ const chapterUiMocks = vi.hoisted(() => ({
     | undefined,
   lastListDrawerProps: undefined as
     | {
+        allowCreate?: boolean
+        enableRowSelections?: boolean
+        onBulkSelect?: (ids: Map<number | string, boolean>) => void
         onSelect?: (args: { collectionSlug: string; doc: { id: string | number }; docID: string }) => void
       }
     | undefined,
@@ -232,6 +235,11 @@ describe('Book admin components', () => {
     })
 
     expect(chapterUiMocks.lastListDrawerProps?.onSelect).toEqual(expect.any(Function))
+    expect(chapterUiMocks.lastListDrawerProps).toMatchObject({
+      allowCreate: false,
+      enableRowSelections: true,
+    })
+    expect(chapterUiMocks.lastListDrawerProps?.onBulkSelect).toEqual(expect.any(Function))
 
     await act(async () => {
       chapterUiMocks.lastListDrawerProps?.onSelect?.({

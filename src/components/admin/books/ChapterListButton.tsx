@@ -36,6 +36,7 @@ const ChapterListButton: React.FC = () => {
   const wasDrawerOpen = useRef(false)
   const wasChapterDrawerOpen = useRef(false)
   const pendingChapterDrawerOpen = useRef(false)
+  const handleBulkSelect = useCallback(() => undefined, [])
 
   const [ChapterDrawer, , { isDrawerOpen: isChapterDrawerOpen, openDrawer: openChapterDrawer }] =
     useDocumentDrawer({
@@ -157,7 +158,12 @@ const ChapterListButton: React.FC = () => {
 
   return (
     <>
-      <ListDrawer onSelect={handleChapterSelect} />
+      <ListDrawer
+        allowCreate={false}
+        enableRowSelections
+        onBulkSelect={handleBulkSelect}
+        onSelect={handleChapterSelect}
+      />
       {selectedChapterId != null && (
         <ChapterDrawer />
       )}
