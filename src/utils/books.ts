@@ -1,6 +1,7 @@
-import type { CollectionBeforeChangeHook } from 'payload'
+import type { Access, CollectionBeforeChangeHook, CollectionBeforeDeleteHook, PayloadRequest } from 'payload'
 
-import { normalizeEntityId } from './access'
+import { ownerAccess, normalizeEntityId } from './access'
+import { requestJSONWithRetry } from './http'
 import { toPositiveInteger } from './numbers'
 
 export const BOOK_ORIGINS = ['manual', 'epub-imported', 'synced'] as const
@@ -12,6 +13,8 @@ export type BookOrigin = (typeof BOOK_ORIGINS)[number]
 export type BookSourceType = (typeof BOOK_SOURCE_TYPES)[number]
 export type BookImportStatus = (typeof BOOK_IMPORT_STATUSES)[number]
 export type BookSyncStatus = (typeof BOOK_SYNC_STATUSES)[number]
+
+export const BOOK_CHAPTERS_UPDATED_EVENT = 'payload:book-chapters-updated' as const
 
 type BookRecord = {
   importErrorSummary?: string | null
@@ -101,6 +104,98 @@ type ChapterRecord = {
   id?: unknown
   order?: unknown
   [key: string]: unknown
+}
+
+type ChapterCountResponse = {
+  totalDocs?: number
+}
+
+const buildChapterFilter = (bookId: unknown): { book: { equals: string | number } } | null => {
+  const normalizedBookId = normalizeEntityId(bookId)
+
+  if (normalizedBookId == null) {
+    return null
+  }
+
+  return {
+    book: {
+      equals: normalizedBookId,
+    },
+  }
+}
+
+export const countBookChapters = async (req: PayloadRequest, bookId: unknown): Promise<number> => {
+  const where = buildChapterFilter(bookId)
+
+  if (!where) {
+    return 0
+  }
+
+  const response = await req.payload.find({
+    collection: 'chapters',
+    depth: 0,
+    limit: 0,
+    overrideAccess: true,
+    req,
+    where: where as never,
+  })
+
+  return response.totalDocs ?? 0
+}
+
+export const fetchBookChapterCount = async (
+  bookId: unknown,
+  signal?: AbortSignal,
+): Promise<number> => {
+  const where = buildChapterFilter(bookId)
+
+  if (!where) {
+    return 0
+  }
+
+  const response = await requestJSONWithRetry<ChapterCountResponse>(
+    `/api/chapters?limit=0&where[book][equals]=${encodeURIComponent(String(where.book.equals))}`,
+    {},
+    signal ? { signal } : {},
+  )
+
+  return typeof response.totalDocs === 'number' ? response.totalDocs : 0
+}
+
+export const bookDeleteAccess: Access = async (args) => {
+  const ownerDeleteAccess = ownerAccess('createdBy')(args)
+  const docValue = 'doc' in args ? (args as { doc?: { id?: unknown } }).doc : undefined
+  const idValue = 'id' in args ? (args as { id?: unknown }).id : undefined
+  const bookId = normalizeEntityId(docValue?.id ?? idValue)
+
+  if (bookId == null) {
+    return ownerDeleteAccess
+  }
+
+  const chapterCount = await countBookChapters(args.req, bookId).catch(() => null)
+
+  if (chapterCount == null) {
+    return false
+  }
+
+  if (chapterCount > 0) {
+    return false
+  }
+
+  return ownerDeleteAccess
+}
+
+export const enforceBookHasNoChaptersBeforeDelete: CollectionBeforeDeleteHook = async ({
+  id,
+  req,
+}) => {
+  const chapterCount = await countBookChapters(req, id)
+
+  if (chapterCount > 0) {
+    throw new Error(
+      `Cannot delete book: it has ${chapterCount} chapter${chapterCount === 1 ? '' : 's'}. Remove all chapters first.`,
+    )
+  }
 }
 
 export const enforceUniqueChapterOrderHook: CollectionBeforeChangeHook = async ({

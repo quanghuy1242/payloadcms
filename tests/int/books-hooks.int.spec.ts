@@ -2,7 +2,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
   applyBookImportLifecycleHook,
+  bookDeleteAccess,
+  countBookChapters,
   enforceUniqueChapterOrderHook,
+  enforceBookHasNoChaptersBeforeDelete,
+  fetchBookChapterCount,
 } from '@/utils/books'
 
 afterEach(() => {
@@ -150,5 +154,108 @@ describe('Books hooks', () => {
 
     expect(result.order).toBe(3)
     expect(find).not.toHaveBeenCalled()
+  })
+
+  it('counts chapters for a book through the Payload API', async () => {
+    const find = vi.fn().mockResolvedValue({ totalDocs: 4 })
+
+    const totalDocs = await countBookChapters(
+      {
+        payload: {
+          find,
+        },
+      } as never,
+      42,
+    )
+
+    expect(totalDocs).toBe(4)
+    expect(find).toHaveBeenCalledWith(
+      expect.objectContaining({
+        collection: 'chapters',
+        depth: 0,
+        limit: 0,
+        overrideAccess: true,
+      }),
+    )
+  })
+
+  it('keeps the original owner delete access when a book has no chapters', async () => {
+    const find = vi.fn().mockResolvedValue({ totalDocs: 0 })
+
+    const result = await bookDeleteAccess({
+      id: 7,
+      req: {
+        payload: {
+          find,
+        },
+        user: {
+          id: 7,
+          role: 'user',
+        },
+      },
+    } as never)
+
+    expect(result).toEqual({
+      createdBy: {
+        equals: 7,
+      },
+    })
+  })
+
+  it('blocks book deletion when chapters still exist', async () => {
+    const find = vi.fn().mockResolvedValue({ totalDocs: 2 })
+
+    const result = await bookDeleteAccess({
+      id: 7,
+      req: {
+        payload: {
+          find,
+        },
+        user: {
+          id: 7,
+          role: 'user',
+        },
+      },
+    } as never)
+
+    expect(result).toBe(false)
+  })
+
+  it('prevents deleting a book that still has chapters', async () => {
+    const find = vi.fn().mockResolvedValue({ totalDocs: 1 })
+
+    await expect(
+      enforceBookHasNoChaptersBeforeDelete({
+        collection: undefined as never,
+        context: undefined as never,
+        id: 99,
+        req: {
+          payload: {
+            find,
+          },
+        } as never,
+      }),
+    ).rejects.toThrow('Cannot delete book: it has 1 chapter')
+  })
+
+  it('fetches chapter counts from the admin REST API', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ totalDocs: 3 }), {
+        headers: {
+          'content-type': 'application/json',
+        },
+        status: 200,
+      }),
+    )
+
+    const totalDocs = await fetchBookChapterCount('book-12')
+
+    expect(totalDocs).toBe(3)
+    expect(fetchSpy).toHaveBeenCalledWith(
+      '/api/chapters?limit=0&where[book][equals]=book-12',
+      expect.objectContaining({
+        credentials: 'include',
+      }),
+    )
   })
 })

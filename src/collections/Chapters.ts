@@ -15,6 +15,7 @@ export const Chapters: CollectionConfig = {
     delete: ownerAccess('createdBy'),
   },
   admin: {
+    hidden: true,
     useAsTitle: 'title',
     defaultColumns: ['title', 'book', 'order', '_status', 'updatedAt'],
   },

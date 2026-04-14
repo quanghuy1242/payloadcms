@@ -7,6 +7,8 @@ import {
   BOOK_ORIGINS,
   BOOK_SOURCE_TYPES,
   BOOK_SYNC_STATUSES,
+  bookDeleteAccess,
+  enforceBookHasNoChaptersBeforeDelete,
 } from '../utils/books'
 import { enforceOwnershipHook } from '../utils/ownership'
 import { createRandomizedSlugHook, validateImmutableSlug } from '../utils/slug'
@@ -37,13 +39,16 @@ export const Books: CollectionConfig = {
     create: authenticatedAccess,
     read: authenticatedAccess,
     update: ownerAccess('createdBy'),
-    delete: ownerAccess('createdBy'),
+    delete: bookDeleteAccess,
   },
   admin: {
     useAsTitle: 'title',
     defaultColumns: ['title', 'origin', 'importStatus', 'syncStatus', 'updatedAt'],
     components: {
       beforeList: ['/components/admin/books/EpubImporter'],
+      edit: {
+        beforeDocumentControls: ['/components/admin/books/DeleteBookButton'],
+      },
     },
     description:
       'Books support manual authoring and EPUB imports. Import status fields are managed automatically.',
@@ -59,6 +64,7 @@ export const Books: CollectionConfig = {
   hooks: {
     beforeValidate: [enforceOwnershipHook('createdBy'), createRandomizedSlugHook('title')],
     beforeChange: [applyBookImportLifecycleHook],
+    beforeDelete: [enforceBookHasNoChaptersBeforeDelete],
   },
   fields: [
     {
@@ -206,6 +212,18 @@ export const Books: CollectionConfig = {
       type: 'textarea',
       admin: {
         description: 'Only populated when the latest import attempt failed.',
+      },
+    },
+    {
+      name: 'chapterList',
+      type: 'ui',
+      label: 'Chapters',
+      admin: {
+        position: 'sidebar',
+        description: 'Open the chapter drawer for this book.',
+        components: {
+          Field: '/components/admin/books/ChapterListButton',
+        },
       },
     },
     {

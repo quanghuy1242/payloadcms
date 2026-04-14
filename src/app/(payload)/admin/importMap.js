@@ -23,14 +23,16 @@ import { RelationshipFeatureClient as RelationshipFeatureClient_e70f5e05f09f93e0
 import { BlockquoteFeatureClient as BlockquoteFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { UploadFeatureClient as UploadFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { default as default_d9b8e24dcaf6cbba6d4f26d06d55f32b } from '../../../components/admin/media/MediaGridView'
+import { default as default_020c0ac6da2d31e821d17aafb71e4e18 } from '../../../components/admin/books/ChapterListButton'
 import { default as default_c837fd768e731f3967ca55b0a2775304 } from '../../../components/admin/books/EpubImporter'
+import { default as default_316a711d8b21591f8137727cba9d2f57 } from '../../../components/admin/books/DeleteBookButton'
 import { TableFeatureClient as TableFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
-import { default as default_e772d3600208baaf557751b3292dc5da } from '@/components/admin/posts/SlugFieldLabel'
-import { default as default_e7ca0fe434bd780ebdc8814b7d6a7637 } from '@/components/admin/posts/SlugField'
 import { BlocksFeatureClient as BlocksFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { CodeComponent as CodeComponent_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { codeConverterClient as codeConverterClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { CodeBlockBlockComponent as CodeBlockBlockComponent_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
+import { default as default_e772d3600208baaf557751b3292dc5da } from '@/components/admin/posts/SlugFieldLabel'
+import { default as default_e7ca0fe434bd780ebdc8814b7d6a7637 } from '@/components/admin/posts/SlugField'
 import { YouTubeFeatureClient as YouTubeFeatureClient_9f2fa86d7a9aabb4d79f7ad553eeb537 } from '@/features/youtube/feature.client'
 import { OverviewComponent as OverviewComponent_a8a977ebc872c5d5ea7ee689724c0860 } from '@payloadcms/plugin-seo/client'
 import { MetaTitleComponent as MetaTitleComponent_a8a977ebc872c5d5ea7ee689724c0860 } from '@payloadcms/plugin-seo/client'
@@ -66,14 +68,16 @@ export const importMap = {
   "@payloadcms/richtext-lexical/client#BlockquoteFeatureClient": BlockquoteFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
   "@payloadcms/richtext-lexical/client#UploadFeatureClient": UploadFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
   "/components/admin/media/MediaGridView#default": default_d9b8e24dcaf6cbba6d4f26d06d55f32b,
+  "/components/admin/books/ChapterListButton#default": default_020c0ac6da2d31e821d17aafb71e4e18,
   "/components/admin/books/EpubImporter#default": default_c837fd768e731f3967ca55b0a2775304,
+  "/components/admin/books/DeleteBookButton#default": default_316a711d8b21591f8137727cba9d2f57,
   "@payloadcms/richtext-lexical/client#TableFeatureClient": TableFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
-  "@/components/admin/posts/SlugFieldLabel#default": default_e772d3600208baaf557751b3292dc5da,
-  "@/components/admin/posts/SlugField#default": default_e7ca0fe434bd780ebdc8814b7d6a7637,
   "@payloadcms/richtext-lexical/client#BlocksFeatureClient": BlocksFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
   "@payloadcms/richtext-lexical/client#CodeComponent": CodeComponent_e70f5e05f09f93e00b997edb1ef0c864,
   "@payloadcms/richtext-lexical/client#codeConverterClient": codeConverterClient_e70f5e05f09f93e00b997edb1ef0c864,
   "@payloadcms/richtext-lexical/client#CodeBlockBlockComponent": CodeBlockBlockComponent_e70f5e05f09f93e00b997edb1ef0c864,
+  "@/components/admin/posts/SlugFieldLabel#default": default_e772d3600208baaf557751b3292dc5da,
+  "@/components/admin/posts/SlugField#default": default_e7ca0fe434bd780ebdc8814b7d6a7637,
   "@/features/youtube/feature.client#YouTubeFeatureClient": YouTubeFeatureClient_9f2fa86d7a9aabb4d79f7ad553eeb537,
   "@payloadcms/plugin-seo/client#OverviewComponent": OverviewComponent_a8a977ebc872c5d5ea7ee689724c0860,
   "@payloadcms/plugin-seo/client#MetaTitleComponent": MetaTitleComponent_a8a977ebc872c5d5ea7ee689724c0860,
