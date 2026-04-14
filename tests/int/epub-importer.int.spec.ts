@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { createElement } from 'react'
 
 import EpubImporter from '@/components/admin/books/EpubImporter'
+import { createImportedBookSlug } from '@/utils/epubImport'
 
 type MockSection = {
   load: ReturnType<typeof vi.fn>
@@ -25,6 +26,7 @@ type MockBook = {
   }
   destroy: ReturnType<typeof vi.fn>
   load: ReturnType<typeof vi.fn>
+  resolve: ReturnType<typeof vi.fn>
   loaded: {
     cover: Promise<string>
     metadata: Promise<{ creator: string; title: string }>
@@ -159,6 +161,7 @@ const createMockBook = (
     },
     destroy: vi.fn(() => undefined),
     load: vi.fn(async () => undefined),
+    resolve: vi.fn((path: string) => path),
     loaded: {
       cover: Promise.resolve(''),
       metadata: Promise.resolve({
@@ -305,6 +308,7 @@ describe('EpubImporter', () => {
 
     expect(chapterBody.title).toBe('Chapter 1 > Intro')
     expect(chapterBody.chapterSourceKey).toBe('toc-1-1::OEBPS/ch1.xhtml::chapter-1')
+    expect(chapterBody.slug).toBe(`${createImportedBookSlug('Chapter 1 > Intro')}-1`)
 
     const mediaCall = fetchMock.mock.calls.find(([url, init]) => {
       return String(url) === '/api/media' && init?.method === 'POST'

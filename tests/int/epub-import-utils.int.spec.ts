@@ -458,4 +458,105 @@ describe('htmlToPayloadLexical with real EPUB fixtures', () => {
       expect(foundSubstantive).toBe(true)
     })
   }
+
+  it('loads every Fast Python chapter image from the EPUB archive', async () => {
+    const buffer = await readFile(
+      'data/Manning.Fast.Python.High.performance.techniques.for.large.datasets.1617297933.epub',
+    )
+    const base64 = buffer.toString('base64')
+    const book = ePub({ replacements: 'none' })
+
+    await book.open(base64, 'base64')
+    await book.ready
+
+    const spine = (await book.loaded.spine) as unknown as {
+      spineItems: SpineItemLike[]
+    }
+
+    for (const item of spine.spineItems.filter((spineItem) => spineItem.linear !== false)) {
+      const section = book.section(item.index)
+
+      try {
+        await section.load(book.load.bind(book))
+        const html = section.document?.documentElement?.outerHTML ?? ''
+
+        if (!html) {
+          continue
+        }
+
+        const document = new DOMParser().parseFromString(html, 'text/html')
+        const imageElements = Array.from(
+          document.querySelectorAll('img[src], image[href], image[xlink\\:href]'),
+        )
+
+        for (const imageElement of imageElements) {
+          const imageSource =
+            imageElement.getAttribute('src') ??
+            imageElement.getAttribute('href') ??
+            imageElement.getAttribute('xlink:href')
+
+          if (!imageSource) {
+            continue
+          }
+
+          const assetPath = resolveEpubAssetPath(item.href ?? '', imageSource)
+
+          expect(
+            assetPath,
+            `Missing resolved path for chapter ${item.href} image source ${imageSource}`,
+          ).toBeTruthy()
+
+          if (!assetPath) {
+            continue
+          }
+
+          const archiveCandidates = Array.from(
+            new Set(
+              [assetPath, book.resolve(assetPath, false)].filter(
+                (candidate): candidate is string => typeof candidate === 'string' && candidate.length > 0,
+              ),
+            ),
+          )
+
+          let blob: Blob | undefined
+
+          for (const archiveCandidate of archiveCandidates) {
+            blob = await book.archive.getBlob(archiveCandidate)
+
+            if (blob) {
+              break
+            }
+
+            try {
+              const objectURL = await book.archive.createUrl(archiveCandidate, { base64: false })
+
+              try {
+                const response = await fetch(objectURL)
+
+                if (response.ok) {
+                  blob = await response.blob()
+                  break
+                }
+              } finally {
+                book.archive.revokeUrl(objectURL)
+              }
+            } catch {
+              // Try the next candidate.
+            }
+          }
+
+          expect(
+            blob,
+            `Missing blob for chapter ${item.href} image source ${imageSource} resolved as ${assetPath}`,
+          ).toBeTruthy()
+          expect(typeof blob?.type).toBe('string')
+          expect(blob?.type.length).toBeGreaterThan(0)
+        }
+      } finally {
+        section.unload()
+      }
+    }
+
+    book.destroy()
+  })
 })

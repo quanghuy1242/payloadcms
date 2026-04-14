@@ -266,6 +266,11 @@ export const EpubImporter: React.FC = () => {
       addCandidate(assetPath)
     }
 
+    const resolvedArchivePath = book.resolve(assetPath, false)
+    if (resolvedArchivePath) {
+      addCandidate(resolvedArchivePath)
+    }
+
     for (const candidatePath of candidatePaths) {
       try {
         const candidateBlob = await book.archive.getBlob(candidatePath)
@@ -659,7 +664,10 @@ export const EpubImporter: React.FC = () => {
         return false
       }
 
-      const chapterSlug = createImportedBookSlug(chapterTitle) || `chapter-${chapterOrder}`
+      const chapterSlugBase = createImportedBookSlug(chapterTitle)
+      const chapterSlug = chapterSlugBase
+        ? `${chapterSlugBase}-${chapterOrder}`
+        : `chapter-${chapterOrder}`
 
       await upsertChapterDocument(
         {
