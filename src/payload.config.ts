@@ -94,7 +94,7 @@ export default buildConfig({
         booksImport: {
           Component: './components/admin/books/BookImportAdminView.tsx',
           exact: true,
-          path: '/collections/books/import',
+          path: '/books/import',
         },
       },
     },

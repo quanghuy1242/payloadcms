@@ -8,7 +8,7 @@ export default async function BooksCreateRoute() {
   redirect(
     formatAdminURL({
       adminRoute: resolvedConfig.routes.admin,
-      path: '/collections/books/import',
+      path: '/books/import',
     }),
   )
 }

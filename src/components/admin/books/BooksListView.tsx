@@ -6,7 +6,7 @@ import { formatAdminURL } from 'payload/shared'
 import { createPortal } from 'react-dom'
 import { useEffect, useMemo, useState } from 'react'
 
-const BOOK_IMPORT_PATH = '/collections/books/import' as const
+const BOOK_IMPORT_PATH = '/books/import' as const
 
 const BooksListView = (props: ListViewClientProps) => {
   const [titleActionsTarget, setTitleActionsTarget] = useState<HTMLElement | null>(null)
