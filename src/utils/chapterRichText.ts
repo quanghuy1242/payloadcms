@@ -46,6 +46,8 @@ export const chapterRichTextFeatureProviders = () => {
 
 export const createChapterLexicalEditor = () => {
   return lexicalEditor({
-    features: chapterRichTextFeatureProviders,
+    features: ({ rootFeatures }) => {
+      return [...rootFeatures, ...chapterRichTextFeatureProviders()]
+    },
   })
 }

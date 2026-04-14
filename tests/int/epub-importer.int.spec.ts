@@ -62,10 +62,19 @@ const simpleLexicalState = {
 } as const
 
 let currentMockBook: MockBook
+const refreshMock = vi.hoisted(() => vi.fn())
 
 vi.mock('epubjs', () => {
   return {
     default: vi.fn(() => currentMockBook),
+  }
+})
+
+vi.mock('next/navigation', () => {
+  return {
+    useRouter: () => ({
+      refresh: refreshMock,
+    }),
   }
 })
 
@@ -92,6 +101,7 @@ afterEach(() => {
 })
 
 beforeEach(() => {
+  refreshMock.mockReset()
   currentMockBook = createMockBook([
     '<h1>Chapter 1</h1><p>Intro</p><img src="images/cover.png" alt="Chapter art" />',
   ], {
@@ -338,6 +348,8 @@ describe('EpubImporter', () => {
     })
 
     expect(bookPatchCalls.length).toBeGreaterThan(0)
+
+    expect(refreshMock).toHaveBeenCalledTimes(1)
 
     const finalPatchBody = JSON.parse(String(bookPatchCalls.at(-1)?.[1]?.body ?? '{}'))
 

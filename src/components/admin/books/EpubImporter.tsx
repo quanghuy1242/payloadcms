@@ -2,6 +2,7 @@
 
 import ePub, { type Book } from 'epubjs'
 import type { SpineItem } from 'epubjs/types/section'
+import { useRouter } from 'next/navigation'
 import React, { useRef, useState } from 'react'
 
 import { normalizeEntityId } from '@/utils/access'
@@ -102,6 +103,7 @@ const normalizeDocumentID = (value: unknown): string | number => {
 }
 
 export const EpubImporter: React.FC = () => {
+  const router = useRouter()
   const [phase, setPhase] = useState<ImportPhase>('Idle')
   const [statusMessage, setStatusMessage] = useState('Select an EPUB file to start importing.')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -633,6 +635,9 @@ export const EpubImporter: React.FC = () => {
           continue
         }
 
+        imageElement.setAttribute('data-lexical-upload-id', String(uploadedMedia.id))
+        imageElement.setAttribute('data-lexical-upload-relation-to', 'media')
+
         if (imageElement.tagName.toLowerCase() === 'image') {
           imageElement.setAttribute('href', uploadedMedia.url)
           imageElement.setAttribute('xlink:href', uploadedMedia.url)
@@ -984,6 +989,7 @@ export const EpubImporter: React.FC = () => {
 
     let openedBook: Book | null = null
     let createdBookID: string | number | null = null
+    let shouldRefreshBooks = false
 
     try {
       const epubData = await file.arrayBuffer()
@@ -1210,6 +1216,7 @@ export const EpubImporter: React.FC = () => {
           ? `Import completed with ${skippedChapters} skipped chapter${skippedChapters === 1 ? '' : 's'}.`
           : `Import completed. ${completedChapters} chapter${completedChapters === 1 ? '' : 's'} created.`,
       )
+      shouldRefreshBooks = true
     } catch (error) {
       if (isAbortError(error) || abortController.signal.aborted) {
         setPhase('Canceled')
@@ -1231,6 +1238,9 @@ export const EpubImporter: React.FC = () => {
     } finally {
       abortControllerRef.current = null
       openedBook?.destroy()
+      if (shouldRefreshBooks) {
+        router.refresh()
+      }
       setIsImporting(false)
     }
   }

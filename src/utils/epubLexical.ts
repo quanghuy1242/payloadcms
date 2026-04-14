@@ -1,5 +1,7 @@
 import type { SerializedEditorState, SerializedLexicalNode } from 'lexical'
 
+import { buildStableHash } from './epubImport'
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -9,6 +11,7 @@ type WalkContext = {
   insidePre: boolean
   insideListItem: boolean
   listDepth: number
+  nodeCounter: { value: number }
 }
 
 type AnyNode = Record<string, unknown> & { type: string; version: number }
@@ -17,7 +20,7 @@ type AnyNode = Record<string, unknown> & { type: string; version: number }
 // Node-type detection
 // ---------------------------------------------------------------------------
 
-const BLOCK_NODE_TYPES = new Set(['block', 'paragraph', 'heading', 'quote', 'list', 'table'])
+const BLOCK_NODE_TYPES = new Set(['block', 'upload', 'paragraph', 'heading', 'quote', 'list', 'table'])
 
 const isBlockNode = (node: AnyNode): boolean => BLOCK_NODE_TYPES.has(node.type)
 
@@ -46,6 +49,21 @@ const makeCodeBlock = (code: string, language = 'plaintext'): AnyNode => ({
     code,
     language,
   },
+})
+
+const makeUploadNode = (
+  ctx: WalkContext,
+  relationTo: string,
+  value: string | number,
+  alt: string,
+): AnyNode => ({
+  type: 'upload',
+  version: 3,
+  format: '',
+  id: buildStableHash(`${ctx.nodeCounter.value++}::${relationTo}::${String(value)}::${alt}`),
+  relationTo,
+  value,
+  fields: { alt },
 })
 
 const makeHeading = (tag: string, children: AnyNode[]): AnyNode => ({
@@ -378,15 +396,7 @@ const walkNode = (node: Node, ctx: WalkContext): AnyNode[] => {
       ]
 
     case 'figure': {
-      const img = el.querySelector('img')
-      if (img) {
-        const alt = (img.getAttribute('alt') ?? '').trim()
-        const figcaption = el.querySelector('figcaption')
-        const caption = figcaption?.textContent?.trim() ?? ''
-        const label = caption ? `[Image: ${alt} — ${caption}]` : `[Image: ${alt}]`
-        return [makeParagraph([makeText(label, 2)])]
-      }
-      return walkChildren(el, ctx)
+      return normalizeContainerNodes(walkChildren(el, ctx))
     }
 
     case 'figcaption':
@@ -426,6 +436,14 @@ const walkNode = (node: Node, ctx: WalkContext): AnyNode[] => {
       return [makeParagraph([makeText('[Image: SVG diagram]', 2)])]
 
     case 'img': {
+      const uploadId = el.getAttribute('data-lexical-upload-id')?.trim() ?? ''
+      const relationTo = el.getAttribute('data-lexical-upload-relation-to')?.trim() ?? ''
+
+      if (uploadId.length > 0 && relationTo.length > 0) {
+        const alt = (el.getAttribute('alt') ?? el.getAttribute('title') ?? '').trim()
+        return [makeUploadNode(ctx, relationTo, uploadId, alt)]
+      }
+
       const src = el.getAttribute('src') ?? ''
       if (src.startsWith('https://')) {
         const alt = (el.getAttribute('alt') ?? '').trim()
@@ -528,7 +546,13 @@ export const htmlToPayloadLexical = (html: string): SerializedEditorState => {
   const parser = new DOMParser()
   const dom = parser.parseFromString(html, 'text/html')
 
-  const ctx: WalkContext = { format: 0, insidePre: false, insideListItem: false, listDepth: 0 }
+  const ctx: WalkContext = {
+    format: 0,
+    insidePre: false,
+    insideListItem: false,
+    listDepth: 0,
+    nodeCounter: { value: 0 },
+  }
 
   const children = normalizeContainerNodes(
     Array.from(dom.body.childNodes).flatMap((child) => walkNode(child, ctx)),
@@ -561,6 +585,10 @@ export function isSubstantiveChapterContent(state: SerializedEditorState): boole
       if (typeof code === 'string' && code.trim().length > 0) {
         return true
       }
+    }
+
+    if (node.type === 'upload') {
+      return true
     }
 
     if (Array.isArray(node.children)) {

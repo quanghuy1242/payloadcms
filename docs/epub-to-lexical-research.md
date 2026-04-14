@@ -936,26 +936,21 @@ Any text or inline elements that appear directly inside `<table>` outside `<td>/
 
 ### 7.5 Media Elements
 
-The chapter feature set does **not** include `UploadFeature` or any image node. This means images cannot be represented in the Lexical state as first-class nodes — there is no `upload` or `image` node type in the registered features.
+The chapter feature set now inherits the root editor features, including `UploadFeature`, so imported chapter images can be represented as first-class upload nodes.
 
 **Options:**
-1. **Drop images from Lexical content** (current implicit behaviour after all bugs): images exist in the Media collection but are not embedded in chapters. The chapter is text-only.
-2. **Inline images as HTML in a custom node**: requires adding a custom node to the feature registry and the schema — significant scope increase.
-3. **Keep images as figure captions only**: extract alt text + figcaption as a paragraph italic note `"[Image: alt text]"` as a placeholder.
-
-**Recommended approach for Phase 1:** Option 3 — preserve the semantic intent of the image as a text note. This is lossless for accessibility-focused content (the alt text is preserved) while staying within the current schema. The image is still uploaded to the Media collection; it just isn't embedded in the Lexical content.
+1. **Use real upload nodes** (current implementation): images are uploaded to the Media collection and embedded back into the chapter as `upload` nodes using `data-lexical-upload-id` / `data-lexical-upload-relation-to`.
+2. **Fallback placeholders**: only for images that could not be uploaded or do not carry lexical upload metadata.
 
 ```html
 <!-- Source: -->
 <figure><img src="figure1.jpg" alt="Performance comparison chart"/><figcaption>Figure 3.1</figcaption></figure>
 
 <!-- Lexical output: -->
-{ "type": "paragraph", "children": [
-  { "type": "text", "text": "[Image: Performance comparison chart — Figure 3.1]", "format": 2 }
-]}
+{ "type": "upload", "relationTo": "media", "value": 78, "fields": { "alt": "Image from book ..." } }
 ```
 
-When `UploadFeature` is eventually added to the chapter editor, a migration can be written to replace these placeholder paragraphs with proper upload nodes.
+If an EPUB image is still missing upload metadata, it will fall back to a placeholder paragraph so the chapter remains readable.
 
 ### 7.6 Unsupported / Drop Elements
 

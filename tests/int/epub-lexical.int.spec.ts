@@ -308,6 +308,18 @@ describe('htmlToPayloadLexical', () => {
     expect(findNodes(result, 'text').some((node: any) => node.text.includes('[Image: X]'))).toBe(true)
   })
 
+  it('converts upload-tagged images to upload nodes', () => {
+    const result = htmlToPayloadLexical(
+      '<figure><img src="https://example.com/x.jpg" data-lexical-upload-id="78" data-lexical-upload-relation-to="media" alt="Image from book Gatsby Vĩ Đại - ID 1 - ca4c1cd2 - Image" /><figcaption>Caption</figcaption></figure>',
+    )
+
+    const uploads = findNodes(result, 'upload')
+    expect(uploads).toHaveLength(1)
+    expect(uploads[0].relationTo).toBe('media')
+    expect(uploads[0].value).toBe('78')
+    expect(uploads[0].fields.alt).toContain('Image from book Gatsby Vĩ Đại - ID 1 - ca4c1cd2')
+  })
+
   it('treats list-only chapters as substantive', () => {
     const result = htmlToPayloadLexical('<ul><li>Step 1</li><li>Step 2</li></ul>')
     expect(isSubstantiveChapterContent(result)).toBe(true)
@@ -315,6 +327,14 @@ describe('htmlToPayloadLexical', () => {
 
   it('treats code-only chapters as substantive', () => {
     const result = htmlToPayloadLexical('<pre>print("hello")</pre>')
+    expect(isSubstantiveChapterContent(result)).toBe(true)
+  })
+
+  it('treats upload-only chapters as substantive', () => {
+    const result = htmlToPayloadLexical(
+      '<img src="https://example.com/x.jpg" data-lexical-upload-id="78" data-lexical-upload-relation-to="media" alt="Image from book Gatsby Vĩ Đại - ID 1 - ca4c1cd2 - Image" />',
+    )
+
     expect(isSubstantiveChapterContent(result)).toBe(true)
   })
 
