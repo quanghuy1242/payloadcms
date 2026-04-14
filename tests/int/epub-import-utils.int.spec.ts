@@ -524,13 +524,23 @@ describe('htmlToPayloadLexical with real EPUB fixtures', () => {
             continue
           }
 
-          const archiveCandidates = Array.from(
-            new Set(
-              [assetPath, book.resolve(assetPath, false)].filter(
-                (candidate): candidate is string => typeof candidate === 'string' && candidate.length > 0,
-              ),
-            ),
-          )
+          const archiveCandidates = new Set<string>()
+
+          const addArchiveCandidate = (candidate: string | null | undefined) => {
+            if (!candidate) {
+              return
+            }
+
+            const normalizedCandidate = candidate.replace(/^\/+/, '')
+            archiveCandidates.add(normalizedCandidate)
+
+            if (!/^(https?:\/\/|data:|blob:|\/\/)/i.test(normalizedCandidate)) {
+              archiveCandidates.add(`/${normalizedCandidate}`)
+            }
+          }
+
+          addArchiveCandidate(assetPath)
+          addArchiveCandidate(book.resolve(assetPath, false))
 
           let blob: Blob | undefined
 

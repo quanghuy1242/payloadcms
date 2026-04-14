@@ -255,10 +255,11 @@ export const EpubImporter: React.FC = () => {
         return
       }
 
-      candidatePaths.add(candidate)
+      const normalizedCandidate = candidate.replace(/^\/+/, '')
+      candidatePaths.add(normalizedCandidate)
 
-      if (candidate.startsWith('/')) {
-        candidatePaths.add(candidate.replace(/^\/+/, ''))
+      if (!/^(https?:\/\/|data:|blob:|\/\/)/i.test(normalizedCandidate)) {
+        candidatePaths.add(`/${normalizedCandidate}`)
       }
     }
 
