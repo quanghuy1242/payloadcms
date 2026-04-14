@@ -47,7 +47,10 @@ export const Books: CollectionConfig = {
     components: {
       beforeList: ['/components/admin/books/EpubImporter'],
       edit: {
-        beforeDocumentControls: ['/components/admin/books/DeleteBookButton'],
+        beforeDocumentControls: [
+          '/components/admin/books/DeleteBookButton',
+          '/components/admin/books/ChapterListButton',
+        ],
       },
     },
     description:
@@ -212,17 +215,6 @@ export const Books: CollectionConfig = {
       type: 'textarea',
       admin: {
         description: 'Only populated when the latest import attempt failed.',
-      },
-    },
-    {
-      name: 'chapterList',
-      type: 'ui',
-      label: 'Chapters',
-      admin: {
-        position: 'sidebar',
-        components: {
-          Field: '/components/admin/books/ChapterListButton',
-        },
       },
     },
     {

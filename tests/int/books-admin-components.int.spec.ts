@@ -1,12 +1,23 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { createElement } from 'react'
-import type { ComponentProps, ReactElement } from 'react'
+import type { ComponentProps, ReactElement, ReactNode } from 'react'
 
 import ChapterListButton from '@/components/admin/books/ChapterListButton'
+import DeleteBookButton from '@/components/admin/books/DeleteBookButton'
 import * as booksUtils from '@/utils/books'
 
 const chapterUiMocks = vi.hoisted(() => ({
+  lastButtonProps: undefined as
+    | {
+        buttonStyle?: string
+        children?: ReactNode
+        disabled?: boolean
+        onClick?: ComponentProps<'button'>['onClick']
+        size?: string
+        tooltip?: string
+      }
+    | undefined,
   lastUseListDrawerArgs: undefined as
     | {
         collectionSlugs?: string[]
@@ -14,12 +25,39 @@ const chapterUiMocks = vi.hoisted(() => ({
         selectedCollection?: string
       }
     | undefined,
+  openDrawer: vi.fn(),
   useDocumentInfo: vi.fn(),
   useListDrawer: vi.fn(),
 }))
 
 vi.mock('@payloadcms/ui', async () => {
+  const MockButton = (
+    props: ComponentProps<'button'> & {
+      buttonStyle?: string
+      size?: string
+      tooltip?: string
+    },
+  ): ReactElement => {
+    const { children, type, tooltip, buttonStyle, size, ...buttonProps } = props
+
+    chapterUiMocks.lastButtonProps = props
+
+    return createElement(
+      'button',
+      {
+        ...buttonProps,
+        'data-testid': 'payload-button',
+        'data-button-style': buttonStyle,
+        'data-button-size': size,
+        type: type ?? 'button',
+        title: tooltip,
+      },
+      children,
+    )
+  }
+
   return {
+    Button: MockButton,
     useDocumentInfo: chapterUiMocks.useDocumentInfo,
     useListDrawer: chapterUiMocks.useListDrawer,
   }
@@ -31,19 +69,7 @@ const installListDrawerMock = (): void => {
 
     const MockListDrawer = () => createElement('div', { 'data-testid': 'chapter-drawer' })
 
-    const MockListDrawerToggler = (props: ComponentProps<'button'>): ReactElement => {
-      const { children, type, ...buttonProps } = props
-
-      return createElement(
-        'button',
-        {
-          ...buttonProps,
-          'data-testid': 'chapter-toggler',
-          type: type ?? 'button',
-        },
-        children,
-      )
-    }
+    const MockListDrawerToggler = (): ReactElement | null => null
 
     return [
       MockListDrawer,
@@ -54,7 +80,7 @@ const installListDrawerMock = (): void => {
         drawerDepth: 0,
         drawerSlug: 'book-chapters',
         isDrawerOpen: false,
-        openDrawer: vi.fn(),
+        openDrawer: chapterUiMocks.openDrawer,
         setCollectionSlugs: vi.fn(),
         toggleDrawer: vi.fn(),
       },
@@ -70,16 +96,20 @@ afterEach(() => {
   cleanup()
   chapterUiMocks.useDocumentInfo.mockReset()
   chapterUiMocks.useListDrawer.mockReset()
+  chapterUiMocks.openDrawer.mockReset()
+  chapterUiMocks.lastButtonProps = undefined
   chapterUiMocks.lastUseListDrawerArgs = undefined
   vi.restoreAllMocks()
 })
 
 describe('Book admin components', () => {
-  it('scopes the chapter drawer to the current book and renders one toggler button', async () => {
+  it('scopes the chapter drawer to the current book and renders a medium button', async () => {
     chapterUiMocks.useDocumentInfo.mockReturnValue({ id: 'book-1' })
     vi.spyOn(booksUtils, 'fetchBookChapterCount').mockResolvedValue(3)
 
-    render(createElement(ChapterListButton))
+    const { rerender } = render(createElement(ChapterListButton))
+
+    const initialDrawerArgs = chapterUiMocks.lastUseListDrawerArgs
 
     await waitFor(() => {
       expect(booksUtils.fetchBookChapterCount).toHaveBeenCalledWith(
@@ -89,8 +119,30 @@ describe('Book admin components', () => {
     })
 
     await waitFor(() => {
-      expect(screen.getByTestId('chapter-toggler').textContent).toBe('Chapters (3)')
+      expect(screen.getByTestId('payload-button').textContent).toBe('Chapters (3)')
     })
+
+    rerender(createElement(ChapterListButton))
+
+    expect(chapterUiMocks.lastUseListDrawerArgs?.collectionSlugs).toBe(
+      initialDrawerArgs?.collectionSlugs,
+    )
+    expect(chapterUiMocks.lastUseListDrawerArgs?.filterOptions).toBe(
+      initialDrawerArgs?.filterOptions,
+    )
+
+    expect(chapterUiMocks.lastButtonProps).toMatchObject({
+      buttonStyle: 'secondary',
+      disabled: false,
+      size: 'medium',
+      tooltip: 'Open the chapter drawer for this book.',
+    })
+
+    const button = screen.getByTestId('payload-button') as HTMLButtonElement
+
+    expect(button.disabled).toBe(false)
+    fireEvent.click(button)
+    expect(chapterUiMocks.openDrawer).toHaveBeenCalledTimes(1)
 
     expect(chapterUiMocks.lastUseListDrawerArgs).toMatchObject({
       collectionSlugs: ['chapters'],
@@ -103,11 +155,6 @@ describe('Book admin components', () => {
       },
       selectedCollection: 'chapters',
     })
-
-    const toggler = screen.getByTestId('chapter-toggler') as HTMLButtonElement
-
-    expect(toggler.disabled).toBe(false)
-    expect(toggler.querySelector('button')).toBeNull()
   })
 
   it('disables the chapter drawer trigger before the book is saved', () => {
@@ -115,14 +162,41 @@ describe('Book admin components', () => {
 
     render(createElement(ChapterListButton))
 
-    const toggler = screen.getByTestId('chapter-toggler') as HTMLButtonElement
+    const button = screen.getByTestId('payload-button') as HTMLButtonElement
 
-    expect(toggler.disabled).toBe(true)
-    expect(toggler.textContent).toBe('Chapters')
+    expect(button.disabled).toBe(true)
+    expect(chapterUiMocks.lastButtonProps).toMatchObject({
+      buttonStyle: 'secondary',
+      disabled: true,
+      size: 'medium',
+      tooltip: 'Save the book first',
+    })
     expect(chapterUiMocks.lastUseListDrawerArgs).toMatchObject({
       collectionSlugs: ['chapters'],
       filterOptions: undefined,
       selectedCollection: 'chapters',
     })
+  })
+
+  it('renders the delete guard button at the same medium height', async () => {
+    chapterUiMocks.useDocumentInfo.mockReturnValue({ id: 'book-1' })
+    vi.spyOn(booksUtils, 'fetchBookChapterCount').mockResolvedValue(2)
+
+    render(createElement(DeleteBookButton))
+
+    await waitFor(() => {
+      expect(booksUtils.fetchBookChapterCount).toHaveBeenCalledWith(
+        'book-1',
+        expect.anything(),
+      )
+    })
+
+    expect(chapterUiMocks.lastButtonProps).toMatchObject({
+      buttonStyle: 'secondary',
+      disabled: true,
+      size: 'medium',
+      tooltip: 'Remove all chapters before deleting this book.',
+    })
+    expect(screen.getByTestId('payload-button').textContent).toBe('Delete book')
   })
 })

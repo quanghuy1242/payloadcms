@@ -8,22 +8,14 @@ describe('Book admin config', () => {
     expect(Chapters.admin?.hidden).toBe(true)
   })
 
-  it('wires the book chapter drawer and delete guard components', () => {
-    const chapterField = Books.fields.find(
-      (field) => 'name' in field && field.name === 'chapterList',
-    )
-
-    expect(chapterField).toMatchObject({
-      admin: {
-        components: {
-          Field: '/components/admin/books/ChapterListButton',
-        },
-      },
-      type: 'ui',
-    })
-
-    expect(Books.admin?.components?.edit?.beforeDocumentControls).toContain(
+  it('wires the chapter list and delete controls into the edit header', () => {
+    expect(Books.admin?.components?.edit?.beforeDocumentControls).toEqual([
       '/components/admin/books/DeleteBookButton',
+      '/components/admin/books/ChapterListButton',
+    ])
+
+    expect(Books.fields.some((field) => 'name' in field && field.name === 'chapterList')).toBe(
+      false,
     )
   })
 })

@@ -112,22 +112,18 @@ const DeleteBookButton: React.FC = () => {
   }
 
   return (
-    <div
-      style={{ display: 'inline-flex' }}
-      title={
+    <Button
+      buttonStyle="secondary"
+      disabled
+      size="medium"
+      tooltip={
         isLoading
           ? 'Checking chapter count before deleting this book.'
           : 'Remove all chapters before deleting this book.'
       }
     >
-      <Button
-        buttonStyle="secondary"
-        disabled
-        size="small"
-      >
-        Delete book
-      </Button>
-    </div>
+      Delete book
+    </Button>
   )
 }
 
