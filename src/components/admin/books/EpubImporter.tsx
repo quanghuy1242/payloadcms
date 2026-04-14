@@ -359,7 +359,7 @@ export const EpubImporter: React.FC = () => {
       mediaFormData.append('alt', mediaAltText)
       mediaFormData.append('_payload', JSON.stringify({ alt: mediaAltText }))
 
-      const mediaResponse = await requestJSONWithRetry<MediaDocument>(
+      const mediaResponse = await requestDocumentJSONWithRetry<MediaDocument>(
         '/api/media',
         {
           method: 'POST',

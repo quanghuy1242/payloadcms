@@ -232,7 +232,10 @@ const installFetchMock = (options: FetchMockOptions = {}) => {
     }
 
     if (method === 'POST' && url === '/api/media') {
-      return createJsonResponse({ id: 201, url: '/media/chapter-art.png' }, 201)
+      return createJsonResponse(
+        { doc: { id: 201, url: '/media/chapter-art.png' }, message: 'Media successfully created.' },
+        201,
+      )
     }
 
     if (method === 'GET' && url.startsWith('/api/chapters?')) {
