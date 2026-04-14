@@ -41,19 +41,19 @@ const DrawerSelectionPortal = ({
   label,
   viewType,
 }: DrawerSelectionPortalProps) => {
-  const [headerActionsTarget, setHeaderActionsTarget] = useState<HTMLElement | null>(null)
+  const [headerSelectionTarget, setHeaderSelectionTarget] = useState<HTMLElement | null>(null)
 
   useEffect(() => {
     if (!enabled) {
-      setHeaderActionsTarget(null)
+      setHeaderSelectionTarget(null)
       return undefined
     }
 
     const findTarget = (): boolean => {
-      const nextTarget = document.querySelector('.list-drawer .list-header__actions')
+      const nextTarget = document.querySelector('.list-drawer .list-header__after-header-content')
 
       if (nextTarget instanceof HTMLElement) {
-        setHeaderActionsTarget(nextTarget)
+        setHeaderSelectionTarget(nextTarget)
         return true
       }
 
@@ -80,20 +80,22 @@ const DrawerSelectionPortal = ({
     }
   }, [enabled])
 
-  if (!enabled || !collectionConfig || !headerActionsTarget) {
+  if (!enabled || !collectionConfig || !headerSelectionTarget) {
     return null
   }
 
   return createPortal(
-    <ListSelection
-      collectionConfig={collectionConfig}
-      disableBulkDelete={false}
-      disableBulkEdit={false}
-      label={label}
-      showSelectAllAcrossPages
-      viewType={viewType}
-    />,
-    headerActionsTarget,
+    <div className="chapters-list-view__drawer-selection">
+      <ListSelection
+        collectionConfig={collectionConfig}
+        disableBulkDelete={false}
+        disableBulkEdit={false}
+        label={label}
+        showSelectAllAcrossPages
+        viewType={viewType}
+      />
+    </div>,
+    headerSelectionTarget,
   )
 }
 

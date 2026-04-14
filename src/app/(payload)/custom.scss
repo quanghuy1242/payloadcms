@@ -144,6 +144,16 @@
   padding-left: calc(var(--base) * 1.2);
 }
 
+.list-drawer .chapters-list-view__drawer-selection {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: calc(var(--base) * 0.5);
+}
+
+.list-drawer .chapters-list-view__drawer-selection .list-selection {
+  margin-left: 0;
+}
+
 @media (max-width: 768px) {
   .books-import-page__header {
     flex-direction: column;
