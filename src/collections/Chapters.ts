@@ -18,6 +18,13 @@ export const Chapters: CollectionConfig = {
     hidden: true,
     useAsTitle: 'title',
     defaultColumns: ['title', 'book', 'order', '_status', 'updatedAt'],
+    components: {
+      views: {
+        list: {
+          Component: '/components/admin/chapters/ChaptersListView',
+        },
+      },
+    },
   },
   versions: {
     drafts: {

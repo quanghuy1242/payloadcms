@@ -144,6 +144,10 @@
   padding-left: calc(var(--base) * 1.2);
 }
 
+.chapters-list-view__bulk-actions {
+  margin-bottom: calc(var(--base) * 0.5);
+}
+
 @media (max-width: 768px) {
   .books-import-page__header {
     flex-direction: column;
