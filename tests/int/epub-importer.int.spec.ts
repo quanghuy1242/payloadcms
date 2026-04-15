@@ -18,6 +18,17 @@ type MockNavItem = {
   subitems?: MockNavItem[]
 }
 
+type MockMetadata = {
+  creator?: string
+  description?: string
+  identifier?: string
+  language?: string
+  pubdate?: string
+  publisher?: string
+  subject?: string[]
+  title?: string
+}
+
 type MockBook = {
   archive: {
     createUrl: ReturnType<typeof vi.fn>
@@ -26,10 +37,14 @@ type MockBook = {
   }
   destroy: ReturnType<typeof vi.fn>
   load: ReturnType<typeof vi.fn>
+    packaging?: {
+      navPath?: string
+      ncxPath?: string
+    }
   resolve: ReturnType<typeof vi.fn>
   loaded: {
     cover: Promise<string>
-    metadata: Promise<{ creator: string; title: string }>
+      metadata: Promise<MockMetadata>
     navigation: Promise<{ toc: MockNavItem[] }>
     spine: Promise<{
       spineItems: Array<{ href: string; idref: string; index: number; linear: true }>
@@ -157,11 +172,31 @@ const createMockSection = (html: string, shouldThrow = false): MockSection => {
 
 const createMockBook = (
   chapterHtmls: string[],
-  options?: { failingChapterIndex?: number; navigationToc?: MockNavItem[] },
+  options?: {
+    failingChapterIndex?: number
+    navigationToc?: MockNavItem[]
+    metadata?: MockMetadata
+    packaging?: {
+      navPath?: string
+      ncxPath?: string
+    }
+  },
 ): MockBook => {
   const sections = chapterHtmls.map((chapterHtml, index) => {
     return createMockSection(chapterHtml, options?.failingChapterIndex === index)
   })
+
+  const metadata: MockMetadata = {
+    creator: 'Peter Brown',
+    description: 'A robot escapes into the wild and learns to survive.',
+    identifier: '9780316475152',
+    language: 'en',
+    pubdate: '2021-09-21',
+    publisher: 'Farrar, Straus and Giroux',
+    subject: ['Children', 'Adventure'],
+    title: 'The Wild Robot Escapes',
+    ...options?.metadata,
+  }
 
   return {
     archive: {
@@ -171,13 +206,14 @@ const createMockBook = (
     },
     destroy: vi.fn(() => undefined),
     load: vi.fn(async () => undefined),
+    packaging: options?.packaging ?? {
+      navPath: 'OEBPS/nav.xhtml',
+      ncxPath: '',
+    },
     resolve: vi.fn((path: string) => path),
     loaded: {
       cover: Promise.resolve(''),
-      metadata: Promise.resolve({
-        creator: 'Peter Brown',
-        title: 'The Wild Robot Escapes',
-      }),
+      metadata: Promise.resolve(metadata),
       navigation: Promise.resolve({
         toc: options?.navigationToc ?? [],
       }),
@@ -323,9 +359,18 @@ describe('EpubImporter', () => {
     })
     const bookBody = JSON.parse(String(bookCreateCall?.[1]?.body ?? '{}'))
 
+    expect(bookBody.author).toBe('Peter Brown')
+    expect(bookBody.description).toBe('A robot escapes into the wild and learns to survive.')
+    expect(bookBody.language).toBe('en')
+    expect(bookBody.publisher).toBe('Farrar, Straus and Giroux')
+    expect(bookBody.publicationDate).toBe('2021-09-21')
+    expect(bookBody.isbn).toBe('9780316475152')
+    expect(bookBody.subjects).toEqual([{ subject: 'Children' }, { subject: 'Adventure' }])
+    expect(bookBody.epubVersion).toBe('3')
+
     expect(chapterBody.title).toBe('Chapter 1 > Intro')
     expect(chapterBody.chapterSourceKey).toBe('toc-1-1::OEBPS/ch1.xhtml::chapter-1')
-    expect(chapterBody.slug).toBe(`${createImportedBookSlug('Chapter 1 > Intro')}-1`)
+    expect(chapterBody.slug).toBe(`${createImportedBookSlug('Chapter 1 > Intro', bookBody.language)}-1`)
 
     const mediaCall = fetchMock.mock.calls.find(([url, init]) => {
       return String(url) === '/api/media' && init?.method === 'POST'
@@ -348,6 +393,17 @@ describe('EpubImporter', () => {
     })
 
     expect(bookPatchCalls.length).toBeGreaterThan(0)
+
+    const totalsPatchCall = bookPatchCalls.find(([, init]) => {
+      const body = JSON.parse(String(init?.body ?? '{}'))
+      return typeof body.chapterCount === 'number' && typeof body.totalWordCount === 'number'
+    })
+
+    expect(totalsPatchCall).toBeTruthy()
+
+    const totalsPatchBody = JSON.parse(String(totalsPatchCall?.[1]?.body ?? '{}'))
+    expect(totalsPatchBody.chapterCount).toBe(1)
+    expect(totalsPatchBody.totalWordCount).toBeGreaterThan(0)
 
     expect(refreshMock).toHaveBeenCalledTimes(1)
 

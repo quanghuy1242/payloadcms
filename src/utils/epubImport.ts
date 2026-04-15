@@ -1,5 +1,6 @@
 import type { NavItem } from 'epubjs/types/navigation'
-import slugify from 'slugify'
+
+import { formatSlug, resolveSlugLocale } from './slug'
 
 const DISALLOWED_TAGS = ['style', 'script', 'iframe', 'object', 'embed'] as const
 const URL_PROTOCOL_ALLOWLIST = new Set(['http:', 'https:', 'mailto:', 'tel:'])
@@ -535,19 +536,14 @@ export const createImportedBookTitle = (title: unknown, fileName: string): strin
   return fallback.replace(/\.epub$/i, '')
 }
 
-export const createImportedBookSlug = (title: string): string => {
+export const createImportedBookSlug = (title: string, language = 'en'): string => {
   const normalizedTitle = trimToNull(title)
 
   if (!normalizedTitle) {
     return ''
   }
 
-  return slugify(normalizedTitle, {
-    lower: true,
-    strict: true,
-    locale: 'vi',
-    trim: true,
-  })
+  return formatSlug(normalizedTitle, resolveSlugLocale(language, 'en'))
 }
 
 export const buildChapterSourceKey = (

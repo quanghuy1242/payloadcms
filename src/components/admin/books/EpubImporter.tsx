@@ -28,6 +28,7 @@ import {
   sleep,
 } from '@/utils/epubImport'
 import { requestDocumentJSONWithRetry, requestJSONWithRetry } from '@/utils/http'
+import { toNullableString } from '@/utils/strings'
 
 type ImportPhase =
   | 'Idle'
@@ -100,6 +101,43 @@ const normalizeDocumentID = (value: unknown): string | number => {
   }
 
   throw new Error('Expected a valid document identifier in the API response.')
+}
+
+const normalizeEpubLanguage = (value: unknown): string => {
+  const normalized = toNullableString(value)?.toLowerCase()
+
+  if (!normalized) {
+    return 'en'
+  }
+
+  if (normalized.startsWith('vi')) {
+    return 'vi'
+  }
+
+  if (normalized.startsWith('ja')) {
+    return 'ja'
+  }
+
+  if (normalized.startsWith('en')) {
+    return 'en'
+  }
+
+  return 'en'
+}
+
+const normalizeEpubSubjects = (value: unknown): Array<{ subject: string }> => {
+  const rawSubjects = Array.isArray(value) ? value : value == null ? [] : [value]
+
+  return rawSubjects
+    .map((subject) => toNullableString(subject))
+    .filter((subject): subject is string => subject != null)
+    .map((subject) => ({ subject }))
+}
+
+const resolveEpubVersion = (book: Book): '2' | '3' => {
+  const packaging = (book as Book & { packaging?: { navPath?: string | null } }).packaging
+
+  return toNullableString(packaging?.navPath) ? '3' : '2'
 }
 
 export const EpubImporter: React.FC = () => {
@@ -544,6 +582,7 @@ export const EpubImporter: React.FC = () => {
     bookID: string | number,
     importBatchID: string,
     importedTitle: string,
+    importedLanguage: string,
     sourceHash: string,
     preparedChapter: PreparedChapter,
     totalChapters: number,
@@ -681,7 +720,7 @@ export const EpubImporter: React.FC = () => {
         return false
       }
 
-      const chapterSlugBase = createImportedBookSlug(chapterTitle)
+      const chapterSlugBase = createImportedBookSlug(chapterTitle, importedLanguage)
       const chapterSlug = chapterSlugBase
         ? `${chapterSlugBase}-${chapterOrder}`
         : `chapter-${chapterOrder}`
@@ -728,6 +767,7 @@ export const EpubImporter: React.FC = () => {
     bookID: string | number,
     importBatchID: string,
     importedTitle: string,
+    importedLanguage: string,
     sourceHash: string,
     preparedChapter: PreparedChapter,
     totalChapters: number,
@@ -742,6 +782,7 @@ export const EpubImporter: React.FC = () => {
         bookID,
         importBatchID,
         importedTitle,
+        importedLanguage,
         sourceHash,
         preparedChapter,
         totalChapters,
@@ -775,6 +816,7 @@ export const EpubImporter: React.FC = () => {
     bookID: string | number,
     importBatchID: string,
     importedTitle: string,
+    importedLanguage: string,
     sourceHash: string,
     totalChapters: number,
     existingChaptersByOrder: Map<number, ChapterDocument>,
@@ -798,6 +840,7 @@ export const EpubImporter: React.FC = () => {
             bookID,
             importBatchID,
             importedTitle,
+            importedLanguage,
             sourceHash,
             preparedChapter,
             totalChapters,
@@ -1012,10 +1055,14 @@ export const EpubImporter: React.FC = () => {
 
       const importBatchID = createImportBatchID()
       const importedTitle = createImportedBookTitle(metadata.title, file.name)
-      const importedAuthor =
-        typeof metadata.creator === 'string' && metadata.creator.trim().length > 0
-          ? metadata.creator.trim()
-          : null
+      const importedAuthor = toNullableString(metadata.creator)
+      const importedLanguage = normalizeEpubLanguage(metadata.language)
+      const importedDescription = toNullableString(metadata.description)
+      const importedPublisher = toNullableString(metadata.publisher)
+      const importedPublicationDate = toNullableString(metadata.pubdate)
+      const importedIsbn = toNullableString(metadata.identifier)
+      const importedSubjects = normalizeEpubSubjects(metadata.subject)
+      const epubVersion = resolveEpubVersion(openedBook)
       const sourceHash = buildStableBinaryHash(epubData)
       const legacySourceHash = buildStableHash(`${file.name}:${file.size}:${file.lastModified}`)
 
@@ -1040,6 +1087,8 @@ export const EpubImporter: React.FC = () => {
           createdBookID,
           {
             author: importedAuthor,
+            description: importedDescription,
+            epubVersion,
             importBatchId: importBatchID,
             importCompletedChapters: 0,
             importErrorSummary: null,
@@ -1048,6 +1097,11 @@ export const EpubImporter: React.FC = () => {
             importStartedAt: new Date().toISOString(),
             importStatus: 'importing',
             importTotalChapters: spineItems.length,
+            isbn: importedIsbn,
+            language: importedLanguage,
+            publicationDate: importedPublicationDate,
+            publisher: importedPublisher,
+            subjects: importedSubjects,
             origin: 'epub-imported',
             sourceHash,
             sourceType: 'epub-upload',
@@ -1068,11 +1122,18 @@ export const EpubImporter: React.FC = () => {
             },
             body: JSON.stringify({
               author: importedAuthor,
+              description: importedDescription,
+              epubVersion,
               importBatchId: importBatchID,
               importCompletedChapters: 0,
               importStartedAt: new Date().toISOString(),
               importStatus: 'importing',
               importTotalChapters: spineItems.length,
+              isbn: importedIsbn,
+              language: importedLanguage,
+              publicationDate: importedPublicationDate,
+              publisher: importedPublisher,
+              subjects: importedSubjects,
               origin: 'epub-imported',
               sourceHash,
               sourceType: 'epub-upload',
@@ -1138,12 +1199,25 @@ export const EpubImporter: React.FC = () => {
         MAX_CHAPTERS_PER_BATCH,
         MAX_WORDS_PER_BATCH,
       )
+      const totalWordCount = preparedChapters.reduce((sum, chapter) => {
+        return sum + chapter.wordCount
+      }, 0)
+      const chapterCount = preparedChapters.length
       const preflightSkippedChapters = Math.max(0, spineItems.length - preparedChapters.length)
       let skippedChapters = preflightSkippedChapters
 
       if (preparedChapters.length === 0) {
         throw new Error('No chapters could be prepared for import.')
       }
+
+      await updateBookProgress(
+        importBookID,
+        {
+          chapterCount,
+          totalWordCount,
+        },
+        abortController.signal,
+      )
 
       setProgress((existingProgress) => {
         return {
@@ -1175,6 +1249,7 @@ export const EpubImporter: React.FC = () => {
             importBookID,
             importBatchID,
             importedTitle,
+            importedLanguage,
             sourceHash,
             preparedChapters.length,
             existingChaptersByOrder,

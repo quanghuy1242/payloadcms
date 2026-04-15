@@ -18,6 +18,8 @@ import {
   UnorderedListFeature,
 } from '@payloadcms/richtext-lexical'
 
+import { EpubInternalLinkFeature } from '../features/epub-internal-link/feature.server'
+
 export const chapterRichTextFeatureProviders = () => {
   return [
     ParagraphFeature(),
@@ -35,6 +37,7 @@ export const chapterRichTextFeatureProviders = () => {
       ],
     }),
     LinkFeature(),
+    EpubInternalLinkFeature(),
     OrderedListFeature(),
     UnorderedListFeature(),
     ChecklistFeature(),

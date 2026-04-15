@@ -205,6 +205,32 @@ export interface Book {
   title: string;
   author?: string | null;
   /**
+   * Synopsis or blurb from the EPUB metadata or manually authored.
+   */
+  description?: string | null;
+  /**
+   * BCP 47 language tag (e.g., "en", "vi", "ja").
+   */
+  language?: string | null;
+  publisher?: string | null;
+  publicationDate?: string | null;
+  /**
+   * Primary ISBN or dc:identifier from EPUB.
+   */
+  isbn?: string | null;
+  /**
+   * Genre and topic tags from EPUB metadata.
+   */
+  subjects?:
+    | {
+        subject: string;
+        id?: string | null;
+      }[]
+    | null;
+  chapterCount?: number | null;
+  totalWordCount?: number | null;
+  epubVersion?: ('2' | '3') | null;
+  /**
    * Generated from title and locked after publishing.
    */
   slug: string;
@@ -454,6 +480,20 @@ export interface MediaSelect<T extends boolean = true> {
 export interface BooksSelect<T extends boolean = true> {
   title?: T;
   author?: T;
+  description?: T;
+  language?: T;
+  publisher?: T;
+  publicationDate?: T;
+  isbn?: T;
+  subjects?:
+    | T
+    | {
+        subject?: T;
+        id?: T;
+      };
+  chapterCount?: T;
+  totalWordCount?: T;
+  epubVersion?: T;
   slug?: T;
   cover?: T;
   origin?: T;

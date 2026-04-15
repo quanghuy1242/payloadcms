@@ -152,6 +152,16 @@ const makeTable = (children: AnyNode[]): AnyNode => ({
   children,
 })
 
+const makeEpubInternalLink = (epubHref: string, children: AnyNode[]): AnyNode => ({
+  type: 'epub-internal-link',
+  version: 1,
+  format: '',
+  indent: 0,
+  direction: 'ltr',
+  fields: { epubHref },
+  children,
+})
+
 const makeTableRow = (children: AnyNode[]): AnyNode => ({
   type: 'tablerow',
   version: 1,
@@ -480,7 +490,14 @@ const walkNode = (node: Node, ctx: WalkContext): AnyNode[] => {
       if (!el.hasAttribute('href') && el.hasAttribute('id') && !el.textContent?.trim()) {
         return []
       }
-      // Case 3: any other anchor (fragment, relative, blob:, data:, etc.) → unwrap
+      // Case 3: internal EPUB anchor or relative link → preserve as a sentinel node
+      if (
+        href.startsWith('#') ||
+        (!href.startsWith('//') && !/^[a-z][a-z\d+.-]*:/i.test(href))
+      ) {
+        return [makeEpubInternalLink(href, walkChildren(el, ctx))]
+      }
+      // Case 4: any other anchor (blob:, data:, etc.) → unwrap
       return walkChildren(el, ctx)
     }
 
@@ -596,6 +613,10 @@ export function isSubstantiveChapterContent(state: SerializedEditorState): boole
     }
 
     if (node.type === 'upload') {
+      return true
+    }
+
+    if (node.type === 'epub-internal-link') {
       return true
     }
 

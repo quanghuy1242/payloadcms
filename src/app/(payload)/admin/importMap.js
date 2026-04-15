@@ -27,6 +27,7 @@ import { default as default_316a711d8b21591f8137727cba9d2f57 } from '../../../co
 import { default as default_020c0ac6da2d31e821d17aafb71e4e18 } from '../../../components/admin/books/ChapterListButton'
 import { default as default_9bfbdc9e46ef128724bf1d0c1a0576db } from '../../../components/admin/books/BooksListView'
 import { TableFeatureClient as TableFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
+import { EpubInternalLinkFeatureClient as EpubInternalLinkFeatureClient_39b1aa8e11ee1c4b71045ba13d597423 } from '@/features/epub-internal-link/feature.client'
 import { BlocksFeatureClient as BlocksFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { CodeComponent as CodeComponent_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { codeConverterClient as codeConverterClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
@@ -74,6 +75,7 @@ export const importMap = {
   "/components/admin/books/ChapterListButton#default": default_020c0ac6da2d31e821d17aafb71e4e18,
   "/components/admin/books/BooksListView#default": default_9bfbdc9e46ef128724bf1d0c1a0576db,
   "@payloadcms/richtext-lexical/client#TableFeatureClient": TableFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
+  "@/features/epub-internal-link/feature.client#EpubInternalLinkFeatureClient": EpubInternalLinkFeatureClient_39b1aa8e11ee1c4b71045ba13d597423,
   "@payloadcms/richtext-lexical/client#BlocksFeatureClient": BlocksFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
   "@payloadcms/richtext-lexical/client#CodeComponent": CodeComponent_e70f5e05f09f93e00b997edb1ef0c864,
   "@payloadcms/richtext-lexical/client#codeConverterClient": codeConverterClient_e70f5e05f09f93e00b997edb1ef0c864,

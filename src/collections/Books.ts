@@ -69,7 +69,10 @@ export const Books: CollectionConfig = {
     },
   },
   hooks: {
-    beforeValidate: [enforceOwnershipHook('createdBy'), createRandomizedSlugHook('title')],
+    beforeValidate: [
+      enforceOwnershipHook('createdBy'),
+      createRandomizedSlugHook('title', { localeField: 'language', defaultLocale: 'en' }),
+    ],
     beforeChange: [applyBookImportLifecycleHook],
     beforeDelete: [enforceBookHasNoChaptersBeforeDelete],
   },
@@ -82,6 +85,83 @@ export const Books: CollectionConfig = {
     {
       name: 'author',
       type: 'text',
+    },
+    {
+      name: 'description',
+      type: 'textarea',
+      admin: {
+        description: 'Synopsis or blurb from the EPUB metadata or manually authored.',
+      },
+    },
+    {
+      name: 'language',
+      type: 'text',
+      admin: {
+        position: 'sidebar',
+        description: 'BCP 47 language tag (e.g., "en", "vi", "ja").',
+      },
+    },
+    {
+      name: 'publisher',
+      type: 'text',
+      admin: {
+        position: 'sidebar',
+      },
+    },
+    {
+      name: 'publicationDate',
+      type: 'date',
+      admin: {
+        position: 'sidebar',
+      },
+    },
+    {
+      name: 'isbn',
+      type: 'text',
+      index: true,
+      admin: {
+        position: 'sidebar',
+        description: 'Primary ISBN or dc:identifier from EPUB.',
+      },
+    },
+    {
+      name: 'subjects',
+      type: 'array',
+      admin: {
+        description: 'Genre and topic tags from EPUB metadata.',
+      },
+      fields: [
+        {
+          name: 'subject',
+          type: 'text',
+          required: true,
+        },
+      ],
+    },
+    {
+      name: 'chapterCount',
+      type: 'number',
+      admin: {
+        position: 'sidebar',
+        readOnly: true,
+      },
+    },
+    {
+      name: 'totalWordCount',
+      type: 'number',
+      admin: {
+        position: 'sidebar',
+        readOnly: true,
+      },
+    },
+    {
+      name: 'epubVersion',
+      type: 'select',
+      options: ['2', '3'],
+      admin: {
+        position: 'sidebar',
+        readOnly: true,
+      },
     },
     {
       name: 'slug',

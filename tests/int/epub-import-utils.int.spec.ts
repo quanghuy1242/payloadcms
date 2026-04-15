@@ -300,7 +300,8 @@ describe('EPUB import utilities', () => {
       'The Wild Robot Escapes',
     )
     expect(createImportedBookTitle('', 'fallback.epub')).toBe('fallback')
-    expect(createImportedBookSlug('Mắt Biếc')).toBe('mat-biec')
+    expect(createImportedBookSlug('Đắk Lắk', 'vi')).toBe('dak-lak')
+    expect(createImportedBookSlug('Đắk Lắk', 'en')).toBe('djak-lak')
   })
 
   it('derives image alt text from html attributes and chapter context', () => {
@@ -337,15 +338,20 @@ describe('EPUB import utilities', () => {
     expect(editorState.root.children.length).toBeGreaterThan(0)
   })
 
-  it('drops unsupported relative links before lexical conversion', () => {
+  it('preserves relative links as epub-internal-link sentinel nodes', () => {
     const editorState = convertHtmlToChapterLexicalState(
       '<p><a href="../chapter-2.xhtml">Next chapter</a> and <a href="https://payloadcms.com">Payload</a></p>',
     )
 
     const lexicalText = collectLexicalText(editorState.root)
+    const internalLinks = findAllNodesOfType(editorState, 'epub-internal-link')
+    const externalLinks = findAllNodesOfType(editorState, 'link')
 
     expect(lexicalText).toContain('Next chapter')
     expect(lexicalText).toContain('Payload')
+    expect(internalLinks).toHaveLength(1)
+    expect(internalLinks[0]?.fields).toEqual({ epubHref: '../chapter-2.xhtml' })
+    expect(externalLinks).toHaveLength(1)
   })
 
   it('estimates chapter word count from html text content', () => {

@@ -4,7 +4,29 @@ import slugify from 'slugify'
 
 import { isNonEmptyString, toNullableString } from './strings'
 
-export const formatSlug = (value: unknown): string => {
+export const resolveSlugLocale = (value: unknown, fallbackLocale = 'vi'): string => {
+  const normalized = toNullableString(value)?.toLowerCase()
+
+  if (!normalized) {
+    return fallbackLocale
+  }
+
+  if (normalized.startsWith('vi')) {
+    return 'vi'
+  }
+
+  if (normalized.startsWith('ja')) {
+    return 'ja'
+  }
+
+  if (normalized.startsWith('en')) {
+    return 'en'
+  }
+
+  return fallbackLocale
+}
+
+export const formatSlug = (value: unknown, locale = 'vi'): string => {
   const normalized = toNullableString(value)
 
   if (!normalized) {
@@ -14,7 +36,7 @@ export const formatSlug = (value: unknown): string => {
   return slugify(normalized, {
     lower: true,
     strict: true,
-    locale: 'vi', // Vietnamese locale support
+    locale,
     trim: true,
   })
 }
@@ -24,8 +46,8 @@ const generateRandomSegment = (length: number): string => {
   return bytes.toString('hex').slice(0, length)
 }
 
-const buildRandomSlug = (value: unknown, randomLength: number): string => {
-  const base = formatSlug(value)
+const buildRandomSlug = (value: unknown, randomLength: number, locale: string): string => {
+  const base = formatSlug(value, locale)
   const suffix = generateRandomSegment(randomLength)
 
   if (!base) {
@@ -73,6 +95,9 @@ export const createSlugHook = (sourceField: string): CollectionBeforeValidateHoo
 
 type RandomSlugOptions = {
   randomLength?: number
+  locale?: string
+  localeField?: string
+  defaultLocale?: string
 }
 
 export const createRandomizedSlugHook = (
@@ -88,13 +113,23 @@ export const createRandomizedSlugHook = (
 
     const candidateSource = workingRecord[sourceField] ?? originalRecord[sourceField]
     const sourceValue = isNonEmptyString(candidateSource) ? candidateSource : undefined
+    const localeCandidate =
+      options?.locale ??
+      (options?.localeField
+        ? workingRecord[options.localeField] ?? originalRecord[options.localeField]
+        : undefined)
+    const slugLocale = resolveSlugLocale(localeCandidate, options?.defaultLocale ?? 'vi')
 
     const hasSlug = isNonEmptyString(workingRecord.slug)
     const isPublished = (workingRecord._status ?? originalRecord._status) === 'published'
 
     if (operation === 'create') {
       if (!hasSlug) {
-        workingRecord.slug = buildRandomSlug(sourceValue ?? workingRecord.slug, randomLength)
+        workingRecord.slug = buildRandomSlug(
+          sourceValue ?? workingRecord.slug,
+          randomLength,
+          slugLocale,
+        )
       }
       // If user provided a slug on create, keep it as-is (they generated it via the button)
     }
@@ -108,7 +143,11 @@ export const createRandomizedSlugHook = (
         workingRecord.slug = originalSlug
       } else if (!hasSlug && !isPublished) {
         // Only auto-generate if no slug provided and still draft
-        workingRecord.slug = buildRandomSlug(sourceValue ?? workingRecord.slug, randomLength)
+        workingRecord.slug = buildRandomSlug(
+          sourceValue ?? workingRecord.slug,
+          randomLength,
+          slugLocale,
+        )
       }
       // Otherwise keep the user-provided slug (allow edits while draft)
     }
@@ -124,7 +163,7 @@ type ValidateArgs = {
 }
 
 export const validateImmutableSlug = (value: unknown, args: ValidateArgs) => {
-  const { operation, previousValue, data } = args
+  const { operation, previousValue } = args
 
   if (!isNonEmptyString(value)) {
     return 'Slug is required.'

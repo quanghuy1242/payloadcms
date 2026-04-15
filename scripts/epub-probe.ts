@@ -56,6 +56,7 @@ const SUPPORTED_NODE_TYPES = new Set([
   'list',
   'listitem',
   'link',
+  'epub-internal-link',
   'table',
   'tablerow',
   'tablecell',
@@ -112,6 +113,33 @@ const collectLexicalText = (node: any): string => {
   return normalizeWhitespace(withoutImagePlaceholders)
 }
 
+const countLexicalNodesOfType = (node: any, type: string): number => {
+  let count = 0
+
+  const walk = (value: any) => {
+    if (!value || typeof value !== 'object') {
+      return
+    }
+
+    if (value.type === type) {
+      count += 1
+    }
+
+    if (Array.isArray(value.children)) {
+      for (const child of value.children) {
+        walk(child)
+      }
+    }
+
+    if (value.root) {
+      walk(value.root)
+    }
+  }
+
+  walk(node?.root ?? node)
+  return count
+}
+
 function validateLexicalState(state: any, expectedHtmlText: string): string[] {
   const issues: string[] = []
   if (!state?.root?.children?.length) {
@@ -128,6 +156,12 @@ function validateLexicalState(state: any, expectedHtmlText: string): string[] {
     if (node.type === 'link') {
       if (node.version !== 3) issues.push(`link node has version ${node.version} (expected 3)`)
       if (!node.fields?.linkType) issues.push('link node missing fields.linkType')
+    }
+
+    if (node.type === 'epub-internal-link') {
+      if (typeof node.fields?.epubHref !== 'string' || node.fields.epubHref.length === 0) {
+        issues.push('epub-internal-link node missing fields.epubHref')
+      }
     }
 
     for (const [key, val] of Object.entries(node)) {
@@ -189,6 +223,14 @@ async function probeEpub(
   await book.open(base64, 'base64')
   await book.ready
 
+  const metadata = await book.loaded.metadata
+  const packaging = book.packaging ?? {}
+  const epubVersion = packaging.navPath ? '3' : '2'
+
+  console.log(
+    `  Metadata: title="${metadata.title ?? ''}", author="${metadata.creator ?? ''}", language="${metadata.language ?? ''}", publisher="${metadata.publisher ?? ''}", epubVersion="${epubVersion}"`,
+  )
+
   const navigation = await book.loaded.navigation
   const tocItems = navigation.toc ?? []
 
@@ -247,7 +289,13 @@ async function probeEpub(
       } else if (issues.length === 0) {
         const warnNote =
           sanitized.warnings.length > 0 ? ` (${sanitized.warnings.length} sanitize warnings)` : ''
-        console.log(`  ${chapterLabel}: OK${warnNote}`)
+        const internalLinkCount = countLexicalNodesOfType(state, 'epub-internal-link')
+        const externalLinkCount = countLexicalNodesOfType(state, 'link')
+        const linkSummary =
+          internalLinkCount > 0 || externalLinkCount > 0
+            ? ` (${internalLinkCount} internal links, ${externalLinkCount} external links)`
+            : ''
+        console.log(`  ${chapterLabel}: OK${warnNote}${linkSummary}`)
         okCount++
       } else {
         console.log(`  ${chapterLabel}: ISSUES`)
