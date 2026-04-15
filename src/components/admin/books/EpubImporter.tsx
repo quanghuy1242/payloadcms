@@ -6,7 +6,12 @@ import { useRouter } from 'next/navigation'
 import React, { useRef, useState } from 'react'
 
 import { normalizeEntityId } from '@/utils/access'
-import { convertHtmlToChapterLexicalState, isSubstantiveChapterContent } from '@/utils/epubLexical'
+import {
+  collectFootnoteDefinitionsFromHTML,
+  convertHtmlToChapterLexicalState,
+  isSubstantiveChapterContent,
+  type FootnoteDefinition,
+} from '@/utils/epubLexical'
 import {
   createChapterBatches,
   buildChapterSourceKey,
@@ -74,6 +79,7 @@ type UploadedMedia = {
 type PreparedChapter = {
   chapterHTML: string
   chapterOrder: number
+  footnoteDefinitions: FootnoteDefinition[]
   tocHref: string | null
   tocIdRef: string | null
   tocTitle: string | null
@@ -555,10 +561,12 @@ export const EpubImporter: React.FC = () => {
         }
 
         const tocMetadata = resolveChapterTocMetadata(tocItems, spineItem.href ?? '')
+        const footnoteDefinitions = Array.from(collectFootnoteDefinitionsFromHTML(chapterHTML).values())
 
         preparedChapters.push({
           chapterHTML,
           chapterOrder,
+          footnoteDefinitions,
           tocHref: tocMetadata?.href ?? null,
           tocIdRef: tocMetadata?.id ?? null,
           tocTitle: tocMetadata?.title ?? null,
@@ -587,6 +595,7 @@ export const EpubImporter: React.FC = () => {
     preparedChapter: PreparedChapter,
     totalChapters: number,
     existingChaptersByOrder: Map<number, ChapterDocument>,
+    footnotesById: Map<string, FootnoteDefinition>,
     mediaCache: Map<string, UploadedMedia>,
     mediaInFlight: Map<string, Promise<UploadedMedia | null>>,
     signal: AbortSignal,
@@ -712,7 +721,9 @@ export const EpubImporter: React.FC = () => {
         }),
       )
 
-      const lexicalContent = convertHtmlToChapterLexicalState(sanitizedChapter.html)
+      const lexicalContent = convertHtmlToChapterLexicalState(sanitizedChapter.html, {
+        footnotesById,
+      })
 
       // Skip navigation-only or empty chapters instead of sending them to the API
       if (!isSubstantiveChapterContent(lexicalContent)) {
@@ -772,6 +783,7 @@ export const EpubImporter: React.FC = () => {
     preparedChapter: PreparedChapter,
     totalChapters: number,
     existingChaptersByOrder: Map<number, ChapterDocument>,
+    footnotesById: Map<string, FootnoteDefinition>,
     mediaCache: Map<string, UploadedMedia>,
     mediaInFlight: Map<string, Promise<UploadedMedia | null>>,
     signal: AbortSignal,
@@ -787,6 +799,7 @@ export const EpubImporter: React.FC = () => {
         preparedChapter,
         totalChapters,
         existingChaptersByOrder,
+        footnotesById,
         mediaCache,
         mediaInFlight,
         signal,
@@ -820,6 +833,7 @@ export const EpubImporter: React.FC = () => {
     sourceHash: string,
     totalChapters: number,
     existingChaptersByOrder: Map<number, ChapterDocument>,
+    footnotesById: Map<string, FootnoteDefinition>,
     mediaCache: Map<string, UploadedMedia>,
     mediaInFlight: Map<string, Promise<UploadedMedia | null>>,
     signal: AbortSignal,
@@ -845,6 +859,7 @@ export const EpubImporter: React.FC = () => {
             preparedChapter,
             totalChapters,
             existingChaptersByOrder,
+            footnotesById,
             mediaCache,
             mediaInFlight,
             signal,
@@ -1194,6 +1209,14 @@ export const EpubImporter: React.FC = () => {
       }
 
       const preparedChapters = await prepareChaptersForImport(openedBook, spineItems, abortController.signal)
+      const footnotesById = new Map<string, FootnoteDefinition>()
+
+      for (const preparedChapter of preparedChapters) {
+        for (const footnoteDefinition of preparedChapter.footnoteDefinitions) {
+          footnotesById.set(footnoteDefinition.noteId, footnoteDefinition)
+        }
+      }
+
       const chapterBatches = createChapterBatches(
         preparedChapters,
         MAX_CHAPTERS_PER_BATCH,
@@ -1253,6 +1276,7 @@ export const EpubImporter: React.FC = () => {
             sourceHash,
             preparedChapters.length,
             existingChaptersByOrder,
+            footnotesById,
             mediaCache,
             mediaInFlight,
             abortController.signal,

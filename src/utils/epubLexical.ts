@@ -6,15 +6,43 @@ import { buildStableHash } from './epubImport'
 // Types
 // ---------------------------------------------------------------------------
 
+export type FootnoteDefinition = {
+  noteId: string
+  content: string
+}
+
+export type FootnoteDefinitionMap = Map<string, FootnoteDefinition>
+
+type FootnoteReference = {
+  marker: string
+  noteId: string
+  content: string
+}
+
 type WalkContext = {
   format: number
   insidePre: boolean
   insideListItem: boolean
   listDepth: number
   nodeCounter: { value: number }
+  footnotesById: FootnoteDefinitionMap
+  referencedFootnotes: Map<string, FootnoteReference>
+}
+
+export type HtmlToPayloadLexicalOptions = {
+  footnotesById?: FootnoteDefinitionMap
 }
 
 type AnyNode = Record<string, unknown> & { type: string; version: number }
+
+const trimToNull = (value: unknown): string | null => {
+  if (typeof value !== 'string') {
+    return null
+  }
+
+  const trimmed = value.trim()
+  return trimmed.length > 0 ? trimmed : null
+}
 
 // ---------------------------------------------------------------------------
 // Node-type detection
@@ -48,6 +76,19 @@ const makeCodeBlock = (code: string, language = 'plaintext'): AnyNode => ({
     blockName: '',
     code,
     language,
+  },
+})
+
+const makeFootnoteBlock = (noteId: string, marker: string, content: string): AnyNode => ({
+  type: 'block',
+  version: 2,
+  format: '',
+  fields: {
+    blockType: 'Footnote',
+    blockName: '',
+    noteId,
+    marker,
+    content,
   },
 })
 
@@ -162,6 +203,16 @@ const makeEpubInternalLink = (epubHref: string, children: AnyNode[]): AnyNode =>
   children,
 })
 
+const makeFootnoteRef = (marker: string, noteId: string): AnyNode => ({
+  type: 'footnote-ref',
+  version: 1,
+  format: '',
+  indent: 0,
+  direction: 'ltr',
+  fields: { marker, noteId },
+  children: [],
+})
+
 const makeTableRow = (children: AnyNode[]): AnyNode => ({
   type: 'tablerow',
   version: 1,
@@ -189,6 +240,123 @@ const makeTableCell = (
   indent: 0,
   children,
 })
+
+const normalizeToArray = (value: string): string[] => {
+  return value
+    .toLowerCase()
+    .split(/\s+/)
+    .map((token) => token.trim())
+    .filter((token) => token.length > 0)
+}
+
+const collectFootnoteDefinitionsFromDocument = (document: Document): FootnoteDefinitionMap => {
+  const footnotesById: FootnoteDefinitionMap = new Map()
+
+  for (const aside of Array.from(document.querySelectorAll('aside'))) {
+    const epubType = normalizeToArray(aside.getAttribute('epub:type') ?? '')
+    const isFootnote = epubType.includes('footnote') || epubType.includes('endnote')
+
+    if (!isFootnote) {
+      continue
+    }
+
+    const noteId = trimToNull(aside.getAttribute('id'))
+
+    if (!noteId) {
+      aside.remove()
+      continue
+    }
+
+    const content = trimToNull((aside.textContent ?? '').replace(/\s+/g, ' '))
+
+    if (!content) {
+      aside.remove()
+      continue
+    }
+
+    footnotesById.set(noteId, { noteId, content })
+    aside.remove()
+  }
+
+  return footnotesById
+}
+
+export const collectFootnoteDefinitionsFromHTML = (html: string): FootnoteDefinitionMap => {
+  const parser = new DOMParser()
+  const document = parser.parseFromString(html, 'text/html')
+
+  return collectFootnoteDefinitionsFromDocument(document)
+}
+
+const mergeFootnoteDefinitions = (
+  ...maps: Array<FootnoteDefinitionMap | undefined>
+): FootnoteDefinitionMap => {
+  const merged: FootnoteDefinitionMap = new Map()
+
+  for (const map of maps) {
+    if (!map) {
+      continue
+    }
+
+    for (const [noteId, definition] of map.entries()) {
+      merged.set(noteId, definition)
+    }
+  }
+
+  return merged
+}
+
+const extractHashFragment = (value: string): string | null => {
+  const hashIndex = value.indexOf('#')
+
+  if (hashIndex < 0) {
+    return null
+  }
+
+  return trimToNull(value.slice(hashIndex + 1))
+}
+
+const extractFootnoteMarker = (el: Element): string => {
+  const marker = trimToNull((el.textContent ?? '').replace(/\s+/g, ' '))
+  return marker ?? ''
+}
+
+const resolveFootnoteReference = (
+  el: Element,
+  href: string,
+  footnotesById: FootnoteDefinitionMap,
+): string | null => {
+  const epubType = normalizeToArray(el.getAttribute('epub:type') ?? '')
+  const noteId = extractHashFragment(href)
+
+  if (epubType.includes('noteref') && noteId) {
+    return noteId
+  }
+
+  if (noteId && footnotesById.has(noteId)) {
+    const parentTag = el.parentElement?.tagName.toLowerCase()
+
+    if (parentTag === 'sup') {
+      return noteId
+    }
+  }
+
+  return null
+}
+
+const buildFootnoteBlocks = (ctx: WalkContext): AnyNode[] => {
+  const blocks: AnyNode[] = []
+
+  for (const reference of ctx.referencedFootnotes.values()) {
+    if (reference.content.length === 0) {
+      continue
+    }
+
+    blocks.push(makeFootnoteBlock(reference.noteId, reference.marker, reference.content))
+  }
+
+  return blocks
+}
 
 // ---------------------------------------------------------------------------
 // Helper: normalize container nodes so inline-only content becomes paragraphs.
@@ -297,6 +465,11 @@ const walkNode = (node: Node, ctx: WalkContext): AnyNode[] => {
         return children.length > 0 ? [makeParagraph(children)] : []
       }
 
+    case 'caption': {
+      const children = walkChildren(el, ctx)
+      return children.length > 0 ? [makeParagraph(children)] : []
+    }
+
     case 'h1':
     case 'h2':
     case 'h3':
@@ -332,12 +505,30 @@ const walkNode = (node: Node, ctx: WalkContext): AnyNode[] => {
       }
 
       const code = normalizedLines.join('\n')
+      const codeLanguage = (() => {
+        const codeEl = clone.querySelector('code')
+        const sourceElement = codeEl ?? clone
+        const dataLanguage =
+          trimToNull(sourceElement.getAttribute('data-language')) ??
+          trimToNull(sourceElement.getAttribute('data-lang')) ??
+          trimToNull(clone.getAttribute('data-language')) ??
+          trimToNull(clone.getAttribute('data-lang'))
+
+        if (dataLanguage) {
+          return dataLanguage.toLowerCase()
+        }
+
+        const className = sourceElement.className
+        const languageMatch = className.match(/(?:language-|lang-)([a-z0-9_+-]+)/i)
+
+        return languageMatch?.[1]?.toLowerCase() ?? 'plaintext'
+      })()
 
       if (code.trim().length === 0) {
         return []
       }
 
-      return [makeCodeBlock(code)]
+      return [makeCodeBlock(code, codeLanguage)]
     }
 
     case 'ul':
@@ -353,12 +544,15 @@ const walkNode = (node: Node, ctx: WalkContext): AnyNode[] => {
     }
 
     case 'table': {
+      const captions: AnyNode[] = []
       const rows: AnyNode[] = []
       for (const child of Array.from(el.childNodes)) {
         if (child.nodeType !== 1) continue
         const childEl = child as Element
         const childTag = childEl.tagName.toLowerCase()
-        if (childTag === 'tr') {
+        if (childTag === 'caption') {
+          captions.push(...walkNode(child, ctx))
+        } else if (childTag === 'tr') {
           rows.push(...walkNode(child, ctx))
         } else if (childTag === 'thead' || childTag === 'tbody' || childTag === 'tfoot') {
           for (const tr of Array.from(childEl.children)) {
@@ -368,7 +562,27 @@ const walkNode = (node: Node, ctx: WalkContext): AnyNode[] => {
           }
         }
       }
-      return [makeTable(rows)]
+
+      const rowNodes = rows.filter((row): row is AnyNode => row.type === 'tablerow')
+      const hasHeaderCell = rowNodes.some((row) => {
+        const cells = Array.isArray((row as AnyNode).children) ? ((row as AnyNode).children as AnyNode[]) : []
+        return cells.some((cell) => cell.type === 'tablecell' && cell.headerState === 1)
+      })
+      const maxColumnCount = rowNodes.reduce((maxColumns, row) => {
+        const cells = Array.isArray((row as AnyNode).children) ? ((row as AnyNode).children as AnyNode[]) : []
+        return Math.max(maxColumns, cells.length)
+      }, 0)
+
+      if (!hasHeaderCell && maxColumnCount <= 1) {
+        const flatContent = rowNodes.flatMap((row) => {
+          const cells = Array.isArray((row as AnyNode).children) ? ((row as AnyNode).children as AnyNode[]) : []
+          return cells.flatMap((cell) => (Array.isArray((cell as AnyNode).children) ? ((cell as AnyNode).children as AnyNode[]) : []))
+        })
+
+        return [...captions, ...normalizeContainerNodes(flatContent)]
+      }
+
+      return [...captions, makeTable(rows)]
     }
 
     case 'thead':
@@ -429,6 +643,12 @@ const walkNode = (node: Node, ctx: WalkContext): AnyNode[] => {
 
     case 'aside':
       {
+        const epubType = normalizeToArray(el.getAttribute('epub:type') ?? '')
+
+        if (epubType.includes('footnote') || epubType.includes('endnote')) {
+          return []
+        }
+
         const children = normalizeContainerNodes(walkChildren(el, ctx))
         return children.length > 0 ? [makeQuote(children)] : []
       }
@@ -439,6 +659,8 @@ const walkNode = (node: Node, ctx: WalkContext): AnyNode[] => {
 
     // Drop silently
     case 'hr':
+      return [makeParagraph([makeText('* * *', 2)])]
+
     case 'video':
     case 'audio':
     case 'object':
@@ -476,6 +698,26 @@ const walkNode = (node: Node, ctx: WalkContext): AnyNode[] => {
 
     case 'a': {
       const href = el.getAttribute('href') ?? ''
+
+      const footnoteReference = resolveFootnoteReference(el, href, ctx.footnotesById)
+
+      if (footnoteReference) {
+        const marker = extractFootnoteMarker(el)
+        const noteDefinition = ctx.footnotesById.get(footnoteReference)
+
+        if (marker.length > 0) {
+          if (!ctx.referencedFootnotes.has(footnoteReference)) {
+            ctx.referencedFootnotes.set(footnoteReference, {
+              content: noteDefinition?.content ?? '',
+              marker,
+              noteId: footnoteReference,
+            })
+          }
+
+          return [makeFootnoteRef(marker, footnoteReference)]
+        }
+      }
+
       // Case 1: external URL → Payload v3 link
       if (href.startsWith('http://') || href.startsWith('https://')) {
         const target = (el.getAttribute('target') ?? '').toLowerCase()
@@ -554,6 +796,31 @@ const walkNode = (node: Node, ctx: WalkContext): AnyNode[] => {
     case 'ins':
       return walkChildren(el, ctx)
 
+    case 'dl': {
+      const items: AnyNode[] = []
+      let value = 1
+
+      for (const child of Array.from(el.children)) {
+        const tagName = child.tagName.toLowerCase()
+
+        if (tagName === 'dt') {
+          const boldChildren = walkChildren(child, { ...ctx, format: ctx.format | 1 })
+          items.push(makeListItem(value, normalizeContainerNodes(boldChildren)))
+          value += 1
+        } else if (tagName === 'dd') {
+          const definitionChildren = walkChildren(child, ctx)
+          items.push(makeListItem(value, normalizeContainerNodes(definitionChildren)))
+          value += 1
+        }
+      }
+
+      return items.length > 0 ? [makeList('bullet', 'ul', items, ctx.listDepth)] : []
+    }
+
+    case 'dt':
+    case 'dd':
+      return walkChildren(el, ctx)
+
     // -----------------------------------------------------------------------
     // Default: unwrap unknown elements
     // -----------------------------------------------------------------------
@@ -567,9 +834,14 @@ const walkNode = (node: Node, ctx: WalkContext): AnyNode[] => {
 // Public API
 // ---------------------------------------------------------------------------
 
-export const htmlToPayloadLexical = (html: string): SerializedEditorState => {
+export const htmlToPayloadLexical = (
+  html: string,
+  options: HtmlToPayloadLexicalOptions = {},
+): SerializedEditorState => {
   const parser = new DOMParser()
   const dom = parser.parseFromString(html, 'text/html')
+  const localFootnotesById = collectFootnoteDefinitionsFromDocument(dom)
+  const footnotesById = mergeFootnoteDefinitions(options.footnotesById, localFootnotesById)
 
   const ctx: WalkContext = {
     format: 0,
@@ -577,19 +849,29 @@ export const htmlToPayloadLexical = (html: string): SerializedEditorState => {
     insideListItem: false,
     listDepth: 0,
     nodeCounter: { value: 0 },
+    footnotesById,
+    referencedFootnotes: new Map(),
   }
 
   const children = normalizeContainerNodes(
     Array.from(dom.body.childNodes).flatMap((child) => walkNode(child, ctx)),
   )
 
-  const rootChildren = children.length > 0 ? children : [makeParagraph([])]
+  const footnoteBlocks = buildFootnoteBlocks(ctx)
+  const rootChildren = [...children, ...footnoteBlocks]
+
+  if (rootChildren.length === 0) {
+    return makeRoot([makeParagraph([])])
+  }
 
   return makeRoot(rootChildren)
 }
 
-export const convertHtmlToChapterLexicalState = (html: string): SerializedEditorState => {
-  return htmlToPayloadLexical(html)
+export const convertHtmlToChapterLexicalState = (
+  html: string,
+  options: HtmlToPayloadLexicalOptions = {},
+): SerializedEditorState => {
+  return htmlToPayloadLexical(html, options)
 }
 
 export function isSubstantiveChapterContent(state: SerializedEditorState): boolean {
@@ -610,6 +892,10 @@ export function isSubstantiveChapterContent(state: SerializedEditorState): boole
       if (typeof code === 'string' && code.trim().length > 0) {
         return true
       }
+    }
+
+    if (node.type === 'footnote-ref') {
+      return true
     }
 
     if (node.type === 'upload') {

@@ -732,6 +732,8 @@ On touch devices where hover is unavailable, the popover triggers on tap; on key
 
 **Fallback for unsupported books:** If no `epub:type` attributes are present (EPUB2 without semantic markup), footnotes remain as plain text links that scroll the reader to the notes section at the bottom of the chapter, which is still a usable experience.
 
+**Integration note:** this repository now serializes the `footnote-ref` inline node and `footnote` block data, but the actual hover popover / notes rendering still belongs in the blog repo. Keep the `data-note-id` contract stable when wiring that UI later.
+
 ### 8.2 Sidebars and Callout Boxes
 
 The current walker maps `<aside>` to `makeQuote(...)`. This is semantically wrong — a blockquote represents quoted speech, whereas an aside is a sidebar or callout.

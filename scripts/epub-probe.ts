@@ -57,6 +57,7 @@ const SUPPORTED_NODE_TYPES = new Set([
   'listitem',
   'link',
   'epub-internal-link',
+  'footnote-ref',
   'table',
   'tablerow',
   'tablecell',
@@ -92,6 +93,11 @@ const collectLexicalText = (node: any): string => {
 
     if (value.type === 'linebreak') {
       parts.push('\n')
+      return
+    }
+
+    if (value.type === 'footnote-ref' && typeof value.fields?.marker === 'string') {
+      parts.push(value.fields.marker)
       return
     }
 
@@ -161,6 +167,16 @@ function validateLexicalState(state: any, expectedHtmlText: string): string[] {
     if (node.type === 'epub-internal-link') {
       if (typeof node.fields?.epubHref !== 'string' || node.fields.epubHref.length === 0) {
         issues.push('epub-internal-link node missing fields.epubHref')
+      }
+    }
+
+    if (node.type === 'footnote-ref') {
+      if (typeof node.fields?.marker !== 'string' || node.fields.marker.length === 0) {
+        issues.push('footnote-ref node missing fields.marker')
+      }
+
+      if (typeof node.fields?.noteId !== 'string' || node.fields.noteId.length === 0) {
+        issues.push('footnote-ref node missing fields.noteId')
       }
     }
 

@@ -95,6 +95,7 @@ vi.mock('next/navigation', () => {
 
 vi.mock('@/utils/epubLexical', () => {
   return {
+    collectFootnoteDefinitionsFromHTML: vi.fn(() => new Map()),
     convertHtmlToChapterLexicalState: vi.fn(() => simpleLexicalState),
     isSubstantiveChapterContent: vi.fn(() => true),
   }

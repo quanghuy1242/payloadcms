@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { htmlToPayloadLexical, isSubstantiveChapterContent } from '@/utils/epubLexical'
+import {
+  collectFootnoteDefinitionsFromHTML,
+  htmlToPayloadLexical,
+  isSubstantiveChapterContent,
+} from '@/utils/epubLexical'
 
 function findNodes(state: any, type: string): any[] {
   const results: any[] = []
@@ -238,6 +242,16 @@ describe('htmlToPayloadLexical', () => {
     expect(blockNodes[0].fields.code).toBe('code content')
   })
 
+  it('detects code block language from data-language and class names', () => {
+    const result = htmlToPayloadLexical(
+      '<pre data-language="python"><code class="language-python">print("hi")</code></pre>',
+    )
+    const blockNodes = findNodes(result, 'block')
+
+    expect(blockNodes).toHaveLength(1)
+    expect(blockNodes[0].fields.language).toBe('python')
+  })
+
   it('strips anchor IDs from inside <pre> — Manning pattern', () => {
     const result = htmlToPayloadLexical('<pre><a id="L1"></a>const x = 1</pre>')
     const blockNodes = findNodes(result, 'block')
@@ -247,10 +261,12 @@ describe('htmlToPayloadLexical', () => {
     expect(findNodes(result, 'link')).toHaveLength(0)
   })
 
-  it('drops <hr> elements silently', () => {
+  it('renders <hr> as an asterism paragraph', () => {
     const result = htmlToPayloadLexical('<p>before</p><hr/><p>after</p>')
-    expect(result.root.children).toHaveLength(2)
-    expect(result.root.children.every((n: any) => n.type !== 'hr')).toBe(true)
+    expect(result.root.children).toHaveLength(3)
+    const separator = result.root.children[1] as any
+    expect(separator.type).toBe('paragraph')
+    expect(findNodes(result, 'text').some((node: any) => node.text === '* * *')).toBe(true)
   })
 
   it('drops <nav> elements (or their content)', () => {
@@ -278,10 +294,33 @@ describe('htmlToPayloadLexical', () => {
     expect((result.root.children[0] as any).type).toBe('paragraph')
   })
 
-  it('converts <aside> to a quote node', () => {
-    const result = htmlToPayloadLexical('<aside><p>side note</p></aside>')
+  it('keeps sidebars as quote nodes', () => {
+    const result = htmlToPayloadLexical('<aside epub:type="sidebar"><p>side note</p></aside>')
     const quotes = findNodes(result, 'quote')
     expect(quotes).toHaveLength(1)
+  })
+
+  it('converts footnote refs to footnote-ref nodes and appends footnote blocks', () => {
+    const footnotesById = collectFootnoteDefinitionsFromHTML(
+      '<aside epub:type="footnote" id="fn1"><p>Note text</p></aside>',
+    )
+    const result = htmlToPayloadLexical(
+      '<p>See <a epub:type="noteref" href="#fn1">1</a> for details.</p>',
+      { footnotesById },
+    )
+
+    const refs = findNodes(result, 'footnote-ref')
+    const blocks = findNodes(result, 'block').filter(
+      (node: any) => node.fields?.blockType === 'Footnote',
+    )
+
+    expect(refs).toHaveLength(1)
+    expect(refs[0].fields.marker).toBe('1')
+    expect(refs[0].fields.noteId).toBe('fn1')
+    expect(blocks).toHaveLength(1)
+    expect(blocks[0].fields.noteId).toBe('fn1')
+    expect(blocks[0].fields.marker).toBe('1')
+    expect(blocks[0].fields.content).toBe('Note text')
   })
 
   it('converts nested lists recursively with depth indent', () => {
@@ -291,9 +330,17 @@ describe('htmlToPayloadLexical', () => {
     expect(lists.some((list: any) => list.indent === 1)).toBe(true)
   })
 
+  it('converts definition lists into bulleted list items', () => {
+    const result = htmlToPayloadLexical('<dl><dt>Term</dt><dd>Definition</dd></dl>')
+    expect(findNodes(result, 'list')).toHaveLength(1)
+    expect(findNodes(result, 'listitem')).toHaveLength(2)
+    expect(findNodes(result, 'text').some((node: any) => node.text.includes('Term'))).toBe(true)
+    expect(findNodes(result, 'text').some((node: any) => node.text.includes('Definition'))).toBe(true)
+  })
+
   it('preserves colspan and rowspan on table cells', () => {
     const result = htmlToPayloadLexical(
-      '<table><tr><td colspan="2" rowspan="3">cell</td></tr></table>',
+      '<table><tr><td colspan="2" rowspan="3">cell</td><td>other</td></tr></table>',
     )
     const cells = findNodes(result, 'tablecell')
     expect(cells[0].colSpan).toBe(2)
@@ -338,6 +385,12 @@ describe('htmlToPayloadLexical', () => {
     expect(isSubstantiveChapterContent(result)).toBe(true)
   })
 
+  it('treats footnote refs as substantive', () => {
+    const result = htmlToPayloadLexical('<p><a epub:type="noteref" href="#fn1">1</a></p>')
+
+    expect(isSubstantiveChapterContent(result)).toBe(true)
+  })
+
   it('sets newTab when a link opens in a new window', () => {
     const result = htmlToPayloadLexical('<p><a href="https://example.com" target="_blank">click</a></p>')
     const links = findNodes(result, 'link')
@@ -347,10 +400,26 @@ describe('htmlToPayloadLexical', () => {
   // --- Tables ---
 
   it('converts basic <table><tr><td> to table/tablerow/tablecell nodes', () => {
-    const result = htmlToPayloadLexical('<table><tr><td>cell</td></tr></table>')
+    const result = htmlToPayloadLexical('<table><tr><td>cell 1</td><td>cell 2</td></tr></table>')
     expect(findNodes(result, 'table')).toHaveLength(1)
     expect(findNodes(result, 'tablerow')).toHaveLength(1)
-    expect(findNodes(result, 'tablecell')).toHaveLength(1)
+    expect(findNodes(result, 'tablecell')).toHaveLength(2)
+  })
+
+  it('moves <caption> into a paragraph before the table', () => {
+    const result = htmlToPayloadLexical(
+      '<table><caption>Table title</caption><tr><td>cell 1</td><td>cell 2</td></tr></table>',
+    )
+    expect(result.root.children[0].type).toBe('paragraph')
+    expect(findNodes(result, 'table')).toHaveLength(1)
+    expect(findNodes(result, 'text').some((node: any) => node.text === 'Table title')).toBe(true)
+  })
+
+  it('unwraps layout tables with a single column', () => {
+    const result = htmlToPayloadLexical('<table><tr><td>layout text</td></tr></table>')
+    expect(findNodes(result, 'table')).toHaveLength(0)
+    expect(findNodes(result, 'paragraph')).toHaveLength(1)
+    expect(findNodes(result, 'text').some((node: any) => node.text.includes('layout text'))).toBe(true)
   })
 
   it('marks <th> cells with headerState 1', () => {
