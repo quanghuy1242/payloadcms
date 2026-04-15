@@ -1076,7 +1076,7 @@ export const EpubImporter: React.FC = () => {
       const importedPublisher = toNullableString(metadata.publisher)
       const importedPublicationDate = toNullableString(metadata.pubdate)
       const importedIsbn = toNullableString(metadata.identifier)
-      const importedSubjects = normalizeEpubSubjects(metadata.subject)
+      const importedSubjects = normalizeEpubSubjects((metadata as { subject?: unknown }).subject)
       const epubVersion = resolveEpubVersion(openedBook)
       const sourceHash = buildStableBinaryHash(epubData)
       const legacySourceHash = buildStableHash(`${file.name}:${file.size}:${file.lastModified}`)

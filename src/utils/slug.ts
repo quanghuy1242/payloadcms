@@ -1,4 +1,3 @@
-import { randomBytes } from 'node:crypto'
 import type { CollectionBeforeValidateHook } from 'payload'
 import slugify from 'slugify'
 
@@ -42,8 +41,18 @@ export const formatSlug = (value: unknown, locale = 'vi'): string => {
 }
 
 const generateRandomSegment = (length: number): string => {
-  const bytes = randomBytes(Math.max(1, Math.ceil(length / 2)))
-  return bytes.toString('hex').slice(0, length)
+  const byteLength = Math.max(1, Math.ceil(length / 2))
+
+  if (typeof globalThis.crypto?.getRandomValues === 'function') {
+    const bytes = new Uint8Array(byteLength)
+    globalThis.crypto.getRandomValues(bytes)
+    return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('').slice(0, length)
+  }
+
+  return Array.from({ length: byteLength }, () => {
+    const byte = Math.floor(Math.random() * 256)
+    return byte.toString(16).padStart(2, '0')
+  }).join('').slice(0, length)
 }
 
 const buildRandomSlug = (value: unknown, randomLength: number, locale: string): string => {
