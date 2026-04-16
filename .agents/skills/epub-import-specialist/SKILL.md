@@ -1,6 +1,6 @@
 ---
 name: epub-import-specialist
-description: Understand and review the EPUB to Payload import pipeline, Lexical conversion, chapter batching, and image handling. Use when changing epubImport.ts, epubLexical.ts, chapterLexicalNodes.ts, or chapterRichText.ts, or debugging broken chapter content after an import.
+description: Understand and review the EPUB to Payload import pipeline, Lexical conversion, chapter batching, and image handling. Use when changing anything related to books, or debugging broken chapter content after an import.
 ---
 
 # EPUB Import Specialist

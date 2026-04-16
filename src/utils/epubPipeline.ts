@@ -102,6 +102,7 @@ type ChapterDocument = PayloadDocument & {
   chapterSourceKey?: string | null
   importBatchId?: string | null
   manualEditedAt?: string | null
+  chapterWordCount?: number | null
   order?: number | null
 }
 
@@ -809,6 +810,7 @@ const processPreparedChapter = async (
         book: bookID,
         chapterSourceHash,
         chapterSourceKey,
+        chapterWordCount: preparedChapter.wordCount,
         content: lexicalContent,
         importBatchId: importBatchID,
         manualEditedAt: null,

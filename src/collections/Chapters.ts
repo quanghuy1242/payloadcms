@@ -102,6 +102,14 @@ export const Chapters: CollectionConfig = {
       },
     },
     {
+      name: 'chapterWordCount',
+      type: 'number',
+      admin: {
+        position: 'sidebar',
+        readOnly: true,
+      },
+    },
+    {
       name: 'content',
       type: 'richText',
       required: true,

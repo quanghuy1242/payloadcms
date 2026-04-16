@@ -2038,7 +2038,7 @@ existing chapters (they will have null hierarchy fields until re-imported).
 
 ---
 
-**T2-2: Add `chapterWordCount` field to Chapters**
+**T2-2: Add `chapterWordCount` field to Chapters** [done 2026-04-17]
 
 **What**: Add a `chapterWordCount` (number, nullable) field to `Chapters.ts`. The EPUB
 importer already calls `estimateWordCountFromHTML()` per chapter; this value should be

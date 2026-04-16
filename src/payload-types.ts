@@ -287,6 +287,7 @@ export interface Chapter {
   chapterSourceHash?: string | null;
   importBatchId?: string | null;
   manualEditedAt?: string | null;
+  chapterWordCount?: number | null;
   content: {
     root: {
       type: string;
@@ -542,6 +543,7 @@ export interface ChaptersSelect<T extends boolean = true> {
   chapterSourceHash?: T;
   importBatchId?: T;
   manualEditedAt?: T;
+  chapterWordCount?: T;
   content?: T;
   createdBy?: T;
   updatedAt?: T;

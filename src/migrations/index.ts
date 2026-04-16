@@ -14,6 +14,7 @@ import * as migration_20251026_000001_better_auth_user_id from './20251026_00000
 import * as migration_20260412_000001_books_chapters from './20260412_000001_books_chapters';
 import * as migration_20260415_175817_epub_import_gap_1_3 from './20260415_175817_epub_import_gap_1_3';
 import * as migration_20260416_000001_epub_import_gap_6 from './20260416_000001_epub_import_gap_6';
+import * as migration_20260417_000001_chapter_word_count from './20260417_000001_chapter_word_count';
 
 export const migrations = [
   {
@@ -95,5 +96,10 @@ export const migrations = [
     up: migration_20260416_000001_epub_import_gap_6.up,
     down: migration_20260416_000001_epub_import_gap_6.down,
     name: '20260416_000001_epub_import_gap_6',
+  },
+  {
+    up: migration_20260417_000001_chapter_word_count.up,
+    down: migration_20260417_000001_chapter_word_count.down,
+    name: '20260417_000001_chapter_word_count',
   },
 ];

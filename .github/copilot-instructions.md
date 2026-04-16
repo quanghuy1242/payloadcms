@@ -48,7 +48,7 @@ pnpm promote:admin --email X      # Promote a user to admin (writes directly to 
 
 ## Skills
 
-**Load the matching skill before working on anything in its domain.** Skills contain the detailed checklists, patterns, and failure modes — this file only lists when to reach for each one.
+**Always review list of available skills to see if there is one that you can utilize for any given input, or in the middle of the loop, read additional skills if that benefits your work.** Skills contain the detailed checklists, patterns, and failure modes — this file only lists when to reach for each one.
 
 | Skill | Load when... |
 |-------|-------------|
@@ -58,7 +58,7 @@ pnpm promote:admin --email X      # Promote a user to admin (writes directly to 
 | `book-chapter-flow-reviewer` | Editing `Books.ts`, `Chapters.ts`, or `utils/books.ts`; import status transitions; chapter ordering; book admin list; book sync or import lifecycle |
 | `browser-server-boundary-guard` | Code could run in both browser and server; Lexical feature server/client splits; EPUB import logic; "window is not defined" errors |
 | `collection-contract-reviewer` | Adding or changing collection fields, hooks, or access properties; adding a new collection; asking "is this collection correct?" |
-| `epub-import-specialist` | Changing `epubImport.ts`, `epubLexical.ts`, `chapterLexicalNodes.ts`, or `epubPipeline.ts`; debugging broken chapter content after an import |
+| `epub-import-specialist` | Changing anything releated to books; debugging broken chapter content after an import |
 | `graphql-query-scaffold` | Adding custom GraphQL queries or mutations; changing resolver logic; registering new types; asking "how do I expose this via GraphQL?" |
 | `lexical-node-scaffold` | Adding a new rich text node, Lexical plugin, or toolbar button; asking "how do I add a custom block to the editor?" |
 | `migration-env-checker` | Adding, removing, or renaming collection fields; changing field types; adding env vars; changing `src/lib/env.ts`; asking "do I need a migration?" |
