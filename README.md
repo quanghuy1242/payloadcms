@@ -1,503 +1,247 @@
-# PayloadCMS with Next.js
+# payloadcms
 
-A modern headless CMS built with PayloadCMS 3.0 and Next.js 15, featuring Turso (libSQL) database, Cloudflare R2 storage, and comprehensive GraphQL API support.
+A self-hosted content management platform built on **PayloadCMS 3.60 + Next.js 15**, purpose-built for managing both EPUB books (with browser-side import) and original blog content from a single admin panel. It exposes a full GraphQL + REST API for headless consumption while keeping the infrastructure lean enough to run on Vercel's free tier.
 
 ## Table of Contents
 
-- [Introduction](#introduction)
-- [Features](#features)
+- [Overview](#overview)
+- [Admin UI Highlights](#admin-ui-highlights)
 - [Tech Stack](#tech-stack)
-- [Prerequisites](#prerequisites)
-- [Installation](#installation)
+- [Getting Started](#getting-started)
 - [Environment Configuration](#environment-configuration)
-- [Development](#development)
 - [Docker Setup](#docker-setup)
 - [Database & Migrations](#database--migrations)
-- [User Management](#user-management)
+- [Authentication & User Management](#authentication--user-management)
 - [Testing](#testing)
-- [Production Build](#production-build)
-- [Deployment](#deployment)
-- [Project Structure](#project-structure)
 - [Available Scripts](#available-scripts)
-- [Troubleshooting](#troubleshooting)
+- [Deployment](#deployment)
 
-## Introduction
+---
 
-This project is a production-ready PayloadCMS implementation that provides a powerful content management system with a beautiful admin UI. It's built on top of Next.js 15 and uses modern cloud services for scalability and performance.
+## Overview
 
-## Features
+payloadcms manages two distinct but related content domains from one admin panel:
 
-- **PayloadCMS 3.60**: Latest version with full TypeScript support
-- **Next.js 15**: React 19 with App Router
-- **Turso Database**: Globally-distributed SQLite (libSQL) with local fallback
-- **Cloudflare R2**: S3-compatible object storage for media files
-- **GraphQL API**: Full GraphQL support with playground
-- **SEO Plugin**: Built-in SEO optimization for posts
-- **Lexical Editor**: Modern rich text editing experience
-- **E2E Testing**: Playwright and Vitest integration
-- **Docker Support**: Full containerization support
+**Books & Chapters**: Import EPUB files directly in the browser. The entire parsing pipeline (metadata extraction, HTML-to-Lexical conversion, image extraction) runs client-side to avoid serverless body-size and timeout constraints. Chapters are stored as structured Lexical rich text with custom nodes that preserve EPUB-specific semantics (footnote references, internal cross-chapter links).
+
+**Blog Posts**: Standard article publishing with draft/published versioning, per-author ownership, category tagging, automatic slug generation, and SEO meta fields.
+
+Both content types are served through Payload's built-in REST and GraphQL APIs. A custom `SimilarPosts` GraphQL query provides scored post recommendations (category match, same author, tag overlap) without needing an external service.
+
+---
+
+## Admin UI Highlights
+
+The admin panel extends PayloadCMS with several custom components and views:
+
+### EPUB Import Wizard
+Uploading an `.epub` file opens a full-page import wizard (`BookImportPage`). The browser parses the file with `epubjs`, converts each chapter's XHTML content to Lexical JSON, uploads extracted images to the Media collection, and then sends the structured data to the Payload REST API. Import status (`idle → importing → ready / failed`) is tracked per book so failed imports can be safely retried without duplicating content.
+
+### Book & Chapter Management
+The Books list view (`BooksListView`) replaces the default table with a card grid. Each book detail page surfaces a **View Chapters** button that opens the chapter list in a drawer, avoiding a full navigation away. A protected **Delete Book** button (`DeleteBookButton`) validates that no chapters exist before allowing deletion.
+
+### Media Grid View
+The Media collection renders as a responsive image grid (`MediaGridView`) instead of the default table. Each image shows its low-resolution blurred placeholder (a base64 data URL generated on upload) alongside its dimensions and storage key.
+
+### Better Auth Login Flow
+Payload's login page is intercepted and replaced with a redirect to an external Better Auth provider via a PKCE OAuth2 flow. On return, the JWT is validated against the provider's JWKS endpoint and the session is established in Payload. The `BetterAuthLogout` component signs out of both systems simultaneously.
+
+### Draft & Versioning
+All content collections (Books, Chapters, Posts) support draft versions with 5-second autosave. The status toggle between draft and published is accessible directly from the document toolbar.
+
+### Image Optimization Pipeline
+On every Media upload, the system generates:
+- A **base64 low-resolution placeholder** for instant above-the-fold rendering
+- A **1920px WebP** master
+- **6 responsive variants** (384 → 1280px) stored in R2 for `srcset` use
+
+---
 
 ## Tech Stack
 
-- **Frontend/Backend**: Next.js 15.4.4, React 19.1.0
-- **CMS**: PayloadCMS 3.60.0
-- **Database**: SQLite with Turso libSQL
-- **Storage**: Cloudflare R2 (S3-compatible)
-- **Language**: TypeScript 5.7.3
-- **Package Manager**: pnpm 10.15.1
-- **Testing**: Playwright, Vitest
-- **Linting**: ESLint
-- **Containerization**: Docker & Docker Compose
+| Layer | Technology |
+|-------|-----------|
+| Framework | Next.js 15 (App Router) + React 19 |
+| CMS | PayloadCMS 3.60 |
+| Database | Turso (libSQL) → local SQLite fallback |
+| Object Storage | Cloudflare R2 → local filesystem fallback |
+| Rich Text | Lexical via `@payloadcms/richtext-lexical` |
+| Auth | Better Auth (PKCE/JWKS) |
+| Language | TypeScript 5.7 |
+| Package Manager | pnpm 10 |
+| Testing | Vitest (integration) + Playwright (E2E) |
+| Container | Docker + Docker Compose (MinIO for local S3) |
 
-## Prerequisites
+---
 
-Before you begin, ensure you have the following installed:
+## Getting Started
 
-- **Node.js**: ^18.20.2 || >=20.9.0
-- **pnpm**: 10.15.1 (or it will be installed via corepack)
-- **Docker** (optional): Latest version for containerized development
-- **Docker Compose** (optional): For multi-container setup
-
-## Installation
-
-1. **Clone the repository:**
+**Requirements:** Node.js `^18.20.2 || >=20.9.0`, pnpm 10.
 
 ```bash
-git clone <repository-url>
-cd payloadcms
-```
-
-2. **Install dependencies:**
-
-```bash
-corepack enable
-corepack prepare pnpm@10.15.1 --activate
+# 1. Install dependencies
+corepack enable && corepack prepare pnpm@10.15.1 --activate
 pnpm install
-```
 
-## Environment Configuration
-
-1. **Create environment file:**
-
-```bash
+# 2. Copy and edit environment file
 cp .env.example .env
-```
 
-2. **Configure environment variables:**
-
-Edit `.env` with your configuration:
-
-```bash
-# Required: Payload secret for JWT signing
-PAYLOAD_SECRET=your-long-random-secret-here
-
-# Database (optional for local development)
-TURSO_DATABASE_URL=libsql://your-database.turso.io
-TURSO_AUTH_TOKEN=your-turso-auth-token
-
-# Cloudflare R2 Storage (optional for local development)
-R2_ENDPOINT=https://account-id.r2.cloudflarestorage.com
-R2_BUCKET_NAME=your-r2-bucket
-R2_ACCESS_KEY_ID=your-access-key-id
-R2_SECRET_ACCESS_KEY=your-secret-access-key
-R2_PUBLIC_BASE_URL=https://account-id.r2.cloudflarestorage.com/your-r2-bucket
-```
-
-### Environment Variables Explained
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `PAYLOAD_SECRET` | Yes | Secret key for JWT token signing (use a strong random string) |
-| `TURSO_DATABASE_URL` | No* | Turso database URL (falls back to local SQLite if not set) |
-| `TURSO_AUTH_TOKEN` | No* | Turso authentication token |
-| `R2_ENDPOINT` | No* | Cloudflare R2 endpoint URL |
-| `R2_BUCKET_NAME` | No* | R2 bucket name for media storage |
-| `R2_ACCESS_KEY_ID` | No* | R2 access key ID |
-| `R2_SECRET_ACCESS_KEY` | No* | R2 secret access key |
-| `R2_PUBLIC_BASE_URL` | No* | Public base URL (or custom domain) for your R2 bucket |
-
-*In local development, the app falls back to local SQLite (`.payload/data.sqlite`) and filesystem storage if these are not provided.
-
-## Development
-
-### Local Development (without Docker)
-
-1. **Start the development server:**
-
-```bash
+# 3. Start the dev server
 pnpm dev
 ```
 
-2. **Access the application:**
-   - Frontend: http://localhost:3000
-   - Admin Panel: http://localhost:3000/admin
-   - GraphQL Playground: http://localhost:3000/api/graphql-playground
-   - GraphQL API: http://localhost:3000/api/graphql
+Access points once running:
 
-3. **Create your first admin user:**
-   - Navigate to http://localhost:3000/admin
-   - Follow the on-screen instructions to create an admin account
+| URL | Purpose |
+|-----|---------|
+| `http://localhost:3000` | Frontend |
+| `http://localhost:3000/admin` | Admin panel |
+| `http://localhost:3000/api/graphql` | GraphQL API |
+| `http://localhost:3000/api/graphql-playground` | GraphQL Playground |
 
-### Database Fallback Behavior
+Without Turso or R2 credentials the app falls back to a local SQLite file (`.payload/data.sqlite`) and filesystem storage automatically — no configuration needed for local development.
 
-- **Without Turso credentials**: Uses local SQLite file at `.payload/data.sqlite`
-- **Without R2 credentials**: Stores media files in local filesystem
-- **Development mode**: Auto-syncs schema changes (no manual migrations needed)
+---
+
+## Environment Configuration
+
+```bash
+# Required
+PAYLOAD_SECRET=your-long-random-secret
+
+# Database — omit to use local SQLite
+TURSO_DATABASE_URL=libsql://your-db.turso.io
+TURSO_AUTH_TOKEN=your-turso-auth-token
+
+# Object storage — omit to use local filesystem
+R2_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com
+R2_BUCKET_NAME=your-bucket
+R2_ACCESS_KEY_ID=your-key-id
+R2_SECRET_ACCESS_KEY=your-secret
+R2_PUBLIC_BASE_URL=https://cdn.example.com
+
+# Better Auth (required for login)
+BETTER_AUTH_URL=https://your-auth-provider.example.com
+```
+
+All variables are validated at startup via Zod schemas in `src/lib/env.ts`. Missing production-required vars throw on boot; missing optional vars trigger graceful fallback in development.
+
+---
 
 ## Docker Setup
 
-### Using Docker Compose (Recommended)
-
-The project includes a `docker-compose.yml` file with the following services:
-
-1. **payload**: Main Next.js application
-2. **minio**: Local S3-compatible storage (optional)
-3. **libsql**: Local Turso emulator (commented out, optional)
-
-**Start all services:**
+The `docker-compose.yml` includes the main app and a **MinIO** container for local S3-compatible storage.
 
 ```bash
+# Start everything
 docker-compose up
-```
 
-**Run in background:**
-
-```bash
+# Background
 docker-compose up -d
 ```
 
-**View logs:**
+MinIO console is available at `http://localhost:9001` (credentials: `minioadmin` / `minioadmin`). Point your R2 env vars at `http://minio:9000` to use it.
+
+To emulate Turso locally, uncomment the `libsql` service in `docker-compose.yml` and set `TURSO_DATABASE_URL=http://libsql:8080`.
+
+For a production Docker build:
 
 ```bash
-docker-compose logs -f
-```
-
-**Stop services:**
-
-```bash
-docker-compose down
-```
-
-### Docker Services Configuration
-
-#### Main Application (payload)
-- Port: `3000:3000`
-- Automatically installs dependencies and starts dev server
-- Uses volumes for code synchronization
-
-#### MinIO (S3-compatible storage)
-- S3 API Port: `9000`
-- Web Console: `9001`
-- Default credentials: `minioadmin` / `minioadmin`
-- Access console at: http://localhost:9001
-
-**To use MinIO locally**, update your `.env`:
-
-```bash
-R2_ENDPOINT=http://minio:9000
-R2_BUCKET_NAME=payloadcms
-R2_ACCESS_KEY_ID=minioadmin
-R2_SECRET_ACCESS_KEY=minioadmin
-```
-
-Then create the bucket via MinIO console at http://localhost:9001
-
-#### LibSQL Server (Optional)
-
-Uncomment the `libsql` service in `docker-compose.yml` to run a local Turso emulator:
-
-```yaml
-libsql:
-  image: ghcr.io/libsql/sqld:0.24.23
-  command:
-    [
-      "--http-listen-addr=0.0.0.0:8080",
-      "--db-path=/var/lib/sqld/db.sqld",
-      "--disable-auth"
-    ]
-  ports:
-    - '8080:8080'
-  volumes:
-    - sqldata:/var/lib/sqld
-```
-
-Update your `.env`:
-
-```bash
-TURSO_DATABASE_URL=http://libsql:8080
-```
-
-### Production Docker Build
-
-The `Dockerfile` is optimized for production deployment:
-
-```bash
-# Build the image
 docker build -t payloadcms .
-
-# Run the container
 docker run -p 3000:3000 --env-file .env payloadcms
 ```
 
-**Note**: Ensure `output: 'standalone'` is set in `next.config.mjs` for Docker builds.
+---
 
 ## Database & Migrations
 
-### Understanding Schema Synchronization
-
-- **Development** (`NODE_ENV !== 'production'`): Schema changes auto-sync to database
-- **Production**: Manual migrations required for schema changes
-
-### Creating Migrations
-
-When you modify collections, globals, or any schema:
+In development, schema changes auto-sync (`push: true`). In production, migrations must be created explicitly:
 
 ```bash
-pnpm payload migrate:create
-```
-
-For Turso databases, include connection details:
-
-```bash
-PAYLOAD_SECRET=dev-secret \
+# Create a migration (run with Turso credentials for accuracy)
+PAYLOAD_SECRET=x \
 TURSO_DATABASE_URL="libsql://..." \
 TURSO_AUTH_TOKEN="..." \
 pnpm payload migrate:create
 ```
 
-This creates two files in `src/migrations/`:
-- `YYYYMMDD_HHMMSS.ts` - TypeScript migration file
-- `YYYYMMDD_HHMMSS.json` - JSON migration metadata
-
-**Commit both files to version control.**
-
-### Running Migrations
-
-**In production (before starting the app):**
+Each run creates a paired `.ts` + `.json` file in `src/migrations/` — commit both. Apply in production before deploying:
 
 ```bash
-pnpm payload migrate
+pnpm payload migrate        # apply pending
+pnpm payload migrate:status # check state
 ```
 
-**Check migration status:**
+Never edit a migration file after it has been applied to any environment.
 
-```bash
-pnpm payload migrate:status
-```
+---
 
-**Reset database (development only - dangerous!):**
+## Authentication & User Management
 
-```bash
-pnpm payload migrate:reset
-```
+Authentication is handled by an external **Better Auth** provider. Payload does not store passwords; it validates JWTs via the provider's JWKS endpoint and maps users to the local `Users` collection (`role: 'admin' | 'user'`).
 
-### Migration Best Practices
-
-1. Always create migrations for production schema changes
-2. Test migrations in a staging environment first
-3. Take Turso snapshots before running production migrations
-4. Commit migration files with your code changes
-5. Never edit migration files after they've been applied
-
-## User Management
-
-### Promoting Users to Admin
-
-Use the provided script to promote existing users to admin role:
+**Promote a user to admin** (direct DB write, bypasses API):
 
 ```bash
 pnpm promote:admin --email user@example.com
 ```
 
-Or using the short flag:
+This works against both local SQLite and remote Turso.
 
-```bash
-pnpm promote:admin -e user@example.com
-```
+### Access Control Summary
 
-This script:
-- Connects to your configured database (Turso or local SQLite)
-- Finds the user by email
-- Updates their role to `admin`
-- Provides confirmation or error messages
+| Collection | Create | Read | Update / Delete |
+|------------|--------|------|-----------------|
+| Books | Authenticated | Owner or admin | Owner or admin |
+| Chapters | Authenticated | Owner or admin | Owner or admin |
+| Posts | Authenticated | Published = anyone; drafts = owner | Owner or admin |
+| Media | Authenticated | Referenced by published content = anyone; else owner | Owner or admin |
+| Users | Admin | Self or admin | Self or admin |
+
+---
 
 ## Testing
 
-The project includes comprehensive testing setup:
-
-### Integration Tests (Vitest)
-
 ```bash
-# Run integration tests
-pnpm test:int
-
-# Watch mode
-pnpm test:int --watch
+pnpm test:int     # Vitest integration tests (hits Payload API directly)
+pnpm test:e2e     # Playwright E2E tests
+pnpm test         # Both
 ```
 
-### End-to-End Tests (Playwright)
+Integration tests load environment from `.env` via `vitest.setup.ts` and call `getPayload()` with the live config. E2E tests drive a running dev server via Playwright.
 
-```bash
-# Run E2E tests
-pnpm test:e2e
-
-# Run with UI
-pnpm test:e2e --ui
-
-# Run specific test file
-pnpm test:e2e tests/e2e/frontend.e2e.spec.ts
-```
-
-### Run All Tests
-
-```bash
-pnpm test
-```
-
-## Production Build
-
-### Build the application:
-
-```bash
-pnpm build
-```
-
-This command:
-1. Generates TypeScript types
-2. Builds the Next.js application
-3. Creates optimized production bundles
-
-### Run migrations (if needed):
-
-```bash
-pnpm payload migrate
-```
-
-### Start production server:
-
-```bash
-pnpm start
-```
-
-### CI/CD Build Command
-
-For continuous integration:
-
-```bash
-pnpm ci
-```
-
-This runs migrations and builds the application.
-
-## Deployment
-
-### Manual Deployment
-
-1. **Build the application:**
-   ```bash
-   pnpm build
-   ```
-
-2. **Run migrations:**
-   ```bash
-   pnpm payload migrate
-   ```
-
-3. **Start the server:**
-   ```bash
-   pnpm start
-   ```
-
-4. **Environment Requirements:**
-   - All environment variables must be set
-   - `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` are required in production
-   - R2 credentials are recommended but optional
-
-## Key Files
-
-- **`src/payload.config.ts`**: Main Payload configuration
-- **`src/collections/`**: Define your content types
-- **`src/globals/`**: Define global singletons
-- **`src/migrations/`**: Database migration files
-- **`docker-compose.yml`**: Local development services
-- **`Dockerfile`**: Production container image
+---
 
 ## Available Scripts
 
 | Script | Description |
 |--------|-------------|
-| `pnpm dev` | Start development server |
-| `pnpm build` | Build for production |
+| `pnpm dev` | Start dev server with hot reload |
+| `pnpm devsafe` | Clean `.next` then start dev server |
+| `pnpm build` | Generate types and build for production |
 | `pnpm start` | Start production server |
-| `pnpm ci` | Run migrations and build (CI/CD) |
-| `pnpm test` | Run all tests |
-| `pnpm test:int` | Run integration tests |
-| `pnpm test:e2e` | Run E2E tests |
-| `pnpm lint` | Run ESLint |
-| `pnpm payload` | Access Payload CLI |
+| `pnpm ci` | Run migrations then build (CI/CD) |
+| `pnpm test:int` | Vitest integration tests |
+| `pnpm test:e2e` | Playwright E2E tests |
+| `pnpm lint` | ESLint |
+| `pnpm generate:types` | Regenerate `src/payload-types.ts` |
+| `pnpm generate:importmap` | Regenerate admin import map |
 | `pnpm payload migrate:create` | Create new migration |
-| `pnpm payload migrate` | Run pending migrations |
+| `pnpm payload migrate` | Apply pending migrations |
 | `pnpm payload migrate:status` | Check migration status |
-| `pnpm generate:types` | Generate TypeScript types |
-| `pnpm generate:importmap` | Generate import map |
-| `pnpm promote:admin` | Promote user to admin |
-| `pnpm devsafe` | Clean dev (removes .next) |
+| `pnpm promote:admin` | Promote a user to admin role |
+| `pnpm backfill:lowres` | Regenerate low-res image placeholders |
+| `pnpm epub:probe` | Inspect EPUB file structure |
 
-## Troubleshooting
+---
 
-### Local SQLite file not found
+## Deployment
 
-**Solution**: The file is auto-created on first run. Ensure the `.payload` directory has write permissions.
+1. Set all required environment variables on your hosting platform.
+2. Run pending migrations before the new code goes live: `pnpm payload migrate`.
+3. Build: `pnpm build` (or use `pnpm ci` to do both in one step).
+4. Start: `pnpm start`.
 
-### Turso connection errors
+`TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` are required at runtime in production. R2 credentials are strongly recommended; without them media uploads fall back to the local filesystem which is ephemeral on most platforms.
 
-**Solutions**:
-- Verify `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` are correct
-- Check network connectivity to Turso
-- Fall back to local SQLite by removing Turso env vars
-
-### R2 upload failures
-
-**Solutions**:
-- Verify R2 credentials and bucket name
-- Check bucket CORS settings
-- Ensure S3 API access is enabled
-- Fall back to local storage by removing R2 env vars
-
-### Docker container exits immediately
-
-**Solutions**:
-- Check Docker logs: `docker-compose logs`
-- Ensure `.env` file exists
-- Verify port 3000 is not in use
-
-### Migration conflicts
-
-**Solutions**:
-- Check migration status: `pnpm payload migrate:status`
-- Never edit applied migrations
-- In development, you can reset: `pnpm payload migrate:reset` (dangerous!)
-
-### Admin panel not accessible
-
-**Solutions**:
-- Ensure dev server is running
-- Check that port 3000 is accessible
-- Verify `PAYLOAD_SECRET` is set
-- Clear browser cache and cookies
-
-### TypeScript errors after schema changes
-
-**Solutions**:
-- Regenerate types: `pnpm generate:types`
-- Restart TypeScript server in VS Code
-- Check for migration files that need to be created
-
-## Additional Resources
-
-- [PayloadCMS Documentation](https://payloadcms.com/docs)
-- [Next.js Documentation](https://nextjs.org/docs)
-- [Turso Documentation](https://docs.turso.tech/)
-- [Cloudflare R2 Documentation](https://developers.cloudflare.com/r2/)
-- [Payload Discord Community](https://discord.com/invite/payload)
-- [GitHub Discussions](https://github.com/payloadcms/payload/discussions)
+The project is structured for Vercel deployment. Because EPUB processing is fully browser-side, it fits within Vercel's free-tier function body-size and execution-time limits.
