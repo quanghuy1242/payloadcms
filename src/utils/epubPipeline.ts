@@ -65,6 +65,9 @@ export type EpubPipelineEvent =
   | { type: 'image-uploaded' }
   | { type: 'chapter-started'; chapterOrder: number; totalChapters: number }
   | { type: 'chapter-completed' }
+  // Emitted when a chapter is skipped because it already exists with the same
+  // importBatchId + chapterSourceKey (T3-4 resumption checkpointing).
+  | { type: 'chapter-checkpointed'; chapterOrder: number }
   | { type: 'totals-known'; totalChapters: number }
   | { type: 'warning'; message: string }
   | { type: 'book-created'; bookId: string | number }
@@ -95,7 +98,12 @@ type MediaDocument = PayloadDocument & {
   url?: string | null
 }
 
-type ChapterDocument = PayloadDocument
+type ChapterDocument = PayloadDocument & {
+  chapterSourceKey?: string | null
+  importBatchId?: string | null
+  manualEditedAt?: string | null
+  order?: number | null
+}
 
 type BookDocument = PayloadDocument
 
@@ -118,6 +126,7 @@ type PreparedChapter = {
 
 type ChapterProcessResult = {
   success: boolean
+  checkpointed?: boolean
   failureReason?: string
 }
 
@@ -631,6 +640,7 @@ const processPreparedChapter = async (
   preparedChapter: PreparedChapter,
   totalChapters: number,
   existingChaptersByOrder: Map<number, ChapterDocument>,
+  existingChaptersBySourceKey: Map<string, ChapterDocument>,
   mediaCache: Map<string, UploadedMedia>,
   mediaInFlight: Map<string, Promise<UploadedMedia | null>>,
   filenamePrewarm: Map<string, UploadedMedia>,
@@ -641,6 +651,24 @@ const processPreparedChapter = async (
   ensureNotAborted(signal)
 
   const chapterOrder = preparedChapter.chapterOrder
+
+  // T3-4: Resumption checkpoint — skip this chapter if it was already successfully
+  // created in a previous run of the same import batch AND has not been manually edited.
+  const earlySourceKey = buildChapterSourceKey(
+    preparedChapter.tocHref ?? preparedChapter.spineHref,
+    preparedChapter.tocIdRef ?? preparedChapter.spineIdRef,
+    chapterOrder,
+  )
+  const existingBySourceKey = existingChaptersBySourceKey.get(earlySourceKey)
+
+  if (
+    existingBySourceKey != null &&
+    existingBySourceKey.importBatchId === importBatchID &&
+    !existingBySourceKey.manualEditedAt
+  ) {
+    emit({ type: 'chapter-checkpointed', chapterOrder })
+    return { success: true, checkpointed: true }
+  }
 
   emit({ type: 'chapter-started', chapterOrder, totalChapters })
   emit({ type: 'phase', phase: 'Uploading Chapter' })
@@ -817,6 +845,7 @@ const processPreparedChapterWithRetry = async (
   preparedChapter: PreparedChapter,
   totalChapters: number,
   existingChaptersByOrder: Map<number, ChapterDocument>,
+  existingChaptersBySourceKey: Map<string, ChapterDocument>,
   mediaCache: Map<string, UploadedMedia>,
   mediaInFlight: Map<string, Promise<UploadedMedia | null>>,
   filenamePrewarm: Map<string, UploadedMedia>,
@@ -839,6 +868,7 @@ const processPreparedChapterWithRetry = async (
       preparedChapter,
       totalChapters,
       existingChaptersByOrder,
+      existingChaptersBySourceKey,
       mediaCache,
       mediaInFlight,
       filenamePrewarm,
@@ -848,6 +878,11 @@ const processPreparedChapterWithRetry = async (
     )
 
     if (lastResult.success) {
+      return lastResult
+    }
+
+    // Checkpoint skips must not be retried — the chapter was already stored successfully.
+    if (lastResult.checkpointed) {
       return lastResult
     }
 
@@ -876,6 +911,7 @@ const processBatch = async (
   sourceHash: string,
   totalChapters: number,
   existingChaptersByOrder: Map<number, ChapterDocument>,
+  existingChaptersBySourceKey: Map<string, ChapterDocument>,
   mediaCache: Map<string, UploadedMedia>,
   mediaInFlight: Map<string, Promise<UploadedMedia | null>>,
   filenamePrewarm: Map<string, UploadedMedia>,
@@ -904,6 +940,7 @@ const processBatch = async (
           preparedChapter,
           totalChapters,
           existingChaptersByOrder,
+          existingChaptersBySourceKey,
           mediaCache,
           mediaInFlight,
           filenamePrewarm,
@@ -1213,12 +1250,20 @@ export async function* runEpubImportPipeline(
 
     const existingChapters = await findExistingChaptersByBook(bookId, signal)
     const existingChaptersByOrder = new Map<number, ChapterDocument>()
+    // T3-4: Secondary index keyed by chapterSourceKey for O(1) resumption lookups.
+    const existingChaptersBySourceKey = new Map<string, ChapterDocument>()
 
     for (const existingChapter of existingChapters) {
       const chapterOrderValue = (existingChapter as { order?: unknown }).order
 
       if (typeof chapterOrderValue === 'number' && Number.isFinite(chapterOrderValue)) {
         existingChaptersByOrder.set(chapterOrderValue, existingChapter)
+      }
+
+      const sourceKeyValue = existingChapter.chapterSourceKey
+
+      if (typeof sourceKeyValue === 'string' && sourceKeyValue.length > 0) {
+        existingChaptersBySourceKey.set(sourceKeyValue, existingChapter)
       }
     }
 
@@ -1270,6 +1315,7 @@ export async function* runEpubImportPipeline(
         sourceHash,
         preparedChapters.length,
         existingChaptersByOrder,
+        existingChaptersBySourceKey,
         mediaCache,
         mediaInFlight,
         filenamePrewarm,

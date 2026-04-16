@@ -204,6 +204,56 @@ export const enforceBookHasNoChaptersBeforeDelete: CollectionBeforeDeleteHook = 
   }
 }
 
+export const enforceChapterBookOwnershipHook: CollectionBeforeChangeHook = async ({
+  data,
+  operation,
+  originalDoc,
+  req,
+}) => {
+  const workingData = data ? { ...data } : {}
+  const workingRecord = workingData as ChapterRecord
+  const previousRecord = (originalDoc as ChapterRecord | undefined) ?? {}
+
+  const user = req.user as { id?: unknown; role?: string } | undefined
+
+  // No authenticated user – access control layer already blocks the request.
+  if (!user) return workingData
+
+  // Admins bypass ownership checks.
+  if (user.role === 'admin') return workingData
+
+  // On update, only enforce when the book field is being re-assigned.
+  if (operation === 'update') {
+    const newBookId = normalizeEntityId(workingRecord.book)
+    const oldBookId = normalizeEntityId(previousRecord.book)
+
+    if (newBookId == null || (oldBookId != null && String(newBookId) === String(oldBookId))) {
+      return workingData
+    }
+  }
+
+  const bookId = normalizeEntityId(workingRecord.book ?? previousRecord.book)
+
+  if (bookId == null) return workingData
+
+  const book = await req.payload.findByID({
+    collection: 'books',
+    id: bookId as string,
+    depth: 0,
+    overrideAccess: true,
+    req,
+  })
+
+  const bookOwnerId = normalizeEntityId((book as { createdBy?: unknown } | null)?.createdBy)
+  const userId = normalizeEntityId(user.id)
+
+  if (bookOwnerId == null || userId == null || String(bookOwnerId) !== String(userId)) {
+    throw new Error('You can only create chapters for books you own.')
+  }
+
+  return workingData
+}
+
 export const enforceUniqueChapterOrderHook: CollectionBeforeChangeHook = async ({
   data,
   operation,

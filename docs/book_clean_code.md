@@ -2102,20 +2102,28 @@ before implementation.
 **Why**: Currently all internal links (including the Table of Contents page) import as
 unresolved sentinel nodes. An EPUB's ToC is useless without working navigation links.
 
-**Implementation approach**: a server-side Payload local API operation or a custom REST
-endpoint (`POST /api/books/:id/resolve-links`) triggered after import completion.
+**Implementation approach (two options)**:
+- **Server-side (original)**: a Payload local API operation or custom REST endpoint
+  (`POST /api/books/:id/resolve-links`) triggered after import completion. Requires
+  idempotency logic and extra PATCH calls per chapter.
+- **Frontend read-time (preferred)**: the chapter renderer walks the Lexical tree and
+  replaces `epub-internal-link` nodes on the fly using the pre-fetched chapter list
+  (matched by `chapterSourceKey`). No DB writes. Falls back to plain text for unresolved
+  hrefs. See the comment in `src/features/epub-internal-link/feature.server.ts` for the
+  exact resolution algorithm.
 
 **Acceptance Criteria**:
-- After resolution, no `epub-internal-link` nodes remain in chapters of the resolved book.
-- Cross-references between chapters work as standard Payload `link` nodes.
-- The resolution can be re-run idempotently (re-running on a book with already-resolved
-  links does not corrupt content).
+- After resolution, `epub-internal-link` nodes render as navigable links (either via DB
+  replacement or frontend resolution).
+- Cross-references between chapters work as Next.js `<Link>` nodes pointing to chapter URLs.
+- Unresolved links (e.g. appendix not imported) fall back to plain text.
 
-**Affected files**: new `utils/epubLinkResolver.ts`, new `app/(payload)/api/books/[id]/resolve-links/route.ts` or similar, `components/admin/books/BookImportPage.tsx`
+**Affected files** (server approach): new `utils/epubLinkResolver.ts`, new `app/(payload)/api/books/[id]/resolve-links/route.ts` or similar, `components/admin/books/BookImportPage.tsx`
+**Affected files** (FE approach): the chapter page component (to be created)
 
 ---
 
-**T3-2: Cross-book chapter ownership validation**
+**T3-2: Cross-book chapter ownership validation** [done 2026-04-17]
 
 **What**: Add a `beforeChange` hook to Chapters that verifies the user creating a chapter
 is also the owner of the referenced `book`. Currently, User B can create chapters for User
@@ -2129,11 +2137,11 @@ field on a chapter can belong to a different user than the book's `createdBy`.
 - Admin users bypass this check (consistent with the rest of the access model).
 - An integration test verifies the cross-user rejection.
 
-**Affected files**: `utils/books.ts` (new hook), `collections/Chapters.ts`
+**Affected files**: `utils/books.ts` (`enforceChapterBookOwnershipHook` added), `collections/Chapters.ts`
 
 ---
 
-**T3-3: EPUB callout / sidebar block feature**
+**T3-3: EPUB callout / sidebar block feature** [done 2026-04-17]
 
 **What**: Create `src/features/epub-callout/` for Manning-style callout boxes (Note, Tip,
 Warning, Important). These appear in Manning EPUBs as `<div class="note">` or
@@ -2148,12 +2156,12 @@ as plain paragraphs, losing the visual distinction that makes technical notes sc
 - The callout renders with a distinct border/background in the admin editor.
 - Registered in `chapterRichText.ts` and `chapterLexicalNodes.ts`.
 
-**Affected files**: `src/features/epub-callout/` (new), `utils/chapterRichText.ts`,
+**Affected files**: `src/features/epub-callout/` (new — `feature.server.ts`, `feature.client.ts`, `nodes/EpubCalloutNode.ts`), `utils/chapterRichText.ts`,
 `utils/chapterLexicalNodes.ts`, `utils/epubLexical.ts`
 
 ---
 
-**T3-4: Partial import resumption with `chapterSourceKey` checkpointing**
+**T3-4: Partial import resumption with `chapterSourceKey` checkpointing** [done 2026-04-17]
 
 **What**: The EPUB import should be resumable. If an import is canceled or fails at chapter
 50 of 200, re-running the import should skip chapters 1-49 (already in the database with
@@ -2163,99 +2171,19 @@ matching `chapterSourceKey` and `importBatchId`) and start from chapter 50.
 all images and re-creating all chapters. Resumption is especially important for large books
 (200+ chapters) on slow connections.
 
-**Implementation**: before creating a chapter, query `chapters` for an existing record with
-`chapterSourceKey = currentHref AND importBatchId = currentBatchId`. If found, skip creation
-and emit a `chapter-skipped` progress event instead of `chapter-done`.
+**Implementation**: at the start of `processPreparedChapter`, the source key is computed
+from `PreparedChapter` fields and looked up in a pre-built `existingChaptersBySourceKey`
+map (built once from `findExistingChaptersByBook`). If a match is found with the same
+`importBatchId` and no `manualEditedAt`, a `chapter-checkpointed` event is emitted and the
+chapter is counted as completed without any DB writes or image uploads.
 
 **Acceptance Criteria**:
 - Re-importing a partially imported book (same `importBatchId`) skips existing chapters.
 - A new `importBatchId` (forced re-import) creates fresh chapters even if `chapterSourceKey` matches.
-- `manualEditedAt` check: skip re-import for manually edited chapters even with a new batchId.
+- `manualEditedAt` check: manually edited chapters are never silently skipped.
+- Checkpointed chapters count toward `completedChapters` (not `skippedChapters`).
 
-**Affected files**: `utils/epubPipeline.ts` (from T1-8), `components/admin/books/EpubImporter.tsx`
-**T3-1: Two-pass internal link resolution system**
-
-**What**: After all chapters are created for a book, run a resolution pass that:
-1. Builds a map: `chapterSourceKey → { payloadChapterId, tocHref }`.
-2. Scans every chapter's Lexical JSON for `epub-internal-link` nodes.
-3. Resolves each sentinel's `href` to a Payload chapter ID and anchor fragment.
-4. Replaces the sentinel with a real `link` node.
-5. PATCHes the chapter record.
-
-**Why**: Currently all internal links (including the Table of Contents page) import as
-unresolved sentinel nodes. An EPUB's ToC is useless without working navigation links.
-
-**Implementation approach**: a server-side Payload local API operation or a custom REST
-endpoint (`POST /api/books/:id/resolve-links`) triggered after import completion.
-
-**Acceptance Criteria**:
-- After resolution, no `epub-internal-link` nodes remain in chapters of the resolved book.
-- Cross-references between chapters work as standard Payload `link` nodes.
-- The resolution can be re-run idempotently (re-running on a book with already-resolved
-  links does not corrupt content).
-
-**Affected files**: new `utils/epubLinkResolver.ts`, new `app/(payload)/api/books/[id]/resolve-links/route.ts` or similar, `components/admin/books/BookImportPage.tsx`
-
----
-
-**T3-2: Cross-book chapter ownership validation**
-
-**What**: Add a `beforeChange` hook to Chapters that verifies the user creating a chapter
-is also the owner of the referenced `book`. Currently, User B can create chapters for User
-A's book via the API.
-
-**Why**: This is an access control gap identified in Section 8.3. Without it, the `createdBy`
-field on a chapter can belong to a different user than the book's `createdBy`.
-
-**Acceptance Criteria**:
-- Attempting to create a chapter for a book owned by another user returns 403.
-- Admin users bypass this check (consistent with the rest of the access model).
-- An integration test verifies the cross-user rejection.
-
-**Affected files**: `utils/books.ts` (new hook), `collections/Chapters.ts`
-
----
-
-**T3-3: EPUB callout / sidebar block feature**
-
-**What**: Create `src/features/epub-callout/` for Manning-style callout boxes (Note, Tip,
-Warning, Important). These appear in Manning EPUBs as `<div class="note">` or
-`<div epub:type="sidebar">` elements.
-
-**Why**: Technical books from Manning have heavy callout usage. Currently these are imported
-as plain paragraphs, losing the visual distinction that makes technical notes scannable.
-
-**Acceptance Criteria**:
-- A new `epub-callout` feature module with server/client/node files.
-- `htmlToPayloadLexical` maps `<div class="note|tip|warning|important">` to the callout block.
-- The callout renders with a distinct border/background in the admin editor.
-- Registered in `chapterRichText.ts` and `chapterLexicalNodes.ts`.
-
-**Affected files**: `src/features/epub-callout/` (new), `utils/chapterRichText.ts`,
-`utils/chapterLexicalNodes.ts`, `utils/epubLexical.ts`
-
----
-
-**T3-4: Partial import resumption with `chapterSourceKey` checkpointing**
-
-**What**: The EPUB import should be resumable. If an import is canceled or fails at chapter
-50 of 200, re-running the import should skip chapters 1-49 (already in the database with
-matching `chapterSourceKey` and `importBatchId`) and start from chapter 50.
-
-**Why**: Currently a failed import of a long book requires starting from scratch, re-uploading
-all images and re-creating all chapters. Resumption is especially important for large books
-(200+ chapters) on slow connections.
-
-**Implementation**: before creating a chapter, query `chapters` for an existing record with
-`chapterSourceKey = currentHref AND importBatchId = currentBatchId`. If found, skip creation
-and emit a `chapter-skipped` progress event instead of `chapter-done`.
-
-**Acceptance Criteria**:
-- Re-importing a partially imported book (same `importBatchId`) skips existing chapters.
-- A new `importBatchId` (forced re-import) creates fresh chapters even if `chapterSourceKey` matches.
-- `manualEditedAt` check: skip re-import for manually edited chapters even with a new batchId.
-
-**Affected files**: `utils/epubPipeline.ts` (from T1-8), `components/admin/books/EpubImporter.tsx`
+**Affected files**: `utils/epubPipeline.ts`
 
 ### 14.4 Tier 4 - Testing Coverage
 

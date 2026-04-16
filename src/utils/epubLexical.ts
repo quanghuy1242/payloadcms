@@ -48,7 +48,7 @@ const trimToNull = (value: unknown): string | null => {
 // Node-type detection
 // ---------------------------------------------------------------------------
 
-const BLOCK_NODE_TYPES = new Set(['block', 'upload', 'paragraph', 'heading', 'quote', 'list', 'table'])
+const BLOCK_NODE_TYPES = new Set(['block', 'upload', 'paragraph', 'heading', 'quote', 'list', 'table', 'epub-callout'])
 
 const isBlockNode = (node: AnyNode): boolean => BLOCK_NODE_TYPES.has(node.type)
 
@@ -77,6 +77,19 @@ const makeCodeBlock = (code: string, language = 'plaintext'): AnyNode => ({
     code,
     language,
   },
+})
+
+const makeCalloutNode = (
+  variant: 'note' | 'tip' | 'warning' | 'important',
+  children: AnyNode[],
+): AnyNode => ({
+  type: 'epub-callout',
+  version: 1,
+  format: '',
+  indent: 0,
+  direction: 'ltr',
+  fields: { variant },
+  children,
 })
 
 const makeFootnoteBlock = (noteId: string, marker: string, content: string): AnyNode => ({
@@ -654,6 +667,22 @@ const walkNode = (node: Node, ctx: WalkContext): AnyNode[] => {
       }
 
     case 'div': {
+      const className = el.getAttribute('class') ?? ''
+      const classes = className.toLowerCase().split(/\s+/)
+      const calloutVariants = ['note', 'tip', 'warning', 'important'] as const
+      const matchedVariant = calloutVariants.find((v) => classes.includes(v))
+
+      if (matchedVariant) {
+        const children = normalizeContainerNodes(walkChildren(el, ctx))
+        return children.length > 0 ? [makeCalloutNode(matchedVariant, children)] : []
+      }
+
+      const epubType = el.getAttribute('epub:type') ?? ''
+      if (epubType === 'sidebar') {
+        const children = normalizeContainerNodes(walkChildren(el, ctx))
+        return children.length > 0 ? [makeCalloutNode('note', children)] : []
+      }
+
       return normalizeContainerNodes(walkChildren(el, ctx))
     }
 

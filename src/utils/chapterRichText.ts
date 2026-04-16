@@ -22,6 +22,7 @@ import {
 
 import { EpubInternalLinkFeature } from '../features/epub-internal-link/feature.server'
 import { EpubFootnoteRefFeature } from '../features/epub-footnote-ref/feature.server'
+import { EpubCalloutFeature } from '../features/epub-callout/feature.server'
 
 const footnoteBlock: Block = {
   slug: 'footnote',
@@ -64,6 +65,7 @@ export const chapterRichTextFeatureProviders = () => {
     LinkFeature(),
     EpubInternalLinkFeature(),
     EpubFootnoteRefFeature(),
+    EpubCalloutFeature(),
     OrderedListFeature(),
     UnorderedListFeature(),
     ChecklistFeature(),

@@ -2,7 +2,7 @@ import type { CollectionConfig } from 'payload'
 
 import { authenticatedAccess, ownerAccess } from '../utils/access'
 import { createChapterLexicalEditor } from '../utils/chapterRichText'
-import { enforceUniqueChapterOrderHook } from '../utils/books'
+import { enforceChapterBookOwnershipHook, enforceUniqueChapterOrderHook } from '../utils/books'
 import { enforceOwnershipHook } from '../utils/ownership'
 import { createSlugHook } from '../utils/slug'
 
@@ -36,7 +36,7 @@ export const Chapters: CollectionConfig = {
   },
   hooks: {
     beforeValidate: [enforceOwnershipHook('createdBy'), createSlugHook('title')],
-    beforeChange: [enforceUniqueChapterOrderHook],
+    beforeChange: [enforceChapterBookOwnershipHook, enforceUniqueChapterOrderHook],
   },
   fields: [
     {

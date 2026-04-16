@@ -5,6 +5,8 @@ import { ListItemNode, ListNode } from '@lexical/list'
 import { HeadingNode, QuoteNode } from '@lexical/rich-text'
 import { TableCellNode, TableNode, TableRowNode } from '@lexical/table'
 
+import { EpubCalloutNode } from '../features/epub-callout/nodes/EpubCalloutNode'
+
 export const chapterLexicalNodes: Array<Klass<LexicalNode> | LexicalNodeReplacement> = [
   ParagraphNode,
   TextNode,
@@ -18,4 +20,5 @@ export const chapterLexicalNodes: Array<Klass<LexicalNode> | LexicalNodeReplacem
   TableNode,
   TableCellNode,
   TableRowNode,
+  EpubCalloutNode,
 ]
