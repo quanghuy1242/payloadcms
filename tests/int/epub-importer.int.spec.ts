@@ -1,8 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { createElement } from 'react'
+import type { SerializedEditorState } from 'lexical'
 
 import EpubImporter from '@/components/admin/books/EpubImporter'
+import {
+  collectFootnoteDefinitionsFromHTML,
+  convertHtmlToChapterLexicalState,
+} from '@/utils/epubLexical'
 import { createImportedBookMediaAltText, createImportedBookSlug } from '@/utils/epubImport'
 
 type MockSection = {
@@ -65,7 +70,7 @@ type FetchMockOptions = {
   failChapterCreate?: boolean
 }
 
-const simpleLexicalState = {
+const simpleLexicalState: SerializedEditorState = {
   root: {
     children: [],
     direction: null,
@@ -74,7 +79,7 @@ const simpleLexicalState = {
     type: 'root',
     version: 1,
   },
-} as const
+}
 
 let currentMockBook: MockBook
 const refreshMock = vi.hoisted(() => vi.fn())
@@ -191,7 +196,7 @@ const createMockBook = (
     creator: 'Peter Brown',
     description: 'A robot escapes into the wild and learns to survive.',
     identifier: '9780316475152',
-    language: 'en',
+    language: 'en-GB',
     pubdate: '2021-09-21',
     publisher: 'Farrar, Straus and Giroux',
     subject: ['Children', 'Adventure'],
@@ -362,7 +367,7 @@ describe('EpubImporter', () => {
 
     expect(bookBody.author).toBe('Peter Brown')
     expect(bookBody.description).toBe('A robot escapes into the wild and learns to survive.')
-    expect(bookBody.language).toBe('en')
+    expect(bookBody.language).toBe('en-GB')
     expect(bookBody.publisher).toBe('Farrar, Straus and Giroux')
     expect(bookBody.publicationDate).toBe('2021-09-21')
     expect(bookBody.isbn).toBe('9780316475152')
@@ -413,6 +418,58 @@ describe('EpubImporter', () => {
     expect(finalPatchBody.importStatus).toBe('ready')
     expect(finalPatchBody.syncStatus).toBe('clean')
     expect(finalPatchBody.importCompletedChapters).toBe(1)
+  })
+
+  it('keeps footnotes scoped to the current chapter during conversion', async () => {
+    const collectFootnoteDefinitions = vi.mocked(collectFootnoteDefinitionsFromHTML)
+    const convertChapterLexicalState = vi.mocked(convertHtmlToChapterLexicalState)
+    const observedFootnoteContents: Array<string | null> = []
+
+    collectFootnoteDefinitions.mockReset()
+    convertChapterLexicalState.mockReset()
+
+    collectFootnoteDefinitions.mockImplementation((html: string) => {
+      if (html.includes('Chapter 1 note')) {
+        return new Map([
+          ['fn1', { noteId: 'fn1', content: 'Chapter 1 note' }],
+        ])
+      }
+
+      if (html.includes('Chapter 2 note')) {
+        return new Map([
+          ['fn1', { noteId: 'fn1', content: 'Chapter 2 note' }],
+        ])
+      }
+
+      return new Map()
+    })
+
+    convertChapterLexicalState.mockImplementation((_html: string, options) => {
+      observedFootnoteContents.push(options?.footnotesById?.get('fn1')?.content ?? null)
+      return simpleLexicalState
+    })
+
+    currentMockBook = createMockBook([
+      '<h1>Chapter 1</h1><p>Intro</p><aside epub:type="footnote" id="fn1"><p>Chapter 1 note</p></aside>',
+      '<h1>Chapter 2</h1><p>Second chapter</p><aside epub:type="footnote" id="fn1"><p>Chapter 2 note</p></aside>',
+    ])
+
+    installFetchMock()
+
+    render(createElement(EpubImporter))
+
+    const input = screen.getByLabelText('Select EPUB file') as HTMLInputElement
+    const epubFile = createTestEpubFile()
+
+    fireEvent.change(input, { target: { files: [epubFile] } })
+
+    await waitFor(() => {
+      expect(
+        screen.getByText((_, element) => element?.textContent === 'Phase: Done'),
+      ).toBeTruthy()
+    })
+
+    expect(observedFootnoteContents).toEqual(['Chapter 1 note', 'Chapter 2 note'])
   })
 
   it('skips a failed chapter and still completes the import', async () => {

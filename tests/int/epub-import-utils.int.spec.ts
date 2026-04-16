@@ -302,6 +302,7 @@ describe('EPUB import utilities', () => {
     expect(createImportedBookTitle('', 'fallback.epub')).toBe('fallback')
     expect(createImportedBookSlug('Đắk Lắk', 'vi')).toBe('dak-lak')
     expect(createImportedBookSlug('Đắk Lắk', 'en')).toBe('djak-lak')
+    expect(createImportedBookSlug('Đắk Lắk', 'en-GB')).toBe('djak-lak')
   })
 
   it('derives image alt text from html attributes and chapter context', () => {

@@ -110,25 +110,19 @@ const normalizeDocumentID = (value: unknown): string | number => {
 }
 
 const normalizeEpubLanguage = (value: unknown): string => {
-  const normalized = toNullableString(value)?.toLowerCase()
+  const normalized = toNullableString(value)
 
   if (!normalized) {
     return 'en'
   }
 
-  if (normalized.startsWith('vi')) {
-    return 'vi'
-  }
+  const normalizedTag = normalized.replace(/_/g, '-')
 
-  if (normalized.startsWith('ja')) {
-    return 'ja'
+  try {
+    return Intl.getCanonicalLocales(normalizedTag)[0] ?? normalizedTag
+  } catch {
+    return normalizedTag
   }
-
-  if (normalized.startsWith('en')) {
-    return 'en'
-  }
-
-  return 'en'
 }
 
 const normalizeEpubSubjects = (value: unknown): Array<{ subject: string }> => {
@@ -595,7 +589,6 @@ export const EpubImporter: React.FC = () => {
     preparedChapter: PreparedChapter,
     totalChapters: number,
     existingChaptersByOrder: Map<number, ChapterDocument>,
-    footnotesById: Map<string, FootnoteDefinition>,
     mediaCache: Map<string, UploadedMedia>,
     mediaInFlight: Map<string, Promise<UploadedMedia | null>>,
     signal: AbortSignal,
@@ -721,6 +714,12 @@ export const EpubImporter: React.FC = () => {
         }),
       )
 
+      const footnotesById = new Map<string, FootnoteDefinition>()
+
+      for (const footnoteDefinition of preparedChapter.footnoteDefinitions) {
+        footnotesById.set(footnoteDefinition.noteId, footnoteDefinition)
+      }
+
       const lexicalContent = convertHtmlToChapterLexicalState(sanitizedChapter.html, {
         footnotesById,
       })
@@ -783,7 +782,6 @@ export const EpubImporter: React.FC = () => {
     preparedChapter: PreparedChapter,
     totalChapters: number,
     existingChaptersByOrder: Map<number, ChapterDocument>,
-    footnotesById: Map<string, FootnoteDefinition>,
     mediaCache: Map<string, UploadedMedia>,
     mediaInFlight: Map<string, Promise<UploadedMedia | null>>,
     signal: AbortSignal,
@@ -799,7 +797,6 @@ export const EpubImporter: React.FC = () => {
         preparedChapter,
         totalChapters,
         existingChaptersByOrder,
-        footnotesById,
         mediaCache,
         mediaInFlight,
         signal,
@@ -833,7 +830,6 @@ export const EpubImporter: React.FC = () => {
     sourceHash: string,
     totalChapters: number,
     existingChaptersByOrder: Map<number, ChapterDocument>,
-    footnotesById: Map<string, FootnoteDefinition>,
     mediaCache: Map<string, UploadedMedia>,
     mediaInFlight: Map<string, Promise<UploadedMedia | null>>,
     signal: AbortSignal,
@@ -859,7 +855,6 @@ export const EpubImporter: React.FC = () => {
             preparedChapter,
             totalChapters,
             existingChaptersByOrder,
-            footnotesById,
             mediaCache,
             mediaInFlight,
             signal,
@@ -1209,14 +1204,6 @@ export const EpubImporter: React.FC = () => {
       }
 
       const preparedChapters = await prepareChaptersForImport(openedBook, spineItems, abortController.signal)
-      const footnotesById = new Map<string, FootnoteDefinition>()
-
-      for (const preparedChapter of preparedChapters) {
-        for (const footnoteDefinition of preparedChapter.footnoteDefinitions) {
-          footnotesById.set(footnoteDefinition.noteId, footnoteDefinition)
-        }
-      }
-
       const chapterBatches = createChapterBatches(
         preparedChapters,
         MAX_CHAPTERS_PER_BATCH,
@@ -1276,7 +1263,6 @@ export const EpubImporter: React.FC = () => {
             sourceHash,
             preparedChapters.length,
             existingChaptersByOrder,
-            footnotesById,
             mediaCache,
             mediaInFlight,
             abortController.signal,
