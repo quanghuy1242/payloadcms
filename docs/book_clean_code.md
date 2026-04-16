@@ -1853,7 +1853,7 @@ require a database schema change. They should be addressed before adding new fea
 
 ---
 
-**T1-1: Move `normalizeEntityId` to `utils/identifiers.ts`**
+**T1-1: Move `normalizeEntityId` to `utils/identifiers.ts`** [done 2026-04-17]
 
 **What**: The `normalizeEntityId` function is currently a named export of `utils/access.ts`.
 `utils/books.ts` imports it from `./access`. Entity ID normalization has no conceptual
@@ -1873,7 +1873,7 @@ don't find them.
 
 ---
 
-**T1-2: Extract `EpubFailureRecord` type to `utils/epubFailureLog.ts`**
+**T1-2: Extract `EpubFailureRecord` type to `utils/epubFailureLog.ts`** [done 2026-04-17]
 
 **What**: The per-chapter failure record shape is only known to `EpubImporter.tsx`. Create
 `utils/epubFailureLog.ts` exporting `EpubFailureRecord` and `EpubFailureLog` types.
@@ -1891,7 +1891,7 @@ process the failure log.
 
 ---
 
-**T1-3: Mark `epubImport.ts` as browser-only at the module level**
+**T1-3: Mark `epubImport.ts` as browser-only at the module level** [done 2026-04-17]
 
 **What**: Add a top-of-file comment block to `utils/epubImport.ts` stating the browser-only
 requirement, and add an `if (typeof window === 'undefined')` guard in `sanitizeChapterHTML`
@@ -1909,7 +1909,7 @@ opaque `DOMParser is not defined` error. A clear error message saves debugging t
 
 ---
 
-**T1-4: Fix `<hr>` rendering in `htmlToPayloadLexical`**
+**T1-4: Fix `<hr>` rendering in `htmlToPayloadLexical` [done 2026-04-16]**
 
 **What**: `<hr>` elements are currently converted to a paragraph containing `* * *` as plain
 text. The correct Lexical representation is a horizontal rule block node. If Payload's
@@ -1927,7 +1927,7 @@ dropping them or converting them to unparsed text loses structural information.
 
 ---
 
-**T1-5: Fix code block language detection in `htmlToPayloadLexical`**
+**T1-5: Fix code block language detection in `htmlToPayloadLexical` [done 2026-04-16]**
 
 **What**: `<pre>` blocks should detect the programming language from the HTML class attribute
 (e.g., `class="language-python"`, `class="code-python"`) or `data-language` attribute.
@@ -1946,7 +1946,7 @@ all code blocks are displayed without syntax highlighting in the admin editor an
 
 ---
 
-**T1-6: Fix `<dl>/<dt>/<dd>` handling in `htmlToPayloadLexical`**
+**T1-6: Fix `<dl>/<dt>/<dd>` handling in `htmlToPayloadLexical` [done 2026-04-17]**
 
 **What**: Definition lists (`<dl>`) contain definition terms (`<dt>`) and definitions
 (`<dd>`). Currently they are flattened into a single paragraph block losing the term/definition
@@ -1965,7 +1965,7 @@ paragraph output loses the visual and semantic structure.
 
 ---
 
-**T1-7: Add null guard before blob `.type` access in `ensureSupportedMediaBlob`**
+**T1-7: Add null guard before blob `.type` access in `ensureSupportedMediaBlob` [done 2026-04-16]**
 
 **What**: `ensureSupportedMediaBlob` calls `blob.type` without first checking if `blob` is
 null. `book.archive.getBlob()` returns null for missing assets.
@@ -1981,7 +1981,7 @@ null. `book.archive.getBlob()` returns null for missing assets.
 
 ---
 
-**T1-8: Extract import pipeline orchestration to `utils/epubPipeline.ts`**
+**T1-8: Extract import pipeline orchestration to `utils/epubPipeline.ts` [done 2026-04-17]**
 
 **What**: The chapter creation loop inside `EpubImporter.tsx` (batching, per-chapter image
 upload, Lexical conversion, API create, progress tracking) should be extracted to a pure

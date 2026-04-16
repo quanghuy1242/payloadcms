@@ -798,23 +798,25 @@ const walkNode = (node: Node, ctx: WalkContext): AnyNode[] => {
 
     case 'dl': {
       const items: AnyNode[] = []
-      let value = 1
 
       for (const child of Array.from(el.children)) {
         const tagName = child.tagName.toLowerCase()
 
         if (tagName === 'dt') {
+          // Term: bold paragraph
           const boldChildren = walkChildren(child, { ...ctx, format: ctx.format | 1 })
-          items.push(makeListItem(value, normalizeContainerNodes(boldChildren)))
-          value += 1
+          const normalized = normalizeContainerNodes(boldChildren)
+          items.push(...(normalized.length > 0 ? normalized : [makeParagraph(boldChildren)]))
         } else if (tagName === 'dd') {
-          const definitionChildren = walkChildren(child, ctx)
-          items.push(makeListItem(value, normalizeContainerNodes(definitionChildren)))
-          value += 1
+          // Definition: quote block (visually indented)
+          const definitionChildren = normalizeContainerNodes(walkChildren(child, ctx))
+          if (definitionChildren.length > 0) {
+            items.push(makeQuote(definitionChildren))
+          }
         }
       }
 
-      return items.length > 0 ? [makeList('bullet', 'ul', items, ctx.listDepth)] : []
+      return items
     }
 
     case 'dt':

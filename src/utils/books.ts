@@ -1,6 +1,7 @@
 import type { Access, CollectionBeforeChangeHook, CollectionBeforeDeleteHook, PayloadRequest } from 'payload'
 
-import { ownerAccess, normalizeEntityId } from './access'
+import { ownerAccess } from './access'
+import { normalizeEntityId } from './identifiers'
 import { requestJSONWithRetry } from './http'
 import { toPositiveInteger } from './numbers'
 

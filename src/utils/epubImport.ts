@@ -1,3 +1,8 @@
+// BROWSER-ONLY MODULE
+// This module relies on browser APIs (DOMParser, Blob, canvas, URL.createObjectURL).
+// It must not be imported in server-side or Node.js contexts.
+// For the HTML → Lexical conversion step (which is runtime-agnostic), use epubLexical.ts instead.
+
 import type { NavItem } from 'epubjs/types/navigation'
 
 import { formatSlug, resolveSlugLocale } from './slug'
@@ -240,6 +245,10 @@ const normalizeWrapperDivs = (document: Document) => {
 }
 
 export const sanitizeChapterHTML = (rawHTML: string): { html: string; warnings: string[] } => {
+  if (typeof window === 'undefined') {
+    throw new Error('sanitizeChapterHTML requires a browser environment (DOMParser is not available)')
+  }
+
   const parser = new DOMParser()
   const document = parser.parseFromString(rawHTML, 'text/html')
   const warnings: string[] = []

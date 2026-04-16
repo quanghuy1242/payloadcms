@@ -232,6 +232,24 @@ describe('htmlToPayloadLexical', () => {
     expect(quotes).toHaveLength(1)
   })
 
+  it('converts <dl> with <dt>/<dd> pairs: dt → bold paragraph, dd → quote block', () => {
+    const result = htmlToPayloadLexical(
+      '<dl><dt>Term One</dt><dd>Definition one</dd><dt>Term Two</dt><dd>Definition two</dd></dl>',
+    )
+    // dd wraps its content in a paragraph inside the quote, so 2 bold dt paragraphs + 2 dd paragraphs
+    const paragraphs = findNodes(result, 'paragraph')
+    expect(paragraphs).toHaveLength(4)
+    const boldParagraphs = paragraphs.filter((p: any) =>
+      p.children.some((c: any) => c.format & 1),
+    )
+    expect(boldParagraphs).toHaveLength(2)
+    expect(boldParagraphs[0].children[0].text).toBe('Term One')
+    expect(boldParagraphs[1].children[0].text).toBe('Term Two')
+    // dd → quote block
+    const quotes = findNodes(result, 'quote')
+    expect(quotes).toHaveLength(2)
+  })
+
   it('converts <pre> to a code block node', () => {
     const result = htmlToPayloadLexical('<pre>code content</pre>')
     const blockNodes = findNodes(result, 'block')
@@ -330,11 +348,18 @@ describe('htmlToPayloadLexical', () => {
     expect(lists.some((list: any) => list.indent === 1)).toBe(true)
   })
 
-  it('converts definition lists into bulleted list items', () => {
+  it('converts definition lists: dt → bold paragraph, dd → quote block', () => {
     const result = htmlToPayloadLexical('<dl><dt>Term</dt><dd>Definition</dd></dl>')
-    expect(findNodes(result, 'list')).toHaveLength(1)
-    expect(findNodes(result, 'listitem')).toHaveLength(2)
-    expect(findNodes(result, 'text').some((node: any) => node.text.includes('Term'))).toBe(true)
+    // dd wraps its content in a paragraph inside the quote: 1 bold dt paragraph + 1 dd paragraph
+    const paragraphs = findNodes(result, 'paragraph')
+    expect(paragraphs).toHaveLength(2)
+    const boldParagraphs = paragraphs.filter((p: any) =>
+      p.children.some((c: any) => c.format & 1),
+    )
+    expect(boldParagraphs).toHaveLength(1)
+    expect(boldParagraphs[0].children[0].text).toBe('Term')
+    const quotes = findNodes(result, 'quote')
+    expect(quotes).toHaveLength(1)
     expect(findNodes(result, 'text').some((node: any) => node.text.includes('Definition'))).toBe(true)
   })
 

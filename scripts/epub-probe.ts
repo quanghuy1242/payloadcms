@@ -14,7 +14,6 @@ import { htmlToPayloadLexical, isSubstantiveChapterContent } from '../src/utils/
 import {
   extractChapterTitle,
   resolveChapterTocMetadata,
-  sanitizeChapterHTML,
 } from '../src/utils/epubImport'
 
 // jsdom setup — DOMParser must exist for htmlToPayloadLexical
@@ -272,18 +271,17 @@ async function probeEpub(
         continue
       }
 
-      const sanitized = sanitizeChapterHTML(html)
-      const expectedHtmlText = collectHtmlText(sanitized.html)
+      const expectedHtmlText = collectHtmlText(html)
       const tocMetadata = resolveChapterTocMetadata(tocItems, item.href ?? '')
       const defaultChapterTitle = `Chapter ${chapterNum}`
       const chapterTitle =
-        tocMetadata?.title ?? extractChapterTitle(sanitized.html, defaultChapterTitle, chapterNum)
+        tocMetadata?.title ?? extractChapterTitle(html, defaultChapterTitle, chapterNum)
       const chapterLabel =
         chapterTitle === defaultChapterTitle ? `Chapter ${chapterNum}` : `Chapter ${chapterNum}: ${chapterTitle}`
 
       let state: any
       try {
-        state = htmlToPayloadLexical(sanitized.html)
+        state = htmlToPayloadLexical(html)
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
         console.log(`  ${chapterLabel}: ISSUES — conversion error: ${msg}`)
@@ -303,15 +301,13 @@ async function probeEpub(
         console.log(JSON.stringify(state, null, 2))
         okCount++
       } else if (issues.length === 0) {
-        const warnNote =
-          sanitized.warnings.length > 0 ? ` (${sanitized.warnings.length} sanitize warnings)` : ''
         const internalLinkCount = countLexicalNodesOfType(state, 'epub-internal-link')
         const externalLinkCount = countLexicalNodesOfType(state, 'link')
         const linkSummary =
           internalLinkCount > 0 || externalLinkCount > 0
             ? ` (${internalLinkCount} internal links, ${externalLinkCount} external links)`
             : ''
-        console.log(`  ${chapterLabel}: OK${warnNote}${linkSummary}`)
+        console.log(`  ${chapterLabel}: OK${linkSummary}`)
         okCount++
       } else {
         console.log(`  ${chapterLabel}: ISSUES`)
