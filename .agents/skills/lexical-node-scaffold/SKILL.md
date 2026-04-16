@@ -75,7 +75,7 @@ export const <Name>Feature = createServerFeature({
 })
 ```
 
-## Registration in `src/payload.config.ts`
+## Registration in `src/payload.config.ts` (global features)
 
 Add the server feature to the Lexical editor's `features` array:
 ```typescript
@@ -85,16 +85,25 @@ features: [
 ]
 ```
 
+## Registration for chapter-specific features
+
+If the node only appears in **chapter content** (e.g., EPUB-sourced nodes like callouts, footnotes, internal links), register it in **both** of these files instead of `payload.config.ts`:
+
+1. `src/utils/chapterLexicalNodes.ts` — add the node class to the `chapterLexicalNodes` array so headless Lexical can deserialize it.
+2. `src/utils/chapterRichText.ts` — add the server feature to the features list passed to `createChapterLexicalEditor()`.
+
+Do not add EPUB-specific nodes to the global `payload.config.ts` features array.
+
 ## Check
 
 - `feature.server.ts` uses `createServerFeature` and provides a `ClientFeature` path.
 - `feature.client.ts` has `'use client'` at the top and uses `createClientFeature`.
-- The node class extends `DecoratorNode`, not `ElementNode` (unless it's a container node).
+- Use `DecoratorNode` for leaf/inline nodes (youtube, footnote-ref). Use `ElementNode` for structural block containers (callout boxes, sidebars) — `ElementNode` children are Lexical nodes themselves, not React props.
 - `static getType()` returns a unique, stable string key (kebab-case, matches `key` in server feature).
 - `exportJSON` / `importJSON` are symmetric (same fields, no data loss on round-trip).
-- The React component is **lazy-loaded** inside `decorate()` to avoid SSR issues.
+- For `DecoratorNode`: React component is **lazy-loaded** inside `decorate()` to avoid SSR issues.
 - HTML converter in `feature.server.ts` handles all fields from `SerializedType`.
-- The node type is added to `src/utils/chapterLexicalNodes.ts` if it appears in chapter content.
+- Chapter-specific nodes are registered in `src/utils/chapterLexicalNodes.ts` AND `src/utils/chapterRichText.ts` — not in `payload.config.ts`.
 - Toolbar/slash menu entry has a meaningful label and icon.
 
 ## Common failure modes
@@ -104,6 +113,8 @@ features: [
 - `getType()` returning a value that conflicts with an existing node type.
 - `exportJSON` / `importJSON` mismatch — causes data corruption on re-serialization.
 - Not registering the node in `chapterLexicalNodes.ts` — EPUB importer cannot emit it.
+- Using `DecoratorNode` for a structural block container (e.g., callout) — use `ElementNode` instead so child nodes are proper Lexical nodes, not serialized React props.
+- Adding a chapter-specific node to the global `payload.config.ts` features array instead of `chapterRichText.ts` — pollutes the global editor.
 
 ## Output rule
 

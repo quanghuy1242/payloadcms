@@ -29,11 +29,12 @@ Book (src/collections/Books.ts)
 
 | Module | Exports | Use for |
 |--------|---------|---------|
-| `src/utils/books.ts` | `applyBookImportLifecycleHook`, `enforceUniqueChapterOrderHook`, `bookDeleteAccess`, `enforceBookHasNoChaptersBeforeDelete`, constants | All Books-specific hooks and guards |
+| `src/utils/books.ts` | `applyBookImportLifecycleHook`, `enforceUniqueChapterOrderHook`, `enforceChapterBookOwnershipHook`, `bookDeleteAccess`, `enforceBookHasNoChaptersBeforeDelete`, constants | All Books-specific hooks and guards |
 | `src/utils/chapterRichText.ts` | `createChapterLexicalEditor` | Wiring Lexical editor to a chapter field |
 | `src/utils/chapterLexicalNodes.ts` | Custom node definitions | Node registration for chapter content |
-| `src/utils/epubImport.ts` | EPUB parsing + sanitization | EPUB → chapter data pipeline (stage 1) |
+| `src/utils/epubImport.ts` | EPUB parsing + sanitization | EPUB → chapter data pipeline (stage 1, browser-only) |
 | `src/utils/epubLexical.ts` | HTML → Lexical conversion | EPUB → chapter data pipeline (stage 2) |
+| `src/utils/epubPipeline.ts` | `runEpubImportPipeline()` | Full import orchestration: batching, image upload, progress events, resumption checkpointing |
 
 ## Import lifecycle state machine
 
@@ -69,6 +70,8 @@ Never update `importStatus` directly in a component; always go through the Paylo
 
 `bookDeleteAccess` blocks deletion if the book has existing chapters (`enforceBookHasNoChaptersBeforeDelete`).
 
+**Cross-book ownership**: `ownerAccess('createdBy')` on Chapters only guards update/delete of the chapter itself. It does NOT prevent a user from creating chapters for another user's book. `enforceChapterBookOwnershipHook` (in `src/utils/books.ts`, registered as the first `beforeChange` hook in `Chapters.ts`) fixes this by fetching the referenced book and verifying `book.createdBy === req.user.id`. Admins bypass this check.
+
 ## Check
 
 - Import status transitions follow the state machine — no illegal transitions.
@@ -87,6 +90,9 @@ Never update `importStatus` directly in a component; always go through the Paylo
 - Chapter reorder logic in a component instead of using the bulk operation.
 - Using `createRandomizedSlugHook` for chapters (should use `createSlugHook` — chapters get deterministic slugs from titles).
 - Forgetting to thread `AbortSignal` through batch saves (import can't be canceled).
+- Using `ownerAccess('createdBy')` alone on Chapters and assuming it prevents cross-book chapter injection — it doesn't. `enforceChapterBookOwnershipHook` is also required.
+- Putting chapter batching / retry / progress logic in `EpubImporter.tsx` instead of `epubPipeline.ts` — the component is now a thin shell.
+- Not checking `manualEditedAt` before skipping a chapter during re-import (manually edited chapters must never be silently overwritten or skipped).
 
 ## Output rule
 

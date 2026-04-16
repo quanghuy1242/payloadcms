@@ -11,18 +11,20 @@ Use this skill for the book import subsystem.
 
 | Stage | Module | Responsibility |
 |-------|--------|----------------|
-| Preflight / metadata | `src/utils/epubImport.ts` | Parse EPUB spine, TOC, sanitize HTML, extract images |
+| Preflight / metadata | `src/utils/epubImport.ts` | Parse EPUB spine, TOC, sanitize HTML, extract images (**browser-only** — throws if called in Node) |
 | HTML → Lexical conversion | `src/utils/epubLexical.ts` | Convert sanitized HTML nodes to Lexical JSON |
 | Node registration | `src/utils/chapterLexicalNodes.ts` | Defines custom node types available to Payload Lexical |
 | Rich text helpers | `src/utils/chapterRichText.ts` | Utilities for working with stored Lexical content |
-| Admin orchestration | `src/components/admin/books/` | UI, chapter batching, progress, retry logic |
+| Import pipeline orchestration | `src/utils/epubPipeline.ts` | Batching, per-chapter image upload, Lexical conversion, resumption checkpointing — exported as `runEpubImportPipeline()` async generator |
+| Admin UI shell | `src/components/admin/books/EpubImporter.tsx` | File selection, config assembly, iterates pipeline events, updates React state |
 | Persistence | Payload REST API (`/api/chapters`) | Saves converted chapters; uses `requestJSONWithRetry` |
 
 ## Custom Lexical nodes registered for chapters
 
 Check `src/utils/chapterLexicalNodes.ts` and `src/features/` for:
 - `epub-footnote-ref` — footnote reference node
-- `epub-internal-link` — cross-chapter internal link node
+- `epub-internal-link` — cross-chapter internal link sentinel (FE resolves at render time against chapter list)
+- `epub-callout` — Manning-style callout block (`note` / `tip` / `warning` / `important` variants)
 - `youtube` — embedded YouTube video node
 
 Any new EPUB construct must map to a registered node or it will be silently dropped.
@@ -41,8 +43,13 @@ Any new EPUB construct must map to a registered node or it will be silently drop
 - HTML sanitization does not destroy semantic content (headings, lists, blockquotes, tables).
 - Image MIME type is validated before upload; unsupported types are skipped gracefully.
 - Lexical output only uses nodes registered in `chapterLexicalNodes.ts`.
-- Internal links resolve to valid chapter slugs within the same book.
+- Internal links import as `epub-internal-link` sentinel nodes; resolution happens at FE render time.
 - Footnotes are preserved as `epub-footnote-ref` nodes, not flattened to plain text.
+- Callout divs (`<div class="note|tip|warning|important">`) map to `epub-callout` nodes, not plain paragraphs.
+- `epubImport.ts` is browser-only — `sanitizeChapterHTML` throws if `typeof window === 'undefined'`.
+- Pipeline orchestration lives in `utils/epubPipeline.ts`, not in React components.
+- `EpubImporter.tsx` is a thin shell: config assembly → iterate async generator events → React state.
+- `chapter-checkpointed` events (same `importBatchId` + `chapterSourceKey`, no `manualEditedAt`) count as completed — no DB writes, no image uploads.
 
 ## Useful questions
 

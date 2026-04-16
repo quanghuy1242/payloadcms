@@ -11,8 +11,9 @@ Use this skill when code could run in the browser, on the server, or in both pla
 
 | Module | Environment | Why |
 |--------|-------------|-----|
-| `src/utils/epubImport.ts` | Browser + Node | HTML sanitization (DOMParser in browser, no DOM in Node) |
+| `src/utils/epubImport.ts` | **Browser only** | Uses `DOMParser`; `sanitizeChapterHTML` throws `Error('sanitizeChapterHTML requires a browser environment')` if `typeof window === 'undefined'` |
 | `src/utils/epubLexical.ts` | Browser + Node | Lexical conversion; must not use browser globals |
+| `src/utils/epubPipeline.ts` | **Browser only** | Orchestrates `epubImport.ts` + image uploads; runs inside the admin `EpubImporter` component |
 | `src/utils/chapterLexicalNodes.ts` | Server-safe | Node registration; no DOM APIs allowed |
 | `src/features/*/feature.client.ts` | Browser only | Lexical client plugins |
 | `src/features/*/feature.server.ts` | Server only | Lexical server serializers |

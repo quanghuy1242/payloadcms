@@ -20,6 +20,21 @@ The project's access helpers live in `src/utils/access.ts`.
 | `publishedMediaReadAccess` | Media referenced by published posts/categories |
 | `adminOrEmailContains` | Admin or email domain check |
 
+## Cross-collection ownership
+
+`ownerAccess('createdBy')` on a child collection (e.g., Chapters) only guards update/delete
+on the child record itself. It does NOT prevent a user from **creating** a child that points
+to another user's parent (e.g., creating chapters for someone else's book).
+
+When a child resource "belongs to" a parent, add a `beforeChange` hook that:
+1. Fetches the parent record.
+2. Compares `parent.createdBy` to `req.user.id`.
+3. Throws a 403-like error on mismatch.
+4. Lets admins bypass.
+
+See `enforceChapterBookOwnershipHook` in `src/utils/books.ts` (registered first in
+`Chapters.ts` `beforeChange`) as the canonical example.
+
 ## Check
 
 - Admin users (`role: 'admin'`) bypass all restrictions — confirm the helper you chose respects this.

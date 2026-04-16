@@ -25,10 +25,12 @@ Never write inline `fetch().then()` chains or local retry loops in a component.
 - Progress reporting uses explicit state updates, not console.log.
 - The component does not own business rules (e.g., slug generation, chapter ordering).
 - Shared request helpers from `src/utils/http.ts` are imported rather than reinvented.
+- Import pipeline logic lives in `src/utils/epubPipeline.ts` (`runEpubImportPipeline()` async generator) — `EpubImporter.tsx` only assembles config, iterates the generator, and maps events to React state.
 
 ## Common targets in this project
 
-- `src/components/admin/books/` — Book import wizard, chapter batch upload
+- `src/components/admin/books/EpubImporter.tsx` — thin shell over `runEpubImportPipeline()`; iterates async generator events, maps to React state
+- `src/components/admin/books/` — rest of book import wizard (chapter preview, progress display)
 - `src/components/admin/chapters/` — Chapter editor, content save flow
 - `src/components/admin/media/` — Media upload flow
 - Any drawer or modal that calls the Payload REST API
