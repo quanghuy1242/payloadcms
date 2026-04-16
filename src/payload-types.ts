@@ -242,7 +242,7 @@ export interface Book {
   sourceVersion?: string | null;
   syncStatus: 'clean' | 'pending' | 'conflicted' | 'diverged';
   importBatchId?: string | null;
-  importStatus: 'idle' | 'importing' | 'ready' | 'failed';
+  importStatus: 'idle' | 'importing' | 'ready' | 'failed' | 'canceled';
   importTotalChapters?: number | null;
   importCompletedChapters?: number | null;
   importStartedAt?: string | null;
@@ -253,6 +253,18 @@ export interface Book {
    * Only populated when the latest import attempt failed.
    */
   importErrorSummary?: string | null;
+  /**
+   * Per-chapter failure records from the latest import attempt.
+   */
+  importFailureLog?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
   createdBy: number | User;
   updatedAt: string;
   createdAt: string;
@@ -511,6 +523,7 @@ export interface BooksSelect<T extends boolean = true> {
   importFailedAt?: T;
   lastImportedAt?: T;
   importErrorSummary?: T;
+  importFailureLog?: T;
   createdBy?: T;
   updatedAt?: T;
   createdAt?: T;

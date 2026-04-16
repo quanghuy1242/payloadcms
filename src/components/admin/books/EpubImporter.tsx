@@ -88,6 +88,17 @@ type PreparedChapter = {
   wordCount: number
 }
 
+type ChapterProcessResult = {
+  success: boolean
+  failureReason?: string
+}
+
+type BatchResult = {
+  completedChapters: number
+  failureLogs: Array<{ order: number; reason: string; timestamp: string }>
+  skippedChapters: number
+}
+
 const MAX_CHAPTERS_PER_BATCH = 10
 const MAX_WORDS_PER_BATCH = 5000
 const MAX_PARALLEL_BATCHES = 5
@@ -285,6 +296,42 @@ export const EpubImporter: React.FC = () => {
     return listResponse.docs
   }
 
+  const prewarmMediaCacheByFilename = async (
+    sourceHash: string,
+    signal: AbortSignal,
+  ): Promise<Map<string, UploadedMedia>> => {
+    const filenameCache = new Map<string, UploadedMedia>()
+
+    try {
+      const query = new URLSearchParams({
+        depth: '0',
+        limit: '500',
+        'where[alt][contains]': sourceHash,
+      })
+
+      const response = await requestJSONWithRetry<PayloadListResponse<MediaDocument>>(
+        `/api/media?${query.toString()}`,
+        { method: 'GET' },
+        { signal },
+      )
+
+      for (const doc of response.docs) {
+        if (
+          typeof doc.filename === 'string' &&
+          doc.filename.length > 0 &&
+          typeof doc.url === 'string' &&
+          doc.url.length > 0
+        ) {
+          filenameCache.set(doc.filename, { id: doc.id, url: doc.url })
+        }
+      }
+    } catch {
+      // Pre-warm is best-effort; failures are non-fatal.
+    }
+
+    return filenameCache
+  }
+
   const readArchiveBlob = async (book: Book, assetPath: string): Promise<Blob> => {
     const candidatePaths = new Set<string>()
 
@@ -356,6 +403,7 @@ export const EpubImporter: React.FC = () => {
     filenameScope: string,
     mediaCache: Map<string, UploadedMedia>,
     mediaInFlight: Map<string, Promise<UploadedMedia | null>>,
+    filenamePrewarm: Map<string, UploadedMedia>,
     signal: AbortSignal,
   ): Promise<UploadedMedia | null> => {
     const cached = mediaCache.get(resolvedAssetPath)
@@ -387,6 +435,13 @@ export const EpubImporter: React.FC = () => {
         imageIndex + 1,
         filenameScope,
       )
+
+      const prewarmed = filenamePrewarm.get(stableFilename)
+
+      if (prewarmed) {
+        mediaCache.set(resolvedAssetPath, prewarmed)
+        return prewarmed
+      }
 
       const existingMedia = await findExistingMediaByFilename(stableFilename, signal)
 
@@ -498,10 +553,23 @@ export const EpubImporter: React.FC = () => {
     }
   }
 
+  const patchBookCanceledState = async (bookID: string | number) => {
+    try {
+      await updateBookProgress(bookID, {
+        importStatus: 'canceled',
+        importErrorSummary: 'Import canceled by user.',
+        importFailureLog: null,
+      })
+    } catch {
+      // Do not mask the original importer error if the fallback patch fails.
+    }
+  }
+
   const patchBookReadyState = async (
     bookID: string | number,
     completedChapters: number,
     skippedChapters: number,
+    failureLogs: Array<{ order: number; reason: string; timestamp: string }>,
   ) => {
     await updateBookProgress(bookID, {
       importErrorSummary:
@@ -509,6 +577,7 @@ export const EpubImporter: React.FC = () => {
           ? `${skippedChapters} chapter${skippedChapters === 1 ? '' : 's'} were skipped during import.`
           : null,
       importFailedAt: null,
+      importFailureLog: failureLogs.length > 0 ? failureLogs : null,
       importFinishedAt: new Date().toISOString(),
       importStatus: 'ready',
       importCompletedChapters: completedChapters,
@@ -591,8 +660,10 @@ export const EpubImporter: React.FC = () => {
     existingChaptersByOrder: Map<number, ChapterDocument>,
     mediaCache: Map<string, UploadedMedia>,
     mediaInFlight: Map<string, Promise<UploadedMedia | null>>,
+    filenamePrewarm: Map<string, UploadedMedia>,
+    chapterDocument: Document,
     signal: AbortSignal,
-  ): Promise<boolean> => {
+  ): Promise<ChapterProcessResult> => {
     ensureNotAborted(signal)
 
     const chapterOrder = preparedChapter.chapterOrder
@@ -609,8 +680,6 @@ export const EpubImporter: React.FC = () => {
     setStatusMessage(`Processing chapter ${chapterOrder} of ${totalChapters}...`)
 
       try {
-        const parser = new DOMParser()
-        const chapterDocument = parser.parseFromString(preparedChapter.chapterHTML, 'text/html')
         const rawSanitizedChapter = sanitizeChapterHTML(preparedChapter.chapterHTML)
         const chapterTitle =
           preparedChapter.tocTitle ??
@@ -622,12 +691,18 @@ export const EpubImporter: React.FC = () => {
       for (let imageIndex = 0; imageIndex < chapterImages.length; imageIndex += 1) {
         ensureNotAborted(signal)
 
+        const imageElement = chapterImages[imageIndex]
+
+        // Skip images whose upload IDs were already set in a prior attempt.
+        if (imageElement.getAttribute('data-lexical-upload-id')) {
+          continue
+        }
+
         setPhase('Uploading Images')
         setStatusMessage(
           `Uploading image ${imageIndex + 1} of ${chapterImages.length} in chapter ${chapterOrder}...`,
         )
 
-        const imageElement = chapterImages[imageIndex]
         const imageSource =
           imageElement.getAttribute('src') ??
           imageElement.getAttribute('href') ??
@@ -663,6 +738,7 @@ export const EpubImporter: React.FC = () => {
             sourceHash,
             mediaCache,
             mediaInFlight,
+            filenamePrewarm,
             signal,
           )
         } catch (error) {
@@ -727,7 +803,7 @@ export const EpubImporter: React.FC = () => {
       // Skip navigation-only or empty chapters instead of sending them to the API
       if (!isSubstantiveChapterContent(lexicalContent)) {
         appendWarnings([`Skipped chapter ${chapterOrder}: navigation-only or empty content.`])
-        return false
+        return { success: false }
       }
 
       const chapterSlugBase = createImportedBookSlug(chapterTitle, importedLanguage)
@@ -760,7 +836,7 @@ export const EpubImporter: React.FC = () => {
         }
       })
 
-      return true
+      return { success: true }
     } catch (error) {
       if (isAbortError(error) || signal.aborted) {
         throw error
@@ -768,7 +844,7 @@ export const EpubImporter: React.FC = () => {
 
       const message = error instanceof Error ? error.message : 'Unexpected chapter import failure.'
       appendWarnings([`Skipped chapter ${chapterOrder}: ${message}`])
-      return false
+      return { success: false, failureReason: message }
     }
   }
 
@@ -784,10 +860,19 @@ export const EpubImporter: React.FC = () => {
     existingChaptersByOrder: Map<number, ChapterDocument>,
     mediaCache: Map<string, UploadedMedia>,
     mediaInFlight: Map<string, Promise<UploadedMedia | null>>,
+    filenamePrewarm: Map<string, UploadedMedia>,
     signal: AbortSignal,
-  ): Promise<boolean> => {
+  ): Promise<ChapterProcessResult> => {
+    // Parse the chapter document once so all retry attempts share the same DOM.
+    // Images that were successfully uploaded in an earlier attempt will have
+    // data-lexical-upload-id already set, preventing redundant re-uploads.
+    const parser = new DOMParser()
+    const chapterDocument = parser.parseFromString(preparedChapter.chapterHTML, 'text/html')
+
+    let lastResult: ChapterProcessResult = { success: false }
+
     for (let attempt = 0; attempt <= MAX_CHAPTER_RETRY_ATTEMPTS; attempt += 1) {
-      const success = await processPreparedChapter(
+      lastResult = await processPreparedChapter(
         book,
         bookID,
         importBatchID,
@@ -799,11 +884,13 @@ export const EpubImporter: React.FC = () => {
         existingChaptersByOrder,
         mediaCache,
         mediaInFlight,
+        filenamePrewarm,
+        chapterDocument,
         signal,
       )
 
-      if (success) {
-        return true
+      if (lastResult.success) {
+        return lastResult
       }
 
       if (attempt < MAX_CHAPTER_RETRY_ATTEMPTS) {
@@ -815,7 +902,7 @@ export const EpubImporter: React.FC = () => {
       }
     }
 
-    return false
+    return lastResult
   }
 
   const processBatchWithRetry = async (
@@ -832,8 +919,9 @@ export const EpubImporter: React.FC = () => {
     existingChaptersByOrder: Map<number, ChapterDocument>,
     mediaCache: Map<string, UploadedMedia>,
     mediaInFlight: Map<string, Promise<UploadedMedia | null>>,
+    filenamePrewarm: Map<string, UploadedMedia>,
     signal: AbortSignal,
-  ): Promise<{ completedChapters: number; skippedChapters: number }> => {
+  ): Promise<BatchResult> => {
     for (let attempt = 0; attempt <= MAX_BATCH_RETRY_ATTEMPTS; attempt += 1) {
       try {
         setPhase('Uploading Chapter')
@@ -841,11 +929,12 @@ export const EpubImporter: React.FC = () => {
 
         let completedChapters = 0
         let skippedChapters = 0
+        const failureLogs: Array<{ order: number; reason: string; timestamp: string }> = []
 
         for (const preparedChapter of batch) {
           ensureNotAborted(signal)
 
-          const chapterSucceeded = await processPreparedChapterWithRetry(
+          const chapterResult = await processPreparedChapterWithRetry(
             book,
             bookID,
             importBatchID,
@@ -857,18 +946,28 @@ export const EpubImporter: React.FC = () => {
             existingChaptersByOrder,
             mediaCache,
             mediaInFlight,
+            filenamePrewarm,
             signal,
           )
 
-          if (chapterSucceeded) {
+          if (chapterResult.success) {
             completedChapters += 1
           } else {
             skippedChapters += 1
+
+            if (chapterResult.failureReason) {
+              failureLogs.push({
+                order: preparedChapter.chapterOrder,
+                reason: chapterResult.failureReason,
+                timestamp: new Date().toISOString(),
+              })
+            }
           }
         }
 
         return {
           completedChapters,
+          failureLogs,
           skippedChapters,
         }
       } catch (error) {
@@ -888,6 +987,11 @@ export const EpubImporter: React.FC = () => {
 
         return {
           completedChapters: 0,
+          failureLogs: batch.map((ch) => ({
+            order: ch.chapterOrder,
+            reason: message,
+            timestamp: new Date().toISOString(),
+          })),
           skippedChapters: batch.length,
         }
       }
@@ -895,6 +999,7 @@ export const EpubImporter: React.FC = () => {
 
     return {
       completedChapters: 0,
+      failureLogs: [],
       skippedChapters: batch.length,
     }
   }
@@ -932,6 +1037,7 @@ export const EpubImporter: React.FC = () => {
     sourceHash: string,
     mediaCache: Map<string, UploadedMedia>,
     mediaInFlight: Map<string, Promise<UploadedMedia | null>>,
+    filenamePrewarm: Map<string, UploadedMedia>,
     signal: AbortSignal,
   ) => {
     ensureNotAborted(signal)
@@ -987,6 +1093,7 @@ export const EpubImporter: React.FC = () => {
         sourceHash,
         mediaCache,
         mediaInFlight,
+        filenamePrewarm,
         signal,
       )
 
@@ -1179,7 +1286,14 @@ export const EpubImporter: React.FC = () => {
 
       const mediaCache = new Map<string, UploadedMedia>()
       const mediaInFlight = new Map<string, Promise<UploadedMedia | null>>()
+      const allFailureLogs: Array<{ order: number; reason: string; timestamp: string }> = []
       let completedChapters = 0
+
+      // Pre-warm the filename cache when resuming to avoid per-image API queries for
+      // media that was already uploaded in a previous import attempt.
+      const filenamePrewarm = reusableBook
+        ? await prewarmMediaCacheByFilename(sourceHash, abortController.signal)
+        : new Map<string, UploadedMedia>()
 
       if (createdBookID == null) {
         throw new Error('Book record was not created before chapter import started.')
@@ -1244,6 +1358,7 @@ export const EpubImporter: React.FC = () => {
         sourceHash,
         mediaCache,
         mediaInFlight,
+        filenamePrewarm,
         abortController.signal,
       )
 
@@ -1265,6 +1380,7 @@ export const EpubImporter: React.FC = () => {
             existingChaptersByOrder,
             mediaCache,
             mediaInFlight,
+            filenamePrewarm,
             abortController.signal,
           )
         },
@@ -1273,6 +1389,7 @@ export const EpubImporter: React.FC = () => {
       for (const batchResult of batchResults) {
         completedChapters += batchResult.completedChapters
         skippedChapters += batchResult.skippedChapters
+        allFailureLogs.push(...batchResult.failureLogs)
       }
 
       for (let index = 0; index < batchResults.length; index += 1) {
@@ -1294,7 +1411,7 @@ export const EpubImporter: React.FC = () => {
       setPhase('Finalizing')
       setStatusMessage('Finalizing import status...')
 
-      await patchBookReadyState(importBookID, completedChapters, skippedChapters)
+      await patchBookReadyState(importBookID, completedChapters, skippedChapters, allFailureLogs)
 
       setPhase('Done')
       setStatusMessage(
@@ -1309,7 +1426,7 @@ export const EpubImporter: React.FC = () => {
         setStatusMessage('Import canceled. Any chapters already written were kept as draft.')
 
         if (createdBookID) {
-          await patchBookFailureState(createdBookID, 'Import canceled by user.')
+          await patchBookCanceledState(createdBookID)
         }
       } else {
         const message = error instanceof Error ? error.message : 'Unknown EPUB import failure.'

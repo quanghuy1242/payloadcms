@@ -752,4 +752,260 @@ describe('EpubImporter', () => {
     expect(chapterLookupCalls.length).toBe(1)
     expect(chapterCreateCalls.length).toBe(3)
   })
+
+  // Gap 6 — Import Reliability and Partial Resumption
+
+  it('9.5: patches importStatus as canceled (not failed) when an AbortError is thrown', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      const method = (init?.method ?? 'GET').toUpperCase()
+
+      if (method === 'GET' && url.startsWith('/api/books?')) {
+        return createJsonResponse({ docs: [] })
+      }
+
+      if (method === 'POST' && url === '/api/books') {
+        return createJsonResponse({ doc: { id: 101, title: 'Test' } }, 201)
+      }
+
+      if (method === 'PATCH' && url.startsWith('/api/books/')) {
+        return createJsonResponse({ id: 101, updatedAt: new Date().toISOString() })
+      }
+
+      if (method === 'GET' && url.startsWith('/api/media?')) {
+        return createJsonResponse({ docs: [] })
+      }
+
+      if (method === 'GET' && url.startsWith('/api/chapters?')) {
+        return createJsonResponse({ docs: [] })
+      }
+
+      if (method === 'POST' && url === '/api/media') {
+        return createJsonResponse({ doc: { id: 201, url: '/media/img.png' } }, 201)
+      }
+
+      if (method === 'POST' && url === '/api/chapters') {
+        // Simulate the abort signal firing during chapter creation.
+        throw new DOMException('Import canceled by user.', 'AbortError')
+      }
+
+      throw new Error(`Unhandled fetch: ${method} ${url}`)
+    })
+
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(createElement(EpubImporter))
+
+    const input = screen.getByLabelText('Select EPUB file') as HTMLInputElement
+    fireEvent.change(input, { target: { files: [createTestEpubFile()] } })
+
+    await waitFor(() => {
+      expect(
+        screen.getByText((_, element) => element?.textContent === 'Phase: Canceled'),
+      ).toBeTruthy()
+    })
+
+    const bookPatchCalls = fetchMock.mock.calls.filter(([url, init]) => {
+      return String(url).startsWith('/api/books/101') && init?.method === 'PATCH'
+    })
+
+    // The last book PATCH must use 'canceled', never 'failed'.
+    const canceledPatch = bookPatchCalls.find(([, init]) => {
+      const body = JSON.parse(String(init?.body ?? '{}'))
+      return body.importStatus === 'canceled'
+    })
+
+    expect(canceledPatch).toBeTruthy()
+
+    for (const [, init] of bookPatchCalls) {
+      const body = JSON.parse(String(init?.body ?? '{}'))
+
+      if ('importStatus' in body) {
+        expect(body.importStatus).not.toBe('failed')
+      }
+    }
+  })
+
+  it('9.3: includes importFailureLog in the ready patch when chapters fail with an error', async () => {
+    const fetchMock = installFetchMock({
+      failChapterCreate: true,
+    })
+
+    render(createElement(EpubImporter))
+
+    const input = screen.getByLabelText('Select EPUB file') as HTMLInputElement
+    fireEvent.change(input, { target: { files: [createTestEpubFile()] } })
+
+    await waitFor(() => {
+      expect(
+        screen.getByText((_, element) => element?.textContent === 'Phase: Done'),
+      ).toBeTruthy()
+    })
+
+    const bookPatchCalls = fetchMock.mock.calls.filter(([url, init]) => {
+      return String(url).startsWith('/api/books/101') && init?.method === 'PATCH'
+    })
+
+    const readyPatch = bookPatchCalls.find(([, init]) => {
+      const body = JSON.parse(String(init?.body ?? '{}'))
+      return body.importStatus === 'ready'
+    })
+
+    expect(readyPatch).toBeTruthy()
+
+    const readyPatchBody = JSON.parse(String(readyPatch?.[1]?.body ?? '{}'))
+
+    // Failed chapters should appear in the structured failure log.
+    expect(Array.isArray(readyPatchBody.importFailureLog)).toBe(true)
+    expect(readyPatchBody.importFailureLog.length).toBeGreaterThan(0)
+
+    const logEntry = readyPatchBody.importFailureLog[0]
+    expect(typeof logEntry.order).toBe('number')
+    expect(typeof logEntry.reason).toBe('string')
+    expect(typeof logEntry.timestamp).toBe('string')
+  })
+
+  it('9.3: omits importFailureLog (null) when all chapters succeed', async () => {
+    const fetchMock = installFetchMock()
+
+    render(createElement(EpubImporter))
+
+    const input = screen.getByLabelText('Select EPUB file') as HTMLInputElement
+    fireEvent.change(input, { target: { files: [createTestEpubFile()] } })
+
+    await waitFor(() => {
+      expect(
+        screen.getByText((_, element) => element?.textContent === 'Phase: Done'),
+      ).toBeTruthy()
+    })
+
+    const bookPatchCalls = fetchMock.mock.calls.filter(([url, init]) => {
+      return String(url).startsWith('/api/books/101') && init?.method === 'PATCH'
+    })
+
+    const readyPatch = bookPatchCalls.find(([, init]) => {
+      const body = JSON.parse(String(init?.body ?? '{}'))
+      return body.importStatus === 'ready'
+    })
+
+    const readyPatchBody = JSON.parse(String(readyPatch?.[1]?.body ?? '{}'))
+
+    expect(readyPatchBody.importFailureLog).toBeNull()
+  })
+
+  it('9.2: pre-warms the media filename cache when resuming an existing book', async () => {
+    const fetchMock = installFetchMock({
+      existingBooksDocs: [{ id: 900, title: 'The Wild Robot Escapes' }],
+    })
+
+    render(createElement(EpubImporter))
+
+    const input = screen.getByLabelText('Select EPUB file') as HTMLInputElement
+    fireEvent.change(input, { target: { files: [createTestEpubFile()] } })
+
+    await waitFor(() => {
+      expect(
+        screen.getByText((_, element) => element?.textContent === 'Phase: Done'),
+      ).toBeTruthy()
+    })
+
+    // Verify a media GET with the alt[contains] param was made (the pre-warm call).
+    const prewarmCall = fetchMock.mock.calls.find(([url, init]) => {
+      return (
+        String(url).includes('/api/media?') &&
+        (init?.method ?? 'GET') === 'GET' &&
+        decodeURIComponent(String(url)).includes('where[alt][contains]')
+      )
+    })
+
+    expect(prewarmCall).toBeTruthy()
+  })
+
+  it('9.2: does not pre-warm the media cache for a fresh import (no existing book)', async () => {
+    const fetchMock = installFetchMock()
+
+    render(createElement(EpubImporter))
+
+    const input = screen.getByLabelText('Select EPUB file') as HTMLInputElement
+    fireEvent.change(input, { target: { files: [createTestEpubFile()] } })
+
+    await waitFor(() => {
+      expect(
+        screen.getByText((_, element) => element?.textContent === 'Phase: Done'),
+      ).toBeTruthy()
+    })
+
+    const prewarmCall = fetchMock.mock.calls.find(([url, init]) => {
+      return (
+        String(url).includes('/api/media?') &&
+        (init?.method ?? 'GET') === 'GET' &&
+        decodeURIComponent(String(url)).includes('where[alt][contains]')
+      )
+    })
+
+    expect(prewarmCall).toBeUndefined()
+  })
+
+  it('9.1: reuses the chapter document across retry attempts to avoid duplicate image uploads', async () => {
+    let chapterCreateAttempts = 0
+    let mediaUploadAttempts = 0
+
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      const method = (init?.method ?? 'GET').toUpperCase()
+
+      if (method === 'GET' && url.startsWith('/api/books?')) {
+        return createJsonResponse({ docs: [] })
+      }
+
+      if (method === 'POST' && url === '/api/books') {
+        return createJsonResponse({ doc: { id: 101, title: 'Test' } }, 201)
+      }
+
+      if (method === 'PATCH' && url.startsWith('/api/books/')) {
+        return createJsonResponse({ id: 101, updatedAt: new Date().toISOString() })
+      }
+
+      if (method === 'GET' && url.startsWith('/api/media?')) {
+        return createJsonResponse({ docs: [] })
+      }
+
+      if (method === 'GET' && url.startsWith('/api/chapters?')) {
+        return createJsonResponse({ docs: [] })
+      }
+
+      if (method === 'POST' && url === '/api/media') {
+        mediaUploadAttempts += 1
+        return createJsonResponse({ doc: { id: 201, url: '/media/img.png' } }, 201)
+      }
+
+      if (method === 'POST' && url === '/api/chapters') {
+        chapterCreateAttempts += 1
+        // Fail the first attempt to trigger a retry.
+        if (chapterCreateAttempts === 1) {
+          return createJsonResponse({ message: 'Temporary failure' }, 500)
+        }
+        return createJsonResponse({ id: 301 }, 201)
+      }
+
+      throw new Error(`Unhandled fetch: ${method} ${url}`)
+    })
+
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(createElement(EpubImporter))
+
+    const input = screen.getByLabelText('Select EPUB file') as HTMLInputElement
+    fireEvent.change(input, { target: { files: [createTestEpubFile()] } })
+
+    await waitFor(() => {
+      expect(
+        screen.getByText((_, element) => element?.textContent === 'Phase: Done'),
+      ).toBeTruthy()
+    })
+
+    expect(chapterCreateAttempts).toBe(2)
+    // The image should be uploaded exactly once even though the chapter was retried.
+    expect(mediaUploadAttempts).toBe(1)
+  })
 })

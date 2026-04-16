@@ -13,6 +13,7 @@ import * as migration_20251025_081558 from './20251025_081558';
 import * as migration_20251026_000001_better_auth_user_id from './20251026_000001_better_auth_user_id';
 import * as migration_20260412_000001_books_chapters from './20260412_000001_books_chapters';
 import * as migration_20260415_175817_epub_import_gap_1_3 from './20260415_175817_epub_import_gap_1_3';
+import * as migration_20260416_000001_epub_import_gap_6 from './20260416_000001_epub_import_gap_6';
 
 export const migrations = [
   {
@@ -89,5 +90,10 @@ export const migrations = [
     up: migration_20260415_175817_epub_import_gap_1_3.up,
     down: migration_20260415_175817_epub_import_gap_1_3.down,
     name: '20260415_175817_epub_import_gap_1_3'
+  },
+  {
+    up: migration_20260416_000001_epub_import_gap_6.up,
+    down: migration_20260416_000001_epub_import_gap_6.down,
+    name: '20260416_000001_epub_import_gap_6',
   },
 ];

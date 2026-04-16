@@ -6,7 +6,7 @@ import { toPositiveInteger } from './numbers'
 
 export const BOOK_ORIGINS = ['manual', 'epub-imported', 'synced'] as const
 export const BOOK_SOURCE_TYPES = ['manual', 'epub-upload', 'meap-feed', 'external-sync'] as const
-export const BOOK_IMPORT_STATUSES = ['idle', 'importing', 'ready', 'failed'] as const
+export const BOOK_IMPORT_STATUSES = ['idle', 'importing', 'ready', 'failed', 'canceled'] as const
 export const BOOK_SYNC_STATUSES = ['clean', 'pending', 'conflicted', 'diverged'] as const
 
 export type BookOrigin = (typeof BOOK_ORIGINS)[number]
@@ -93,6 +93,11 @@ export const applyBookImportLifecycleHook: CollectionBeforeChangeHook = ({
 
     if (nextStatus === 'failed') {
       workingRecord.importFailedAt = lifecycleNow
+    }
+
+    if (nextStatus === 'canceled') {
+      // User-initiated cancellation — no failure timestamp, no error clearing.
+      workingRecord.importFinishedAt = null
     }
   }
 

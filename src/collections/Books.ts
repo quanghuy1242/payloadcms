@@ -302,6 +302,15 @@ export const Books: CollectionConfig = {
       },
     },
     {
+      name: 'importFailureLog',
+      type: 'json',
+      admin: {
+        position: 'sidebar',
+        readOnly: true,
+        description: 'Per-chapter failure records from the latest import attempt.',
+      },
+    },
+    {
       name: 'createdBy',
       type: 'relationship',
       relationTo: 'users' as const,
