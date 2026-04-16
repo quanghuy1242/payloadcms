@@ -1,6 +1,7 @@
 export type EpubFailureRecord = {
-  order: number
-  reason: string
+  chapterIndex: number
+  chapterTitle: string
+  error: string
   timestamp: string
 }
 

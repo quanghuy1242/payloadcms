@@ -303,12 +303,34 @@ export const Books: CollectionConfig = {
     },
     {
       name: 'importFailureLog',
-      type: 'json',
+      type: 'array',
       admin: {
         position: 'sidebar',
         readOnly: true,
         description: 'Per-chapter failure records from the latest import attempt.',
       },
+      fields: [
+        {
+          name: 'chapterIndex',
+          type: 'number',
+          required: true,
+        },
+        {
+          name: 'chapterTitle',
+          type: 'text',
+          required: true,
+        },
+        {
+          name: 'error',
+          type: 'text',
+          required: true,
+        },
+        {
+          name: 'timestamp',
+          type: 'date',
+          required: true,
+        },
+      ],
     },
     {
       name: 'createdBy',

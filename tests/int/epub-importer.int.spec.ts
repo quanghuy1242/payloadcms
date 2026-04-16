@@ -860,8 +860,9 @@ describe('EpubImporter', () => {
     expect(readyPatchBody.importFailureLog.length).toBeGreaterThan(0)
 
     const logEntry = readyPatchBody.importFailureLog[0]
-    expect(typeof logEntry.order).toBe('number')
-    expect(typeof logEntry.reason).toBe('string')
+    expect(typeof logEntry.chapterIndex).toBe('number')
+    expect(typeof logEntry.chapterTitle).toBe('string')
+    expect(typeof logEntry.error).toBe('string')
     expect(typeof logEntry.timestamp).toBe('string')
   })
 

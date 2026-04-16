@@ -258,12 +258,12 @@ export interface Book {
    */
   importFailureLog?:
     | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
+        chapterIndex: number;
+        chapterTitle: string;
+        error: string;
+        timestamp: string;
+        id?: string | null;
+      }[]
     | null;
   createdBy: number | User;
   updatedAt: string;
@@ -524,7 +524,15 @@ export interface BooksSelect<T extends boolean = true> {
   importFailedAt?: T;
   lastImportedAt?: T;
   importErrorSummary?: T;
-  importFailureLog?: T;
+  importFailureLog?:
+    | T
+    | {
+        chapterIndex?: T;
+        chapterTitle?: T;
+        error?: T;
+        timestamp?: T;
+        id?: T;
+      };
   createdBy?: T;
   updatedAt?: T;
   createdAt?: T;

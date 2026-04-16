@@ -32,7 +32,7 @@ import {
   sanitizeChapterHTML,
   sleep,
 } from './epubImport'
-import type { EpubFailureRecord } from './epubFailureLog'
+import type { EpubFailureLog } from './epubFailureLog'
 import { normalizeEntityId } from './identifiers'
 import { requestDocumentJSONWithRetry, requestJSONWithRetry } from './http'
 import { toNullableString } from './strings'
@@ -114,6 +114,7 @@ type UploadedMedia = {
 }
 
 type PreparedChapter = {
+  chapterTitle: string
   chapterHTML: string
   chapterOrder: number
   footnoteDefinitions: FootnoteDefinition[]
@@ -133,7 +134,7 @@ type ChapterProcessResult = {
 
 type BatchResult = {
   completedChapters: number
-  failureLogs: EpubFailureRecord[]
+  failureLogs: EpubFailureLog
   skippedChapters: number
 }
 
@@ -391,7 +392,7 @@ const patchBookReadyState = async (
   bookID: string | number,
   completedChapters: number,
   skippedChapters: number,
-  failureLogs: EpubFailureRecord[],
+  failureLogs: EpubFailureLog,
 ): Promise<void> => {
   await updateBookProgress(bookID, {
     importCompletedChapters: completedChapters,
@@ -607,9 +608,12 @@ const prepareChaptersForImport = async (
       }
 
       const tocMetadata = resolveChapterTocMetadata(tocItems, spineItem.href ?? '')
+      const chapterTitle =
+        tocMetadata?.title ?? extractChapterTitle(chapterHTML, `Chapter ${chapterOrder}`, chapterOrder)
       const footnoteDefinitions = Array.from(collectFootnoteDefinitionsFromHTML(chapterHTML).values())
 
       preparedChapters.push({
+        chapterTitle,
         chapterHTML,
         chapterOrder,
         footnoteDefinitions,
@@ -652,6 +656,7 @@ const processPreparedChapter = async (
   ensureNotAborted(signal)
 
   const chapterOrder = preparedChapter.chapterOrder
+  const chapterTitle = preparedChapter.chapterTitle
 
   // T3-4: Resumption checkpoint — skip this chapter if it was already successfully
   // created in a previous run of the same import batch AND has not been manually edited.
@@ -677,9 +682,6 @@ const processPreparedChapter = async (
 
   try {
     const rawSanitizedChapter = sanitizeChapterHTML(preparedChapter.chapterHTML)
-    const chapterTitle =
-      preparedChapter.tocTitle ??
-      extractChapterTitle(preparedChapter.chapterHTML, `Chapter ${chapterOrder}`, chapterOrder)
     const chapterImages = Array.from(
       chapterDocument.querySelectorAll('img[src], image[href], image[xlink\\:href]'),
     )
@@ -927,7 +929,7 @@ const processBatch = async (
 
       let completedChapters = 0
       let skippedChapters = 0
-      const failureLogs: EpubFailureRecord[] = []
+      const failureLogs: EpubFailureLog = []
 
       for (const preparedChapter of batch) {
         ensureNotAborted(signal)
@@ -957,8 +959,9 @@ const processBatch = async (
 
           if (chapterResult.failureReason) {
             failureLogs.push({
-              order: preparedChapter.chapterOrder,
-              reason: chapterResult.failureReason,
+              chapterIndex: preparedChapter.chapterOrder,
+              chapterTitle: preparedChapter.chapterTitle,
+              error: chapterResult.failureReason,
               timestamp: new Date().toISOString(),
             })
           }
@@ -987,8 +990,9 @@ const processBatch = async (
       return {
         completedChapters: 0,
         failureLogs: batch.map((ch) => ({
-          order: ch.chapterOrder,
-          reason: message,
+          chapterIndex: ch.chapterOrder,
+          chapterTitle: ch.chapterTitle,
+          error: message,
           timestamp: new Date().toISOString(),
         })),
         skippedChapters: batch.length,
@@ -1243,7 +1247,7 @@ export async function* runEpubImportPipeline(
 
     const mediaCache = new Map<string, UploadedMedia>()
     const mediaInFlight = new Map<string, Promise<UploadedMedia | null>>()
-    const allFailureLogs: EpubFailureRecord[] = []
+    const allFailureLogs: EpubFailureLog = []
     let completedChapters = 0
 
     const filenamePrewarm = reusableBook

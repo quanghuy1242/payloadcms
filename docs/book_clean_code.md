@@ -241,13 +241,7 @@ Adding a new custom Lexical node requires changes in: (a) `features/<name>/nodes
 `utils/chapterLexicalNodes.ts` (add to `chapterLexicalNodes` array). Missing step (d) breaks
 headless serialization silently. There is no checklist or guard for this.
 
-**9. `importFailureLog` has no TypeScript type in the generated types**
-The `importFailureLog` field stores an array of per-chapter failure objects. The shape
-(`{ chapterIndex, chapterTitle, error, timestamp }`) is defined only in the component that
-writes it (`EpubImporter.tsx`), not in a shared type or as a typed block field. This means
-nothing outside the component knows the structure of the failure log.
-
-**10. The `epub-probe.ts` script uses `require`-style dynamic imports**
+**9. The `epub-probe.ts` script uses `require`-style dynamic imports**
 This is inconsistent with the rest of the codebase which uses ESM `import` throughout. The
 probe script should be migrated to `tsx` + ESM imports for consistency and to enable shared
 use of the `utils/` modules without workarounds.
@@ -721,9 +715,9 @@ export const normalizeEntityId = (value: unknown): string | number | null => { .
 `utils/access.ts` can re-export it for backwards compatibility during the transition.
 
 **2. `EpubFailureRecord` type in `utils/epubFailureLog.ts`**
-The per-chapter failure record shape is currently only known to `EpubImporter.tsx`. It
-should be a shared type so that the Books collection's `importFailureLog` field can be
-properly typed, and any component or API consumer reading that field knows what to expect:
+The per-chapter failure record shape is shared between the importer and the Books
+collection's typed `importFailureLog` field, so any component or API consumer reading that
+field knows what to expect:
 ```typescript
 // utils/epubFailureLog.ts
 export type EpubFailureRecord = {
@@ -2059,7 +2053,7 @@ new migration file
 
 ---
 
-**T2-3: Make `importFailureLog` a typed JSON field**
+**T2-3: Make `importFailureLog` a typed JSON field** [done 2026-04-17]
 
 **What**: The `importFailureLog` field is currently an untyped JSON or text field. Change
 it to a Payload `array` field with typed sub-fields matching `EpubFailureRecord`:
