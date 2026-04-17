@@ -7,6 +7,11 @@ import { TableCellNode, TableNode, TableRowNode } from '@lexical/table'
 
 import { EpubCalloutNode } from '../features/epub-callout/nodes/EpubCalloutNode'
 
+/**
+ * The complete set of Lexical node classes registered for the chapter rich-text editor.
+ * Any node type used inside chapter content must appear here; missing entries cause
+ * Lexical to throw an "unknown node" error at render or serialization time.
+ */
 export const chapterLexicalNodes: Array<Klass<LexicalNode> | LexicalNodeReplacement> = [
   ParagraphNode,
   TextNode,

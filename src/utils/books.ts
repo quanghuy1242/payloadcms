@@ -5,16 +5,25 @@ import { normalizeEntityId } from './identifiers'
 import { requestJSONWithRetry } from './http'
 import { toPositiveInteger } from './numbers'
 
+/** All valid book origin values, representing how a book was created. */
 export const BOOK_ORIGINS = ['manual', 'epub-imported', 'synced'] as const
+/** All valid book source type values, representing the data source for a book's content. */
 export const BOOK_SOURCE_TYPES = ['manual', 'epub-upload', 'meap-feed', 'external-sync'] as const
+/** All valid import status values for a book's EPUB import lifecycle. */
 export const BOOK_IMPORT_STATUSES = ['idle', 'importing', 'ready', 'failed', 'canceled'] as const
+/** All valid sync status values describing whether a book's remote content is in sync. */
 export const BOOK_SYNC_STATUSES = ['clean', 'pending', 'conflicted', 'diverged'] as const
 
+/** A book origin — one of the values in {@link BOOK_ORIGINS}. */
 export type BookOrigin = (typeof BOOK_ORIGINS)[number]
+/** A book source type — one of the values in {@link BOOK_SOURCE_TYPES}. */
 export type BookSourceType = (typeof BOOK_SOURCE_TYPES)[number]
+/** An import status — one of the values in {@link BOOK_IMPORT_STATUSES}. */
 export type BookImportStatus = (typeof BOOK_IMPORT_STATUSES)[number]
+/** A sync status — one of the values in {@link BOOK_SYNC_STATUSES}. */
 export type BookSyncStatus = (typeof BOOK_SYNC_STATUSES)[number]
 
+/** Custom event name dispatched when a book's chapter list changes. */
 export const BOOK_CHAPTERS_UPDATED_EVENT = 'payload:book-chapters-updated' as const
 
 type BookRecord = {
@@ -31,6 +40,7 @@ const nowISO = () => {
   return new Date().toISOString()
 }
 
+/** Coerces an unknown value to a valid {@link BookImportStatus}, returning `null` if the value is not a recognised status. */
 const normalizeImportStatus = (value: unknown): BookImportStatus | null => {
   if (typeof value !== 'string') {
     return null
@@ -39,6 +49,12 @@ const normalizeImportStatus = (value: unknown): BookImportStatus | null => {
   return BOOK_IMPORT_STATUSES.includes(value as BookImportStatus) ? (value as BookImportStatus) : null
 }
 
+/**
+ * Payload `beforeChange` hook that manages import lifecycle timestamps on a Book document.
+ *
+ * Automatically sets `importStartedAt`, `importFinishedAt`, `importFailedAt`, and
+ * `lastImportedAt` based on the incoming `importStatus` transition.
+ */
 export const applyBookImportLifecycleHook: CollectionBeforeChangeHook = ({
   data,
   operation,
@@ -116,6 +132,10 @@ type ChapterCountResponse = {
   totalDocs?: number
 }
 
+/**
+ * Builds a Payload `where` filter that matches chapters belonging to the given book.
+ * Returns `null` when `bookId` cannot be normalised to a valid entity ID.
+ */
 const buildChapterFilter = (bookId: unknown): { book: { equals: string | number } } | null => {
   const normalizedBookId = normalizeEntityId(bookId)
 
@@ -130,6 +150,12 @@ const buildChapterFilter = (bookId: unknown): { book: { equals: string | number 
   }
 }
 
+/**
+ * Returns the total number of chapters associated with a book via a server-side Payload query.
+ * Returns `0` when `bookId` cannot be resolved.
+ * @param req - The current Payload request (provides access to the Payload instance).
+ * @param bookId - The book ID to count chapters for; accepts any normalizable value.
+ */
 export const countBookChapters = async (req: PayloadRequest, bookId: unknown): Promise<number> => {
   const where = buildChapterFilter(bookId)
 
@@ -149,6 +175,12 @@ export const countBookChapters = async (req: PayloadRequest, bookId: unknown): P
   return response.totalDocs ?? 0
 }
 
+/**
+ * Fetches the chapter count for a book from the Payload REST API (browser-safe).
+ * Returns `0` when `bookId` cannot be resolved.
+ * @param bookId - The book ID to query; accepts any normalizable value.
+ * @param signal - Optional `AbortSignal` to cancel the in-flight request.
+ */
 export const fetchBookChapterCount = async (
   bookId: unknown,
   signal?: AbortSignal,
@@ -168,6 +200,12 @@ export const fetchBookChapterCount = async (
   return typeof response.totalDocs === 'number' ? response.totalDocs : 0
 }
 
+/**
+ * Payload `Access` function for the Books collection delete operation.
+ *
+ * Allows deletion only when the requester owns the book AND the book has no chapters.
+ * Returns `false` (deny) if the chapter count cannot be determined.
+ */
 export const bookDeleteAccess: Access = async (args) => {
   const ownerDeleteAccess = ownerAccess('createdBy')(args)
   const docValue = 'doc' in args ? (args as { doc?: { id?: unknown } }).doc : undefined
@@ -191,6 +229,10 @@ export const bookDeleteAccess: Access = async (args) => {
   return ownerDeleteAccess
 }
 
+/**
+ * Payload `beforeDelete` hook that prevents a book from being deleted while it still has chapters.
+ * Throws if any chapters reference this book.
+ */
 export const enforceBookHasNoChaptersBeforeDelete: CollectionBeforeDeleteHook = async ({
   id,
   req,
@@ -204,6 +246,13 @@ export const enforceBookHasNoChaptersBeforeDelete: CollectionBeforeDeleteHook = 
   }
 }
 
+/**
+ * Payload `beforeChange` hook that verifies a non-admin user owns the book they are
+ * assigning a chapter to.
+ *
+ * Skipped for admin users and for updates that do not re-assign the book field.
+ * Throws if ownership cannot be verified.
+ */
 export const enforceChapterBookOwnershipHook: CollectionBeforeChangeHook = async ({
   data,
   operation,
@@ -254,6 +303,13 @@ export const enforceChapterBookOwnershipHook: CollectionBeforeChangeHook = async
   return workingData
 }
 
+/**
+ * Payload `beforeChange` hook that rejects a chapter save when another chapter in the same
+ * book already holds the same `order` value.
+ *
+ * Also coerces `order` to a positive integer before writing.
+ * Throws if a conflicting chapter is found.
+ */
 export const enforceUniqueChapterOrderHook: CollectionBeforeChangeHook = async ({
   data,
   operation,

@@ -41,6 +41,19 @@ import { toNullableString } from './strings'
 // Public types
 // ---------------------------------------------------------------------------
 
+/**
+ * The current processing phase of the EPUB import pipeline.
+ *
+ * - `'Idle'` – Pipeline has not started yet.
+ * - `'Parsing'` – EPUB metadata and spine items are being read from the archive.
+ * - `'Uploading Images'` – Binary image assets are being extracted and uploaded to Payload media.
+ * - `'Uploading Chapter'` – Chapter HTML is being converted to Lexical state and saved to Payload.
+ * - `'Finalizing'` – All chapters processed; the book record is being updated to `ready`.
+ * - `'Done'` – Pipeline completed successfully.
+ * - `'Failed'` – An unrecoverable error occurred; the book is marked `failed`.
+ * - `'Canceled'` – The import was aborted via `AbortSignal`; the book is marked `canceled`.
+ * - `'Retrying'` – A chapter or batch is being retried after a transient failure.
+ */
 export type ImportPhase =
   | 'Idle'
   | 'Parsing'
@@ -52,6 +65,16 @@ export type ImportPhase =
   | 'Canceled'
   | 'Retrying'
 
+/**
+ * Aggregated progress counters maintained by the consumer (e.g., the `EpubImporter` component)
+ * by accumulating `chapter-started`, `chapter-completed`, and `image-uploaded` events from
+ * the pipeline generator.
+ *
+ * - `completedChapters` – Number of chapters that have finished uploading in this run.
+ * - `currentChapter` – 1-based index of the chapter currently being processed.
+ * - `totalChapters` – Total spine chapters (announced via a `totals-known` event).
+ * - `uploadedImages` – Cumulative count of image assets uploaded so far.
+ */
 export type ImportProgress = {
   completedChapters: number
   currentChapter: number
@@ -59,6 +82,24 @@ export type ImportProgress = {
   uploadedImages: number
 }
 
+/**
+ * Discriminated-union event emitted by {@link runEpubImportPipeline}.
+ *
+ * Consumers switch on `event.type` to drive UI state:
+ *
+ * | type | key payload fields | description |
+ * |------|--------------------|-------------|
+ * | `phase` | `phase: ImportPhase` | Current pipeline phase changed. |
+ * | `status` | `message: string` | Human-readable status string for display. |
+ * | `image-uploaded` | — | One image asset uploaded; increment a counter. |
+ * | `chapter-started` | `chapterOrder`, `totalChapters` | Chapter upload beginning. |
+ * | `chapter-completed` | — | Chapter saved successfully. |
+ * | `chapter-checkpointed` | `chapterOrder` | Chapter skipped — already saved in a prior run of the same batch (T3-4 resumption). |
+ * | `totals-known` | `totalChapters` | Spine length resolved; use to set progress bar maximum. |
+ * | `warning` | `message: string` | Non-fatal issue (skipped image, empty chapter, etc.). |
+ * | `book-created` | `bookId` | Book document created or reused; use to route the admin UI. |
+ * | `done` | `completedChapters`, `skippedChapters` | Pipeline finished successfully. |
+ */
 export type EpubPipelineEvent =
   | { type: 'phase'; phase: ImportPhase }
   | { type: 'status'; message: string }
@@ -73,6 +114,14 @@ export type EpubPipelineEvent =
   | { type: 'book-created'; bookId: string | number }
   | { type: 'done'; completedChapters: number; skippedChapters: number }
 
+/**
+ * Input configuration for {@link runEpubImportPipeline}.
+ *
+ * - `file` – The `.epub` `File` object selected by the user.
+ * - `signal` – `AbortSignal` wired to a user "Cancel" button. Cancellation is cooperative:
+ *   the generator checks the signal at every `await` boundary and throws a
+ *   `DOMException('AbortError')` when fired.
+ */
 export type EpubPipelineConfig = {
   file: File
   signal: AbortSignal
@@ -220,6 +269,11 @@ const updateBookProgress = async (
   )
 }
 
+/**
+ * Queries Payload for a media document whose `filename` exactly matches the given value.
+ *
+ * Returns `null` if no match is found or if the matched document has no URL.
+ */
 const findExistingMediaByFilename = async (
   filename: string,
   signal: AbortSignal,
@@ -298,6 +352,14 @@ const findExistingBooksBySourceHashes = async (
   return listResponse.docs
 }
 
+/**
+ * Pre-fills a filename → media document cache by querying Payload for all media whose `alt`
+ * text contains the book's `sourceHash`.
+ *
+ * Called once at the start of a resumed import to avoid per-asset `findExistingMediaByFilename`
+ * round-trips during chapter processing. Failures are silently swallowed — this is a
+ * best-effort optimisation.
+ */
 const prewarmMediaCacheByFilename = async (
   sourceHash: string,
   signal: AbortSignal,
@@ -334,6 +396,13 @@ const prewarmMediaCacheByFilename = async (
   return filenameCache
 }
 
+/**
+ * Creates a new chapter document via `POST /api/chapters`, or updates an existing one via
+ * `PATCH /api/chapters/:id` if a document with the same `order` already exists for this book.
+ *
+ * The `existingChaptersByOrder` map is updated in-place after the API call so that subsequent
+ * operations in the same run see the latest document revision.
+ */
 const upsertChapterDocument = async (
   chapterData: Record<string, unknown>,
   chapterOrder: number,
@@ -413,6 +482,12 @@ const patchBookReadyState = async (
 // EPUB helpers
 // ---------------------------------------------------------------------------
 
+/**
+ * Reads a raw `Blob` for an asset path from the epubjs archive.
+ *
+ * Tries multiple candidate path forms (normalized, URL-decoded, prefixed with `/`) using both
+ * `archive.getBlob` and an object-URL `fetch` fallback. Throws if no candidate resolves.
+ */
 const readArchiveBlob = async (book: Book, assetPath: string): Promise<Blob> => {
   const candidatePaths = new Set<string>()
 
@@ -476,6 +551,20 @@ const readArchiveBlob = async (book: Book, assetPath: string): Promise<Blob> => 
   throw new Error(`Failed to load image asset from EPUB archive: ${assetPath}`)
 }
 
+/**
+ * Uploads a single EPUB image asset to the Payload `/api/media` endpoint, with three-tier
+ * deduplication:
+ *
+ * 1. **In-memory `mediaCache`** – returns immediately for assets already uploaded this run.
+ * 2. **`mediaInFlight` promise map** – coalesces concurrent requests for the same asset path
+ *    into a single `Promise`, preventing redundant uploads when multiple chapters share an image.
+ * 3. **`filenamePrewarm` + API lookup** – checks for a pre-existing Payload media document with
+ *    the same content-hash-derived filename before sending a new upload.
+ *
+ * Unsupported MIME types are silently skipped; a `warning` event is emitted and `null` returned.
+ *
+ * @returns The uploaded (or pre-existing) media document, or `null` if the asset should be skipped.
+ */
 const uploadAssetAsMedia = async (
   book: Book,
   resolvedAssetPath: string,
@@ -571,6 +660,16 @@ const uploadAssetAsMedia = async (
   }
 }
 
+/**
+ * Traverses the EPUB spine, loads each section's HTML, and builds a flat array of
+ * `PreparedChapter` objects ready for Lexical conversion and upload.
+ *
+ * Spine items that fail to load or produce empty HTML are emitted as `warning` events and
+ * excluded from the returned array. Table-of-contents metadata (title, href, idRef) is
+ * attached to each chapter when available.
+ *
+ * @returns Ordered array of prepared chapters; may be shorter than `spineItems` if some failed.
+ */
 const prepareChaptersForImport = async (
   book: Book,
   spineItems: SpineItem[],
@@ -635,6 +734,21 @@ const prepareChaptersForImport = async (
   return preparedChapters
 }
 
+/**
+ * Processes a single prepared chapter: uploads its images, converts HTML to Lexical state,
+ * and upserts the chapter document in Payload.
+ *
+ * Steps:
+ * 1. **Resumption checkpoint** – returns `{ success: true, checkpointed: true }` if the chapter
+ *    was already saved in the current import batch and has not been manually edited (T3-4).
+ * 2. **Image loop** – iterates `<img>` and `<image>` elements, uploads each via
+ *    `uploadAssetAsMedia`, and rewrites `src`/`href` attributes to the Payload media URL.
+ * 3. **HTML sanitization + Lexical conversion** via `convertHtmlToChapterLexicalState`.
+ * 4. **Upsert** via `upsertChapterDocument`.
+ *
+ * Returns `{ success: false }` for non-fatal failures so the caller can count skips.
+ * Rethrows abort errors to propagate cancellation.
+ */
 const processPreparedChapter = async (
   book: Book,
   bookID: string | number,
@@ -839,6 +953,14 @@ const processPreparedChapter = async (
   }
 }
 
+/**
+ * Wraps `processPreparedChapter` with per-chapter retry logic.
+ *
+ * Each attempt parses a fresh `Document` from the chapter HTML (via `DOMParser`) so that image
+ * attribute mutations from a failed attempt do not carry over to subsequent tries.
+ * Up to `MAX_CHAPTER_RETRY_ATTEMPTS` retries are made with linear back-off.
+ * Checkpointed and abort results short-circuit without retrying.
+ */
 const processPreparedChapterWithRetry = async (
   book: Book,
   bookID: string | number,
@@ -903,6 +1025,16 @@ const processPreparedChapterWithRetry = async (
   return lastResult
 }
 
+/**
+ * Processes an ordered slice of prepared chapters as a single unit, with batch-level retry.
+ *
+ * Each chapter is processed sequentially via `processPreparedChapterWithRetry`. If the entire
+ * batch throws before saving any chapter (e.g., a transient network failure), the batch is
+ * retried up to `MAX_BATCH_RETRY_ATTEMPTS` times with linear back-off.
+ * Per-chapter failures are recorded in an `EpubFailureLog` and counted as skips.
+ *
+ * @returns Aggregated completed/skipped counts and the failure log for this batch.
+ */
 const processBatch = async (
   batch: PreparedChapter[],
   batchIndex: number,
@@ -1003,6 +1135,17 @@ const processBatch = async (
   return { completedChapters: 0, failureLogs: [], skippedChapters: batch.length }
 }
 
+/**
+ * Locates the cover image in the EPUB manifest and uploads it as a Payload media document,
+ * then patches the book record with the media reference.
+ *
+ * Cover resolution order:
+ * 1. Manifest item with `properties: cover-image` (EPUB 3).
+ * 2. Manifest item referenced by `<meta name="cover">` (EPUB 2).
+ * 3. `book.loaded.cover` fallback (non-blob paths only).
+ *
+ * Cover upload failures emit a `warning` event but do not abort the import.
+ */
 const processBookCover = async (
   book: Book,
   bookID: string | number,
@@ -1096,6 +1239,51 @@ const processBookCover = async (
 // Public API: async generator
 // ---------------------------------------------------------------------------
 
+/**
+ * Async generator that orchestrates the full EPUB-to-Payload import pipeline.
+ *
+ * @remarks
+ * **Browser only.** This function uses `DOMParser`, `Blob`, `FormData`, and dynamic
+ * `import('epubjs')`. Do not call from server-side or Node.js contexts.
+ *
+ * ## Generator contract
+ * Each `yield` produces an {@link EpubPipelineEvent} that the caller can render immediately.
+ * The generator never returns a value — it either completes and yields `{ type: 'done' }`, or
+ * throws (including a `DOMException('AbortError')` when canceled via the signal).
+ *
+ * ## Typical event sequence
+ * ```
+ * phase(Parsing) → status → … → book-created → totals-known
+ *   → (for each batch)
+ *       phase(Uploading Images | Uploading Chapter)
+ *       → image-uploaded* → chapter-started → chapter-completed | chapter-checkpointed
+ *   → phase(Finalizing) → done
+ * ```
+ *
+ * ## Cancellation
+ * Pass an `AbortSignal` via `config.signal`. The generator calls `ensureNotAborted(signal)` at
+ * every `await` checkpoint. When the signal fires it throws `DOMException('AbortError')`,
+ * patches the book record with `importStatus: 'canceled'`, and re-throws so the caller can
+ * distinguish abort from other errors.
+ *
+ * ## Resumption checkpointing (T3-4)
+ * If a prior import attempt created chapters for the same book (identified by `sourceHash`),
+ * those chapters are loaded into an in-memory index keyed by `chapterSourceKey`. Any chapter
+ * whose key already matches the current `importBatchId` and has not been manually edited is
+ * yielded as `{ type: 'chapter-checkpointed' }` and skipped, making it safe to resume a
+ * partially-completed import without re-uploading chapters.
+ *
+ * ## Image deduplication
+ * Images are deduplicated by a content-hash-derived stable filename. A media document that
+ * already exists with the same filename is reused without re-uploading. An in-memory
+ * `mediaCache` and `mediaInFlight` promise map prevent duplicate concurrent uploads within
+ * the same run.
+ *
+ * @param config - {@link EpubPipelineConfig} containing the source `File` and an `AbortSignal`.
+ * @yields {EpubPipelineEvent} Progressive status events for the consuming component.
+ * @throws {DOMException} `AbortError` when `config.signal` fires.
+ * @throws {Error} On unrecoverable pipeline failures (empty spine, network errors, etc.).
+ */
 export async function* runEpubImportPipeline(
   config: EpubPipelineConfig,
 ): AsyncGenerator<EpubPipelineEvent, void, undefined> {

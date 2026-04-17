@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises'
+import { readdir, readFile } from 'node:fs/promises'
 import path from 'node:path'
 import process from 'node:process'
 
@@ -14,6 +14,7 @@ import { htmlToPayloadLexical, isSubstantiveChapterContent } from '../src/utils/
 import {
   extractChapterTitle,
   resolveChapterTocMetadata,
+  sanitizeChapterHTML,
 } from '../src/utils/epubImport'
 
 // jsdom setup — DOMParser must exist for htmlToPayloadLexical
@@ -40,12 +41,7 @@ if (typeof URL.revokeObjectURL !== 'function') {
   })
 }
 
-const DEFAULT_EPUBS = [
-  'data/Coraline (Neil G Gaiman) (Z-Library).epub',
-  'data/The_Wild_Robot_Escapes_vi_book.epub',
-  'data/Manning.Fast.Python.High.performance.techniques.for.large.datasets.1617297933.epub',
-  "data/Disrupting the Game -- Reggie Fils-Aimé -- 1, 2022 -- HarperCollins Leadership -- 9781400226672 -- 5aea5b2983514cee72fd02de03337658 -- Anna\u2019s Archive.epub",
-]
+
 
 const SUPPORTED_NODE_TYPES = new Set([
   'root',
@@ -296,14 +292,15 @@ async function probeEpub(
     const section = book.section(item.index) as any
     try {
       await section.load(book.load.bind(book))
-      const html = section.document?.documentElement?.outerHTML ?? ''
+      const rawHtml = section.document?.documentElement?.outerHTML ?? ''
 
-      if (!html) {
+      if (!rawHtml) {
         console.log(`  Chapter ${chapterNum}: SKIP (no HTML)`)
         skipCount++
         continue
       }
 
+      const { html, warnings: sanitizeWarnings } = sanitizeChapterHTML(rawHtml)
       const expectedHtmlText = collectHtmlText(html)
       const tocMetadata = resolveChapterTocMetadata(tocItems, item.href ?? '')
       const defaultChapterTitle = `Chapter ${chapterNum}`
@@ -331,6 +328,9 @@ async function probeEpub(
       const issues = validateLexicalState(state, expectedHtmlText)
       if (issues.length === 0 && opts.outputMode === 'json') {
         console.log(`  ${chapterLabel}: LEXICAL JSON`)
+        if (sanitizeWarnings.length > 0) {
+          for (const w of sanitizeWarnings) console.log(`    ~ SANITIZE: ${w}`)
+        }
         console.log(JSON.stringify(state, null, 2))
         okCount++
       } else if (issues.length === 0) {
@@ -340,12 +340,19 @@ async function probeEpub(
           internalLinkCount > 0 || externalLinkCount > 0
             ? ` (${internalLinkCount} internal links, ${externalLinkCount} external links)`
             : ''
-        console.log(`  ${chapterLabel}: OK${linkSummary}`)
+        const warnSuffix = sanitizeWarnings.length > 0 ? ` [${sanitizeWarnings.length} sanitize warnings]` : ''
+        console.log(`  ${chapterLabel}: OK${linkSummary}${warnSuffix}`)
+        if (sanitizeWarnings.length > 0) {
+          for (const w of sanitizeWarnings) console.log(`    ~ SANITIZE: ${w}`)
+        }
         okCount++
       } else {
         console.log(`  ${chapterLabel}: ISSUES`)
         for (const issue of issues) {
           console.log(`    - ${issue}`)
+        }
+        if (sanitizeWarnings.length > 0) {
+          for (const w of sanitizeWarnings) console.log(`    ~ SANITIZE: ${w}`)
         }
         issueCount++
       }
@@ -361,7 +368,17 @@ async function probeEpub(
 
 const main = async () => {
   const { epubPath, chapterIndex, outputMode } = parseArgs()
-  const epubs = epubPath !== null ? [epubPath] : DEFAULT_EPUBS
+  let epubs: string[]
+  if (epubPath !== null) {
+    epubs = [epubPath]
+  } else {
+    const dataDir = path.resolve(process.cwd(), 'data')
+    const entries = await readdir(dataDir)
+    epubs = entries
+      .filter((name) => name.endsWith('.epub'))
+      .sort()
+      .map((name) => path.join('data', name))
+  }
 
   let totalOk = 0
   let totalSkip = 0

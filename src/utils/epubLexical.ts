@@ -6,11 +6,13 @@ import { buildStableHash } from './epubImport'
 // Types
 // ---------------------------------------------------------------------------
 
+/** Represents a single footnote or endnote definition extracted from EPUB markup. */
 export type FootnoteDefinition = {
   noteId: string
   content: string
 }
 
+/** Lookup map from note ID to its {@link FootnoteDefinition}. */
 export type FootnoteDefinitionMap = Map<string, FootnoteDefinition>
 
 type FootnoteReference = {
@@ -19,6 +21,11 @@ type FootnoteReference = {
   content: string
 }
 
+/**
+ * Mutable traversal context threaded through the DOM-walking algorithm.
+ * Carries the inline format bitmask, list nesting depth, known footnote
+ * definitions, and a registry of footnote references collected so far.
+ */
 type WalkContext = {
   format: number
   insidePre: boolean
@@ -29,12 +36,14 @@ type WalkContext = {
   referencedFootnotes: Map<string, FootnoteReference>
 }
 
+/** Options accepted by {@link htmlToPayloadLexical} and {@link convertHtmlToChapterLexicalState}. */
 export type HtmlToPayloadLexicalOptions = {
   footnotesById?: FootnoteDefinitionMap
 }
 
 type AnyNode = Record<string, unknown> & { type: string; version: number }
 
+/** Trims a value to a non-empty string, returning `null` when blank or non-string. */
 const trimToNull = (value: unknown): string | null => {
   if (typeof value !== 'string') {
     return null
@@ -48,14 +57,17 @@ const trimToNull = (value: unknown): string | null => {
 // Node-type detection
 // ---------------------------------------------------------------------------
 
+/** The set of Lexical node types that are treated as block-level elements. */
 const BLOCK_NODE_TYPES = new Set(['block', 'upload', 'paragraph', 'heading', 'quote', 'list', 'table', 'epub-callout'])
 
+/** Returns `true` when `node` is a block-level Lexical node. */
 const isBlockNode = (node: AnyNode): boolean => BLOCK_NODE_TYPES.has(node.type)
 
 // ---------------------------------------------------------------------------
 // Node factory helpers
 // ---------------------------------------------------------------------------
 
+/** Creates a Lexical `paragraph` node wrapping `children`. */
 const makeParagraph = (children: AnyNode[]): AnyNode => ({
   type: 'paragraph',
   version: 1,
@@ -67,6 +79,7 @@ const makeParagraph = (children: AnyNode[]): AnyNode => ({
   textStyle: '',
 })
 
+/** Creates a Lexical `block` node of type `Code` with the given source text and language hint. */
 const makeCodeBlock = (code: string, language = 'plaintext'): AnyNode => ({
   type: 'block',
   version: 2,
@@ -79,6 +92,7 @@ const makeCodeBlock = (code: string, language = 'plaintext'): AnyNode => ({
   },
 })
 
+/** Creates an `epub-callout` block node with the given semantic `variant` and block children. */
 const makeCalloutNode = (
   variant: 'note' | 'tip' | 'warning' | 'important',
   children: AnyNode[],
@@ -92,6 +106,7 @@ const makeCalloutNode = (
   children,
 })
 
+/** Creates a `block` node of type `Footnote` that renders a footnote definition at the end of the chapter. */
 const makeFootnoteBlock = (noteId: string, marker: string, content: string): AnyNode => ({
   type: 'block',
   version: 2,
@@ -105,6 +120,7 @@ const makeFootnoteBlock = (noteId: string, marker: string, content: string): Any
   },
 })
 
+/** Creates a Lexical `upload` node referencing a Payload media record. Assigns a stable content-derived ID. */
 const makeUploadNode = (
   ctx: WalkContext,
   relationTo: string,
@@ -120,6 +136,7 @@ const makeUploadNode = (
   fields: { alt },
 })
 
+/** Converts a string upload ID to a `number` when it is a pure integer; otherwise keeps it as a string. */
 const normalizeUploadValue = (value: string): string | number => {
   if (/^-?\d+$/.test(value)) {
     return Number(value)
@@ -128,6 +145,7 @@ const normalizeUploadValue = (value: string): string | number => {
   return value
 }
 
+/** Creates a Lexical `heading` node for the given HTML heading tag (e.g. `"h2"`). */
 const makeHeading = (tag: string, children: AnyNode[]): AnyNode => ({
   type: 'heading',
   tag,
@@ -138,6 +156,7 @@ const makeHeading = (tag: string, children: AnyNode[]): AnyNode => ({
   children,
 })
 
+/** Creates a Lexical `text` node with the given raw text and inline format bitmask. */
 const makeText = (text: string, format: number): AnyNode => ({
   type: 'text',
   version: 1,
@@ -148,8 +167,10 @@ const makeText = (text: string, format: number): AnyNode => ({
   detail: 0,
 })
 
+/** Creates a Lexical `linebreak` node. */
 const makeLineBreak = (): AnyNode => ({ type: 'linebreak', version: 1 })
 
+/** Creates a Lexical `quote` (blockquote) node wrapping `children`. */
 const makeQuote = (children: AnyNode[]): AnyNode => ({
   type: 'quote',
   version: 1,
@@ -159,6 +180,7 @@ const makeQuote = (children: AnyNode[]): AnyNode => ({
   children,
 })
 
+/** Creates a Lexical `list` node (`ul`/`ol`) at the specified nesting depth. */
 const makeList = (
   listType: 'bullet' | 'number',
   tag: 'ul' | 'ol',
@@ -176,6 +198,7 @@ const makeList = (
   children,
 })
 
+/** Creates a Lexical `listitem` node with a sequential `value` and the given children. */
 const makeListItem = (value: number, children: AnyNode[]): AnyNode => ({
   type: 'listitem',
   version: 1,
@@ -187,6 +210,7 @@ const makeListItem = (value: number, children: AnyNode[]): AnyNode => ({
   children,
 })
 
+/** Creates a Lexical `link` node pointing to an external URL. */
 const makeLink = (url: string, children: AnyNode[], newTab = false): AnyNode => ({
   type: 'link',
   version: 3,
@@ -197,6 +221,7 @@ const makeLink = (url: string, children: AnyNode[], newTab = false): AnyNode => 
   children,
 })
 
+/** Creates a Lexical `table` node wrapping row children. */
 const makeTable = (children: AnyNode[]): AnyNode => ({
   type: 'table',
   version: 1,
@@ -206,6 +231,7 @@ const makeTable = (children: AnyNode[]): AnyNode => ({
   children,
 })
 
+/** Creates an `epub-internal-link` sentinel node preserving an intra-EPUB anchor for later resolution. */
 const makeEpubInternalLink = (epubHref: string, children: AnyNode[]): AnyNode => ({
   type: 'epub-internal-link',
   version: 1,
@@ -216,6 +242,7 @@ const makeEpubInternalLink = (epubHref: string, children: AnyNode[]): AnyNode =>
   children,
 })
 
+/** Creates a `footnote-ref` inline node that links to a collected footnote definition. */
 const makeFootnoteRef = (marker: string, noteId: string): AnyNode => ({
   type: 'footnote-ref',
   version: 1,
@@ -226,6 +253,7 @@ const makeFootnoteRef = (marker: string, noteId: string): AnyNode => ({
   children: [],
 })
 
+/** Creates a Lexical `tablerow` node wrapping cell children. */
 const makeTableRow = (children: AnyNode[]): AnyNode => ({
   type: 'tablerow',
   version: 1,
@@ -235,6 +263,7 @@ const makeTableRow = (children: AnyNode[]): AnyNode => ({
   children,
 })
 
+/** Creates a Lexical `tablecell` node with optional header state, col-span, and row-span. */
 const makeTableCell = (
   headerState: number,
   children: AnyNode[],
@@ -254,6 +283,7 @@ const makeTableCell = (
   children,
 })
 
+/** Splits a whitespace-separated string into a lower-cased array of non-empty tokens. */
 const normalizeToArray = (value: string): string[] => {
   return value
     .toLowerCase()
@@ -262,6 +292,10 @@ const normalizeToArray = (value: string): string[] => {
     .filter((token) => token.length > 0)
 }
 
+/**
+ * Scans `document` for `<aside epub:type="footnote|endnote">` elements,
+ * builds the definition map, and removes the asides from the live DOM.
+ */
 const collectFootnoteDefinitionsFromDocument = (document: Document): FootnoteDefinitionMap => {
   const footnotesById: FootnoteDefinitionMap = new Map()
 
@@ -294,6 +328,13 @@ const collectFootnoteDefinitionsFromDocument = (document: Document): FootnoteDef
   return footnotesById
 }
 
+/**
+ * Parses an HTML string for EPUB footnote/endnote asides and returns a
+ * {@link FootnoteDefinitionMap} keyed by note ID.
+ *
+ * @param html - Raw HTML to scan for `<aside epub:type="footnote|endnote">` elements.
+ * @returns A map of note IDs to their {@link FootnoteDefinition}.
+ */
 export const collectFootnoteDefinitionsFromHTML = (html: string): FootnoteDefinitionMap => {
   const parser = new DOMParser()
   const document = parser.parseFromString(html, 'text/html')
@@ -301,6 +342,7 @@ export const collectFootnoteDefinitionsFromHTML = (html: string): FootnoteDefini
   return collectFootnoteDefinitionsFromDocument(document)
 }
 
+/** Merges any number of {@link FootnoteDefinitionMap}s into a single map (later maps win on collision). */
 const mergeFootnoteDefinitions = (
   ...maps: Array<FootnoteDefinitionMap | undefined>
 ): FootnoteDefinitionMap => {
@@ -319,6 +361,7 @@ const mergeFootnoteDefinitions = (
   return merged
 }
 
+/** Extracts the fragment identifier (the part after `#`) from a URL, or returns `null`. */
 const extractHashFragment = (value: string): string | null => {
   const hashIndex = value.indexOf('#')
 
@@ -329,11 +372,16 @@ const extractHashFragment = (value: string): string | null => {
   return trimToNull(value.slice(hashIndex + 1))
 }
 
+/** Extracts the visible text content of an anchor element to use as the footnote marker string. */
 const extractFootnoteMarker = (el: Element): string => {
   const marker = trimToNull((el.textContent ?? '').replace(/\s+/g, ' '))
   return marker ?? ''
 }
 
+/**
+ * Determines whether an anchor element is a footnote reference.
+ * Returns the note ID if it is one, or `null` otherwise.
+ */
 const resolveFootnoteReference = (
   el: Element,
   href: string,
@@ -357,6 +405,10 @@ const resolveFootnoteReference = (
   return null
 }
 
+/**
+ * Builds the list of `Footnote` block nodes from all footnote references
+ * collected in `ctx.referencedFootnotes` during the DOM walk.
+ */
 const buildFootnoteBlocks = (ctx: WalkContext): AnyNode[] => {
   const blocks: AnyNode[] = []
 
@@ -375,6 +427,11 @@ const buildFootnoteBlocks = (ctx: WalkContext): AnyNode[] => {
 // Helper: normalize container nodes so inline-only content becomes paragraphs.
 // ---------------------------------------------------------------------------
 
+/**
+ * Wraps consecutive inline nodes into `paragraph` blocks so the output array
+ * contains only block-level Lexical nodes — a requirement for container
+ * elements such as `<blockquote>`, `<aside>`, and `<figure>`.
+ */
 const normalizeContainerNodes = (nodes: AnyNode[]): AnyNode[] => {
   const normalized: AnyNode[] = []
   const inlineBuffer: AnyNode[] = []
@@ -405,6 +462,7 @@ const normalizeContainerNodes = (nodes: AnyNode[]): AnyNode[] => {
 // Helper: walk all child nodes and collect results
 // ---------------------------------------------------------------------------
 
+/** Walks all child nodes of `el` and concatenates the resulting Lexical nodes. */
 const walkChildren = (el: Element, ctx: WalkContext): AnyNode[] => {
   const result: AnyNode[] = []
   for (const child of Array.from(el.childNodes)) {
@@ -417,6 +475,11 @@ const walkChildren = (el: Element, ctx: WalkContext): AnyNode[] => {
 // Helper: walk <ul>/<ol> and return listitem nodes with sequential values
 // ---------------------------------------------------------------------------
 
+/**
+ * Walks the direct `<li>` children of a `<ul>` or `<ol>` element and returns
+ * an array of `listitem` nodes with sequentially assigned `value` counters.
+ * Handles nested lists and `<p>` children inside list items.
+ */
 const walkListItems = (ul: Element, ctx: WalkContext): AnyNode[] => {
   const items: AnyNode[] = []
   let value = 1
@@ -454,6 +517,20 @@ const walkListItems = (ul: Element, ctx: WalkContext): AnyNode[] => {
 // Core recursive walker
 // ---------------------------------------------------------------------------
 
+/**
+ * Core recursive DOM walker. Dispatches on HTML tag name and converts each
+ * node into zero or more Lexical nodes using the builder helpers.
+ *
+ * Inline format flags are accumulated on `ctx.format` as the walk descends
+ * into inline elements (`<strong>`, `<em>`, `<code>`, etc.).
+ *
+ * Block elements produce block-level Lexical nodes; inline elements accumulate
+ * format bits and eventually produce `text` nodes.
+ *
+ * @param node - The DOM `Node` to convert.
+ * @param ctx  - The current traversal context (format, depth, footnotes, …).
+ * @returns An array of Lexical nodes representing `node` and its descendants.
+ */
 const walkNode = (node: Node, ctx: WalkContext): AnyNode[] => {
   // Text node
   if (node.nodeType === 3 /* TEXT_NODE */) {
@@ -869,6 +946,19 @@ const walkNode = (node: Node, ctx: WalkContext): AnyNode[] => {
 // Public API
 // ---------------------------------------------------------------------------
 
+/**
+ * Converts a sanitized HTML string into a Payload/Lexical `SerializedEditorState`.
+ *
+ * The function parses the HTML with `DOMParser`, extracts footnote/endnote
+ * definitions from `<aside>` elements, then recursively walks the DOM tree
+ * via {@link walkNode} to build the Lexical node tree.  Collected footnote
+ * references are appended as `Footnote` blocks at the end of the document.
+ *
+ * @param html    - Sanitized HTML to convert.
+ * @param options - Optional pre-collected {@link FootnoteDefinitionMap} from
+ *                  other EPUB documents (e.g. a shared endnotes file).
+ * @returns A `SerializedEditorState` ready for storage in a Payload rich-text field.
+ */
 export const htmlToPayloadLexical = (
   html: string,
   options: HtmlToPayloadLexicalOptions = {},
@@ -902,6 +992,14 @@ export const htmlToPayloadLexical = (
   return makeRoot(rootChildren)
 }
 
+/**
+ * Thin alias for {@link htmlToPayloadLexical} used at the chapter-import
+ * call site to make intent explicit.
+ *
+ * @param html    - Sanitized HTML to convert.
+ * @param options - Optional pre-collected footnote definitions.
+ * @returns A `SerializedEditorState` for the chapter rich-text field.
+ */
 export const convertHtmlToChapterLexicalState = (
   html: string,
   options: HtmlToPayloadLexicalOptions = {},
@@ -909,6 +1007,17 @@ export const convertHtmlToChapterLexicalState = (
   return htmlToPayloadLexical(html, options)
 }
 
+/**
+ * Returns `true` when the Lexical editor state contains at least one node
+ * with meaningful content (non-empty text, an upload, a footnote reference,
+ * an internal link, or a non-empty code block).
+ *
+ * Used to filter out chapter pages that are essentially empty after HTML
+ * conversion (e.g. pages that contained only navigation or CSS).
+ *
+ * @param state - The `SerializedEditorState` to inspect.
+ * @returns `true` if the state has substantive content, `false` otherwise.
+ */
 export function isSubstantiveChapterContent(state: SerializedEditorState): boolean {
   const children = (state.root as any)?.children
   if (!Array.isArray(children) || children.length === 0) return false
@@ -951,12 +1060,14 @@ export function isSubstantiveChapterContent(state: SerializedEditorState): boole
   return children.some(hasMeaningfulText)
 }
 
+/** Parses a DOM attribute value as a positive integer, defaulting to `1` for absent or invalid values. */
 const parsePositiveIntegerAttribute = (value: string | null): number => {
   const parsed = Number.parseInt(value ?? '', 10)
 
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 1
 }
 
+/** Wraps an array of block children in a Lexical root node to form a complete `SerializedEditorState`. */
 const makeRoot = (children: AnyNode[]): SerializedEditorState => ({
   root: {
     type: 'root',

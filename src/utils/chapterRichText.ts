@@ -24,6 +24,10 @@ import { EpubInternalLinkFeature } from '../features/epub-internal-link/feature.
 import { EpubFootnoteRefFeature } from '../features/epub-footnote-ref/feature.server'
 import { EpubCalloutFeature } from '../features/epub-callout/feature.server'
 
+/**
+ * Payload block definition for end-of-chapter footnotes.
+ * Stores the footnote identifier, display marker, and plain-text content.
+ */
 const footnoteBlock: Block = {
   slug: 'footnote',
   fields: [
@@ -45,6 +49,11 @@ const footnoteBlock: Block = {
   ],
 }
 
+/**
+ * Returns the ordered list of Lexical feature instances used by chapter rich-text fields.
+ * Includes standard formatting, headings, code blocks, footnotes, internal links,
+ * callouts, lists, tables, and toolbar features.
+ */
 export const chapterRichTextFeatureProviders = () => {
   return [
     ParagraphFeature(),
@@ -75,6 +84,10 @@ export const chapterRichTextFeatureProviders = () => {
   ]
 }
 
+/**
+ * Creates a configured `lexicalEditor` instance for chapter content fields,
+ * extending root features with all chapter-specific feature providers.
+ */
 export const createChapterLexicalEditor = () => {
   return lexicalEditor({
     features: ({ rootFeatures }) => {
