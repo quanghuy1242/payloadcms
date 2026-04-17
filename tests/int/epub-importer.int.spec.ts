@@ -866,7 +866,7 @@ describe('EpubImporter', () => {
     expect(typeof logEntry.timestamp).toBe('string')
   })
 
-  it('9.3: omits importFailureLog (null) when all chapters succeed', async () => {
+  it('9.3: sends an empty importFailureLog array when all chapters succeed', async () => {
     const fetchMock = installFetchMock()
 
     render(createElement(EpubImporter))
@@ -891,7 +891,8 @@ describe('EpubImporter', () => {
 
     const readyPatchBody = JSON.parse(String(readyPatch?.[1]?.body ?? '{}'))
 
-    expect(readyPatchBody.importFailureLog).toBeNull()
+    expect(Array.isArray(readyPatchBody.importFailureLog)).toBe(true)
+    expect(readyPatchBody.importFailureLog).toHaveLength(0)
   })
 
   it('9.2: pre-warms the media filename cache when resuming an existing book', async () => {

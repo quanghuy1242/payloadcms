@@ -401,7 +401,7 @@ const patchBookReadyState = async (
         ? `${skippedChapters} chapter${skippedChapters === 1 ? '' : 's'} were skipped during import.`
         : null,
     importFailedAt: null,
-    importFailureLog: failureLogs.length > 0 ? failureLogs : null,
+    importFailureLog: failureLogs,
     importFinishedAt: new Date().toISOString(),
     importStatus: 'ready',
     lastImportedAt: new Date().toISOString(),
