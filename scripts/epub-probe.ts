@@ -54,9 +54,11 @@ const SUPPORTED_NODE_TYPES = new Set([
   'quote',
   'list',
   'listitem',
+  'block',
   'link',
   'epub-internal-link',
   'footnote-ref',
+  'epub-callout',
   'table',
   'tablerow',
   'tablecell',
@@ -85,6 +87,23 @@ const collectLexicalText = (node: any): string => {
       return
     }
 
+    if (value.type === 'paragraph' && Array.isArray(value.children)) {
+      const childText = value.children
+        .filter(
+          (child: any) =>
+            child &&
+            typeof child === 'object' &&
+            child.type === 'text' &&
+            typeof child.text === 'string',
+        )
+        .map((child: any) => child.text)
+        .join('')
+
+      if (childText.replace(/\s+/g, '') === '***') {
+        return
+      }
+    }
+
     if (value.type === 'text' && typeof value.text === 'string') {
       parts.push(value.text)
       return
@@ -93,6 +112,20 @@ const collectLexicalText = (node: any): string => {
     if (value.type === 'linebreak') {
       parts.push('\n')
       return
+    }
+
+    if (value.type === 'block') {
+      const fields = value.fields as Record<string, unknown> | undefined
+
+      if (typeof fields?.content === 'string') {
+        parts.push(fields.content)
+        return
+      }
+
+      if (typeof fields?.code === 'string') {
+        parts.push(fields.code)
+        return
+      }
     }
 
     if (value.type === 'footnote-ref' && typeof value.fields?.marker === 'string') {

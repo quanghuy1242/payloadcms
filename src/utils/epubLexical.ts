@@ -727,6 +727,7 @@ const walkNode = (node: Node, ctx: WalkContext): AnyNode[] => {
 
     case 'a': {
       const href = el.getAttribute('href') ?? ''
+      const trimmedHref = trimToNull(href)
 
       const footnoteReference = resolveFootnoteReference(el, href, ctx.footnotesById)
 
@@ -762,11 +763,14 @@ const walkNode = (node: Node, ctx: WalkContext): AnyNode[] => {
         return []
       }
       // Case 3: internal EPUB anchor or relative link → preserve as a sentinel node
+      if (!trimmedHref) {
+        return walkChildren(el, ctx)
+      }
       if (
-        href.startsWith('#') ||
-        (!href.startsWith('//') && !/^[a-z][a-z\d+.-]*:/i.test(href))
+        trimmedHref.startsWith('#') ||
+        (!trimmedHref.startsWith('//') && !/^[a-z][a-z\d+.-]*:/i.test(trimmedHref))
       ) {
-        return [makeEpubInternalLink(href, walkChildren(el, ctx))]
+        return [makeEpubInternalLink(trimmedHref, walkChildren(el, ctx))]
       }
       // Case 4: any other anchor (blob:, data:, etc.) → unwrap
       return walkChildren(el, ctx)

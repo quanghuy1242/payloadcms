@@ -179,6 +179,17 @@ describe('htmlToPayloadLexical', () => {
     expect(textNodes.some((n: any) => n.text === 'jump')).toBe(true)
   })
 
+  it('unwraps empty href anchors instead of creating epub-internal-link nodes', () => {
+    const result = htmlToPayloadLexical('<p><a href="">blank link</a> after</p>')
+    expect(findNodes(result, 'epub-internal-link')).toHaveLength(0)
+    expect(findNodes(result, 'link')).toHaveLength(0)
+
+    const textNodes = findNodes(result, 'text')
+    const combinedText = textNodes.map((n: any) => n.text).join('')
+    expect(combinedText).toContain('blank link')
+    expect(combinedText).toContain('after')
+  })
+
   it('drops completely empty anchor <a class="calibre1"><span></span></a>', () => {
     const result = htmlToPayloadLexical('<p><a class="calibre1"><span></span></a>after</p>')
     expect(findNodes(result, 'link')).toHaveLength(0)
