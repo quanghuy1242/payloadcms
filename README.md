@@ -120,7 +120,12 @@ R2_ACCESS_KEY_ID=your-key-id
 R2_SECRET_ACCESS_KEY=your-secret
 R2_PUBLIC_BASE_URL=https://cdn.example.com
 
-# Better Auth (required for login)
+# Auther (required for private book access)
+AUTHER_BASE_URL=https://auth.example.com
+AUTHER_API_KEY=your-auther-internal-api-key
+
+# Better Auth (required for login and private book access)
+PAYLOAD_CLIENT_ID=your-payload-client-id
 BETTER_AUTH_URL=https://your-auth-provider.example.com
 ```
 

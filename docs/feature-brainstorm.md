@@ -22,7 +22,7 @@ Rough role model (leaning on what Auther already supports):
 
 `editor` and `viewer` are not Payload-level roles today - they would be Auther-level relations on a `book` entity (e.g., `book:{id}` with relation `reader` granted to a user or group). Payload only needs to know "is this request allowed?" and delegate that check to Auther.
 
-On the blog side: the `createBooksWhere()` filter in `common/apis/books.ts` currently hard-codes `_status: published`. For a logged-in viewer, the blog would need to hit `payload.quanghuy.dev/api/users/me` (or the CORS fetch approach we already set up) to get the user identity, then call Auther's check-permission to decide which private books to include or gate.
+On the blog side: forward the Better Auth session token to Payload when fetching books or chapters. Payload already maps that token to a local user and can apply the book read access rule server-side, so the blog does not need a separate permission decision or a manual public/private filter.
 
 Access request flow: "Request access" button on a locked book page that emails the admin or opens an invite link. Auther already has invite/registration context support.
 

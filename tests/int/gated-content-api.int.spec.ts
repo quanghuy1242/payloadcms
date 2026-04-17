@@ -23,6 +23,7 @@ describe('Gated content API routes', () => {
   beforeEach(() => {
     process.env.AUTHER_BASE_URL = 'https://auth.example.test'
     process.env.AUTHER_API_KEY = 'internal-api-key'
+    process.env.PAYLOAD_CLIENT_ID = 'payload-client-id'
     process.env.PAYLOAD_SECRET = 'test-secret'
 
     headersMock.mockResolvedValue(new Headers())
@@ -84,7 +85,7 @@ describe('Gated content API routes', () => {
     })
 
     expect(String(fetchMock.mock.calls[0]?.[0])).toBe(
-      'https://auth.example.test/api/internal/grants?entityType=book&entityId=42',
+      'https://auth.example.test/api/internal/clients/payload-client-id/grants?entityTypeName=book&entityId=42',
     )
 
     fetchMock.mockResolvedValueOnce(
@@ -119,9 +120,12 @@ describe('Gated content API routes', () => {
 
     const postInit = fetchMock.mock.calls[1]?.[1] as RequestInit
     expect(postInit?.method).toBe('POST')
-    expect(String(fetchMock.mock.calls[1]?.[0])).toBe('https://auth.example.test/api/internal/grants')
+    expect(String(fetchMock.mock.calls[1]?.[0])).toBe(
+      'https://auth.example.test/api/internal/clients/payload-client-id/grants',
+    )
     expect(postInit?.body).toContain('reader@example.com')
     expect(postInit?.body).toContain('"subjectType":"user"')
+    expect(postInit?.body).toContain('"entityTypeName":"book"')
 
     fetchMock.mockResolvedValueOnce(
       new Response(JSON.stringify({ ok: true }), {
@@ -145,7 +149,7 @@ describe('Gated content API routes', () => {
     expect(deleteResponse.status).toBe(200)
     await expect(deleteResponse.json()).resolves.toEqual({ ok: true })
     expect(String(fetchMock.mock.calls[2]?.[0])).toBe(
-      'https://auth.example.test/api/internal/grants/tuple-1',
+      'https://auth.example.test/api/internal/clients/payload-client-id/grants/tuple-1',
     )
     expect((fetchMock.mock.calls[2]?.[1] as RequestInit | undefined)?.method).toBe('DELETE')
   })

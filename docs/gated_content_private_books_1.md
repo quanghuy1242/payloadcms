@@ -49,7 +49,7 @@ Browser
   │     │
   │     └─► auth.quanghuy.dev/api/auth/check-permission  (auther)
   │           Authorization: Bearer <session_token>
-  │           Body: { entityType:"book", entityId:"<payloadBookId>", permission:"view" }
+  │           Body: { entityType:"client_<payloadClientId>:book", entityId:"<payloadBookId>", permission:"view" }
   │           Response: { allowed: true|false, ... }
   │
   └─► payload.quanghuy.dev/admin (payloadcms admin)
@@ -58,14 +58,14 @@ Browser
           └─► payload.quanghuy.dev/api/books/[id]/access  (proxy route)
                 x-api-key: AUTHER_API_KEY
                   │
-                  └─► auth.quanghuy.dev/api/internal/grants  (auther, new endpoint)
+                  └─► auth.quanghuy.dev/api/internal/clients/<payloadClientId>/grants  (auther, new endpoint)
 ```
 
 **Key design constraints discovered from reading the repos:**
 
 1. `check-permission` at Auther identifies the subject entirely from the `Authorization: Bearer` header — there is no `subjectType`/`subjectId` in the request body. The body only contains `entityType`, `entityId`, `permission`, and optional `resource` context.
 2. Auther's `src/app/api/internal/` currently contains only `cleanup-traces`, `queues`, and `rotate-jwks` — no grant-management HTTP endpoint exists. One must be added.
-3. Auther's existing `grantScopedPermission()` server action in `src/app/admin/clients/[id]/access/actions.ts` shows the correct tuple shape: `entityType = "client_{clientId}:{entityTypeName}"`. For the book use-case the entity type is standalone (no client namespace), so it should just be `"book"` with `entityId = "<payloadBookId>"`.
+3. Auther's existing `grantScopedPermission()` server action in `src/app/admin/clients/[id]/access/actions.ts` shows the correct tuple shape: `entityType = "client_{clientId}:{entityTypeName}"`. For the book use-case this same namespaced shape must be used: `entityType = "client_{payloadClientId}:book"` with `entityId = "<payloadBookId>"`.
 4. next-blog uses **Pages Router** (`pages/`), not App Router. All data fetching happens in `getServerSideProps`. Session cookies are read from `context.req.cookies`.
 5. `common/apis/books.ts` uses a hardcoded `AUTHOR_ID = 1` filter in `createBooksWhere()`. This filter must be preserved; the `visibility` filter is additive.
 6. The blog's `fetchAPI` in `common/apis/base.ts` uses a static API key. As long as the Payload admin API key belongs to an admin user, it bypasses the new `publicBooksReadAccess` rule and returns private books too — gating is enforced in `getServerSideProps`.
@@ -335,7 +335,7 @@ admin: {
 
 ### A.4 payloadcms — API Proxy Route
 
-This route is called by `BookAccessPanel`. It proxies grant/revoke/list operations to Auther, authenticating with `AUTHER_API_KEY` (a service-level API key, not a user session token).
+This route is called by `BookAccessPanel`. It proxies grant/revoke/list operations to Auther, authenticating with `AUTHER_API_KEY` (a service-level API key, not a user session token) and reusing the existing Better Auth `PAYLOAD_CLIENT_ID` for the scoped entity type.
 
 **File:** `src/app/api/books/[id]/access/route.ts`
 
@@ -344,6 +344,7 @@ import { getPayload } from 'payload'
 import configPromise from '@payload-config'
 import { headers } from 'next/headers'
 import { getAutherBaseUrl, getAutherApiKey } from '@/lib/env'
+import { getPayloadClientId } from '@/lib/betterAuth/env'
 
 async function requireAdmin() {
   const payload = await getPayload({ config: configPromise })
@@ -362,7 +363,7 @@ export async function GET(
     return Response.json({ error: 'Forbidden' }, { status: 403 })
   }
   const res = await fetch(
-    `${getAutherBaseUrl()}/api/internal/grants?entityType=book&entityId=${params.id}`,
+    `${getAutherBaseUrl()}/api/internal/clients/${getPayloadClientId()}/grants?entityTypeName=book&entityId=${params.id}`,
     { headers: { 'x-api-key': getAutherApiKey() } }
   )
   if (!res.ok) return Response.json({ error: 'Auther error' }, { status: 502 })
@@ -381,11 +382,11 @@ export async function POST(
   if (!body.email || !body.relation) {
     return Response.json({ error: 'email and relation are required' }, { status: 400 })
   }
-  const res = await fetch(`${getAutherBaseUrl()}/api/internal/grants`, {
+  const res = await fetch(`${getAutherBaseUrl()}/api/internal/clients/${getPayloadClientId()}/grants`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-api-key': getAutherApiKey() },
     body: JSON.stringify({
-      entityType: 'book',
+      entityTypeName: 'book',
       entityId: params.id,
       relation: body.relation,
       subjectType: 'user',
@@ -408,7 +409,7 @@ export async function DELETE(req: Request) {
   if (!body.tupleId) {
     return Response.json({ error: 'tupleId is required' }, { status: 400 })
   }
-  const res = await fetch(`${getAutherBaseUrl()}/api/internal/grants/${body.tupleId}`, {
+  const res = await fetch(`${getAutherBaseUrl()}/api/internal/clients/${getPayloadClientId()}/grants/${body.tupleId}`, {
     method: 'DELETE',
     headers: { 'x-api-key': getAutherApiKey() },
   })
@@ -417,7 +418,7 @@ export async function DELETE(req: Request) {
 }
 ```
 
-**Add `getAutherBaseUrl` and `getAutherApiKey` to `src/lib/env.ts`**, following the existing cached-env-var pattern (same as `getR2PublicBaseUrl`):
+**Use the existing `getPayloadClientId` from `src/lib/betterAuth/env.ts`. `src/lib/env.ts` only needs `getAutherBaseUrl` and `getAutherApiKey` for this feature.**
 
 ```ts
 // src/lib/env.ts — append to bottom
@@ -439,15 +440,20 @@ export const getAutherApiKey = (): string => {
   cachedAutherApiKey = value
   return cachedAutherApiKey
 }
+
 ```
 
-> **Security note:** `requireAdmin()` validates the Payload session from the request headers — only Payload admins can call this proxy. `AUTHER_API_KEY` is used server-to-server only and is never exposed to the browser.
+> **Security note:** `requireAdmin()` validates the Payload session from the request headers, so only Payload admins can call this proxy. `AUTHER_API_KEY` is used server-to-server only and is never exposed to the browser. `PAYLOAD_CLIENT_ID` is resolved server-side through Better Auth and never accepted from browser input.
 
 ---
 
 ### A.5 auther — Book Entity Type Registration
 
-**What needs to happen:** The `authorization_models` table must contain a row for `entityType = "book"` before any `check-permission` call will work for books. `PermissionService.checkPermission()` returns `false` (logs "No authorization model found") if the entity type is missing.
+**What needs to happen:** The `authorization_models` table must contain a row for the client-scoped book type before any `check-permission` call will work for books:
+
+- `entityType = "client_{PAYLOAD_CLIENT_ID}:book"`
+
+Do not register a global plain `book` type for this feature. `PermissionService.checkPermission()` returns `false` (logs "No authorization model found") if the scoped type is missing.
 
 **One-time setup:**
 1. Log in to Auther admin at `auth.quanghuy.dev/admin`
@@ -456,7 +462,7 @@ export const getAutherApiKey = (): string => {
 
 ```json
 {
-  "entityType": "book",
+  "entityType": "client_<PAYLOAD_CLIENT_ID>:book",
   "description": "Reader-level access for gated books",
   "definition": {
     "relations": {
@@ -473,27 +479,29 @@ export const getAutherApiKey = (): string => {
 }
 ```
 
+> `PAYLOAD_CLIENT_ID` above is the OAuth client ID used by Payload Admin in Auther.
+
 **Hierarchy meaning:**
 - `owner` implies `editor` implies `reader`
 - Granting `reader` → `view` permission only
 - Granting `owner` → `view` + `edit` + `manage_access`
 
-**How the check works:** `POST /api/auth/check-permission` with `{ entityType:"book", entityId:"42", permission:"view" }` and `Authorization: Bearer <token>`:
-1. Loads the `book` model from `authorization_models`
+**How the check works:** `POST /api/auth/check-permission` with `{ entityType:"client_<PAYLOAD_CLIENT_ID>:book", entityId:"42", permission:"view" }` and `Authorization: Bearer <token>`:
+1. Loads the `client_<PAYLOAD_CLIENT_ID>:book` model from `authorization_models`
 2. Resolves `permission:"view"` → `requiredRelation:"reader"`
 3. Expands implied relations: `reader`, `editor`, `owner`
-4. Queries `access_tuples` for `entityType="book"`, `entityId="42"`, `relation IN (...)`, `subjectType="user"`, `subjectId=<from token>`
+4. Queries `access_tuples` for `entityType="client_<PAYLOAD_CLIENT_ID>:book"`, `entityId="42"`, `relation IN (...)`, `subjectType="user"`, `subjectId=<from token>`
 5. Returns `{ allowed: true }` if any match
 
 ---
 
 ### A.6 auther — Grant Management HTTP Endpoint
 
-**Problem:** The Payload proxy route (A.4) needs HTTP endpoints to list, create, and delete ReBAC tuples for a given book. Auther's `src/app/api/internal/` currently has only `cleanup-traces`, `queues`, and `rotate-jwks` — no grant management endpoint exists.
+**Problem:** The Payload proxy route (A.4) needs HTTP endpoints to list, create, and delete ReBAC tuples for books. These endpoints must be restricted to the caller's own client namespace and must never trust raw `entityType` from request input.
 
 **New files to create in Auther:**
 
-**`src/app/api/internal/grants/route.ts`**
+**`src/app/api/internal/clients/[clientId]/grants/route.ts`**
 
 ```ts
 import { NextRequest, NextResponse } from 'next/server'
@@ -509,17 +517,35 @@ function requireInternalApiKey(req: NextRequest): boolean {
   return req.headers.get('x-api-key') === env.INTERNAL_API_KEY
 }
 
-// GET ?entityType=book&entityId=42 — list all tuples for a given entity
-export async function GET(req: NextRequest) {
+function isAllowedClientScope(clientId: string): boolean {
+  // For this feature, Payload Admin is the only allowed caller scope.
+  return clientId === env.PAYLOAD_CLIENT_ID
+}
+
+function buildScopedEntityType(clientId: string, entityTypeName: string): string {
+  return `client_${clientId}:${entityTypeName}`
+}
+
+// GET ?entityTypeName=book&entityId=42 — list tuples in caller's client scope only
+export async function GET(
+  req: NextRequest,
+  { params }: { params: { clientId: string } }
+) {
   if (!requireInternalApiKey(req)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
-  const { searchParams } = new URL(req.url)
-  const entityType = searchParams.get('entityType')
-  const entityId = searchParams.get('entityId')
-  if (!entityType || !entityId) {
-    return NextResponse.json({ error: 'entityType and entityId are required' }, { status: 400 })
+  if (!isAllowedClientScope(params.clientId)) {
+    return NextResponse.json({ error: 'Forbidden client scope' }, { status: 403 })
   }
+
+  const { searchParams } = new URL(req.url)
+  const entityTypeName = searchParams.get('entityTypeName')
+  const entityId = searchParams.get('entityId')
+  if (!entityTypeName || !entityId) {
+    return NextResponse.json({ error: 'entityTypeName and entityId are required' }, { status: 400 })
+  }
+
+  const entityType = buildScopedEntityType(params.clientId, entityTypeName)
 
   const tuples = await db
     .select()
@@ -542,19 +568,28 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ grants })
 }
 
-// POST — grant a relation (accepts subjectEmail or subjectId)
-export async function POST(req: NextRequest) {
+// POST — grant a relation in caller's client scope only
+export async function POST(
+  req: NextRequest,
+  { params }: { params: { clientId: string } }
+) {
   if (!requireInternalApiKey(req)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
+  if (!isAllowedClientScope(params.clientId)) {
+    return NextResponse.json({ error: 'Forbidden client scope' }, { status: 403 })
+  }
+
   const body = await req.json() as {
-    entityType: string; entityId: string; relation: string
+    entityTypeName: string; entityId: string; relation: string
     subjectType: 'user' | 'apikey'; subjectId?: string; subjectEmail?: string
   }
-  const { entityType, entityId, relation, subjectType } = body
-  if (!entityType || !entityId || !relation || !subjectType) {
-    return NextResponse.json({ error: 'entityType, entityId, relation, subjectType required' }, { status: 400 })
+  const { entityTypeName, entityId, relation, subjectType } = body
+  if (!entityTypeName || !entityId || !relation || !subjectType) {
+    return NextResponse.json({ error: 'entityTypeName, entityId, relation, subjectType required' }, { status: 400 })
   }
+
+  const entityType = buildScopedEntityType(params.clientId, entityTypeName)
 
   // Resolve email → user ID
   let subjectId = body.subjectId
@@ -586,7 +621,7 @@ export async function POST(req: NextRequest) {
 }
 ```
 
-**`src/app/api/internal/grants/[tupleId]/route.ts`**
+**`src/app/api/internal/clients/[clientId]/grants/[tupleId]/route.ts`**
 
 ```ts
 import { NextRequest, NextResponse } from 'next/server'
@@ -597,20 +632,41 @@ function requireInternalApiKey(req: NextRequest): boolean {
   return req.headers.get('x-api-key') === env.INTERNAL_API_KEY
 }
 
+function isAllowedClientScope(clientId: string): boolean {
+  return clientId === env.PAYLOAD_CLIENT_ID
+}
+
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { tupleId: string } }
+  { params }: { params: { clientId: string; tupleId: string } }
 ) {
   if (!requireInternalApiKey(req)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
+  if (!isAllowedClientScope(params.clientId)) {
+    return NextResponse.json({ error: 'Forbidden client scope' }, { status: 403 })
+  }
+
   const tupleRepo = new TupleRepository()
   const tuple = await tupleRepo.findById(params.tupleId)
   if (!tuple) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
+  // Enforce namespace ownership before delete
+  if (!tuple.entityType.startsWith(`client_${params.clientId}:`)) {
+    return NextResponse.json({ error: 'Tuple outside client scope' }, { status: 403 })
+  }
+
   await tupleRepo.deleteById(params.tupleId)
   return NextResponse.json({ ok: true })
 }
 ```
+
+**Scope invariants for A.6:**
+
+1. Never accept raw `entityType` from caller input.
+2. Always derive full entity type server-side as `client_${clientId}:${entityTypeName}`.
+3. Always enforce client namespace ownership on read, create, and delete paths.
+4. Reject any tuple deletion where tuple namespace does not match the route client scope.
 
 **Add `INTERNAL_API_KEY` to `src/env.ts` in Auther** (Zod schema — append to server env):
 
@@ -685,7 +741,9 @@ export async function checkBookAccess(
   bookId: string
 ): Promise<boolean> {
   const autherBase = process.env.AUTHER_BASE_URL
-  if (!autherBase) return false
+  const payloadClientId = process.env.PAYLOAD_CLIENT_ID
+  if (!autherBase || !payloadClientId) return false
+  const scopedEntityType = `client_${payloadClientId}:book`
   try {
     const res = await fetch(
       `${autherBase.replace(/\/+$/, '')}/api/auth/check-permission`,
@@ -695,7 +753,7 @@ export async function checkBookAccess(
           'Content-Type': 'application/json',
           Authorization: `Bearer ${sessionToken}`,
         },
-        body: JSON.stringify({ entityType: 'book', entityId: bookId, permission: 'view' }),
+        body: JSON.stringify({ entityType: scopedEntityType, entityId: bookId, permission: 'view' }),
         cache: 'no-store',
       }
     )
@@ -709,7 +767,7 @@ export async function checkBookAccess(
 ```
 
 **Important implementation details:**
-- Body contains only `entityType`, `entityId`, `permission` — matches `CheckPermissionRequest` in Auther exactly
+- Body contains only `entityType`, `entityId`, `permission` and `entityType` must be client-scoped (`client_${PAYLOAD_CLIENT_ID}:book`)
 - No `subjectType`/`subjectId` in the body (Auther derives subject from `Bearer` header)
 - `cache: 'no-store'` — permissions are user-specific, must not be cached
 - Returns `false` on any error — fail closed
@@ -895,6 +953,7 @@ export function BookLockedState({ book, homepage }: BookLockedStateProps) {
 
 ```
 AUTHER_BASE_URL=https://auth.quanghuy.dev
+PAYLOAD_CLIENT_ID=<PAYLOAD_CLIENT_ID>
 NEXT_PUBLIC_AUTHER_SIGN_IN_URL=https://auth.quanghuy.dev/sign-in
 ```
 
@@ -1295,15 +1354,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 |---|---|---|---|
 | `AUTHER_BASE_URL` | payloadcms | `.env`, Dockerfile | URL of Auther deployment, e.g. `https://auth.quanghuy.dev` |
 | `AUTHER_API_KEY` | payloadcms | `.env`, Dockerfile | = Auther's `INTERNAL_API_KEY`; service-to-service only |
+| `PAYLOAD_CLIENT_ID` | payloadcms | `.env`, Dockerfile | Better Auth OAuth client ID; reused to scope Auther entity type |
 | `AUTHER_BASE_URL` | next-blog | `.env.local`, Vercel | Same URL |
+| `PAYLOAD_CLIENT_ID` | next-blog | `.env.local`, Vercel | Better Auth OAuth client ID; used by `checkBookAccess` and Auther scoping |
 | `NEXT_PUBLIC_AUTHER_SIGN_IN_URL` | next-blog | `.env.local`, Vercel | e.g. `https://auth.quanghuy.dev/sign-in` |
 | `INTERNAL_API_KEY` | auther | `.env`, Fly secrets | Min 32 chars; `openssl rand -hex 32` |
+| `PAYLOAD_CLIENT_ID` | auther | `.env` | Existing OAuth client ID, reused as scope guard in A.6 |
 | `PAYLOAD_CMS_URL` | next-blog | `.env.local`, Vercel | e.g. `https://payload.quanghuy.dev` |
 
 **payloadcms — add to `src/lib/env.ts`** (following existing cached-getter pattern):
 
 ```ts
-// getAutherBaseUrl and getAutherApiKey — see A.4 above
+// getAutherBaseUrl, getAutherApiKey, getAutherClientId — see A.4 above
 ```
 
 **auther — add to `src/env.ts` Zod schema:**
@@ -1318,9 +1380,9 @@ INTERNAL_API_KEY: z.string().min(32),
 
 To avoid downtime or broken states, deploy in this order:
 
-1. **auther** — register `book` entity type in auth model + deploy new `src/app/api/internal/grants/` routes + `INTERNAL_API_KEY` secret
-2. **payloadcms** — deploy `visibility` field + access rules + proxy route + `BookAccessPanel` component + `AUTHER_BASE_URL`/`AUTHER_API_KEY` env vars; run migration
-3. **next-blog** — deploy updated types + `checkBookAccess` + `getServerSideProps` changes + locked state UI + `AUTHER_BASE_URL` env var
+1. **auther** — register `client_<PAYLOAD_CLIENT_ID>:book` entity type in auth model + deploy new `src/app/api/internal/clients/[clientId]/grants/` routes + `INTERNAL_API_KEY` secret
+2. **payloadcms** — deploy `visibility` field + access rules + proxy route + `BookAccessPanel` component + `AUTHER_BASE_URL`/`AUTHER_API_KEY`/`PAYLOAD_CLIENT_ID` env vars; run migration
+3. **next-blog** — deploy updated types + `checkBookAccess` + `getServerSideProps` changes + locked state UI + `AUTHER_BASE_URL`/`PAYLOAD_CLIENT_ID` env vars
 
 **Why this order:** The Auther check-permission endpoint must be ready before payloadcms or next-blog tries to call it. The Payload migration must run before the blog goes live with gating logic.
 
@@ -1334,7 +1396,7 @@ To avoid downtime or broken states, deploy in this order:
 - [ ] Add `visibility` field to `src/collections/Books.ts`
 - [ ] Add `publicBooksReadAccess` to `src/utils/access.ts`; wire to `Books.access.read`
 - [ ] Add `chaptersReadAccess` to `src/utils/access.ts`; wire to `Chapters.access.read`
-- [ ] Add `getAutherBaseUrl` and `getAutherApiKey` to `src/lib/env.ts`
+- [ ] Add `getAutherBaseUrl`, `getAutherApiKey`, and `getAutherClientId` to `src/lib/env.ts`
 - [ ] Create `src/app/api/books/[id]/access/route.ts` (GET / POST / DELETE)
 - [ ] Create `src/components/admin/books/BookAccessPanel.tsx`; register in `Books.ts`
 - [ ] `pnpm payload migrate:create` — commit both `.ts` and `.json`
@@ -1354,10 +1416,10 @@ To avoid downtime or broken states, deploy in this order:
 ### auther
 
 **Feature A:**
-- [ ] Register `book` entity type in authorization models (admin UI or migration script)
+- [ ] Register `client_<PAYLOAD_CLIENT_ID>:book` entity type in authorization models (admin UI or migration script)
 - [ ] Add `INTERNAL_API_KEY` to `src/env.ts` Zod schema
-- [ ] Create `src/app/api/internal/grants/route.ts` (GET / POST)
-- [ ] Create `src/app/api/internal/grants/[tupleId]/route.ts` (DELETE)
+- [ ] Create `src/app/api/internal/clients/[clientId]/grants/route.ts` (GET / POST)
+- [ ] Create `src/app/api/internal/clients/[clientId]/grants/[tupleId]/route.ts` (DELETE)
 - [ ] Add `INTERNAL_API_KEY` secret to deployment (Fly.io / `.env`)
 - [ ] Verify cookie domain is `.quanghuy.dev` for cross-subdomain session sharing
 
@@ -1372,7 +1434,7 @@ To avoid downtime or broken states, deploy in this order:
 - [ ] Update `pages/books/[slug].tsx` `getServerSideProps` (add `locked` prop + privacy check)
 - [ ] Create `components/pages/books/book-locked-state.tsx`
 - [ ] Update `pages/books/[slug]/chapters/[chapterSlug].tsx` `getServerSideProps` (redirect if private + no access)
-- [ ] Add `AUTHER_BASE_URL` and `NEXT_PUBLIC_AUTHER_SIGN_IN_URL` to `.env.local` and Vercel
+- [ ] Add `AUTHER_BASE_URL`, `PAYLOAD_CLIENT_ID`, and `NEXT_PUBLIC_AUTHER_SIGN_IN_URL` to `.env.local` and Vercel
 - [ ] Verify `PAYLOAD_API_KEY` user has `role: admin` in Payload
 
 **Feature B:**

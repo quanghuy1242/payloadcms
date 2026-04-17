@@ -4,6 +4,7 @@ import { getPayload } from 'payload'
 import configPromise from '@payload-config'
 
 import { getAutherApiKey, getAutherBaseUrl } from '@/lib/env'
+import { getPayloadClientId } from '@/lib/betterAuth/env'
 
 type GrantRecord = {
   relation: string
@@ -21,9 +22,9 @@ const requireAdmin = async (): Promise<boolean> => {
 }
 
 const buildGrantsURL = (bookId: string): URL => {
-  const url = new URL('/api/internal/grants', getAutherBaseUrl())
+  const url = new URL(`/api/internal/clients/${getPayloadClientId()}/grants`, getAutherBaseUrl())
 
-  url.searchParams.set('entityType', 'book')
+  url.searchParams.set('entityTypeName', 'book')
   url.searchParams.set('entityId', bookId)
 
   return url
@@ -69,14 +70,14 @@ export async function POST(request: Request, { params }: { params: { id: string 
     return Response.json({ error: 'email and relation are required' }, { status: 400 })
   }
 
-  const response = await fetch(`${getAutherBaseUrl()}/api/internal/grants`, {
+  const response = await fetch(`${getAutherBaseUrl()}/api/internal/clients/${getPayloadClientId()}/grants`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'x-api-key': getAutherApiKey(),
     },
     body: JSON.stringify({
-      entityType: 'book',
+      entityTypeName: 'book',
       entityId: params.id,
       relation,
       subjectType: 'user',
@@ -112,12 +113,15 @@ export async function DELETE(request: Request) {
     return Response.json({ error: 'tupleId is required' }, { status: 400 })
   }
 
-  const response = await fetch(`${getAutherBaseUrl()}/api/internal/grants/${body.tupleId}`, {
-    method: 'DELETE',
-    headers: {
-      'x-api-key': getAutherApiKey(),
+  const response = await fetch(
+    `${getAutherBaseUrl()}/api/internal/clients/${getPayloadClientId()}/grants/${body.tupleId}`,
+    {
+      method: 'DELETE',
+      headers: {
+        'x-api-key': getAutherApiKey(),
+      },
     },
-  })
+  )
 
   if (!response.ok) {
     return Response.json({ error: 'Auther error' }, { status: 502 })
