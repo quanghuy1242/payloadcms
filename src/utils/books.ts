@@ -1,4 +1,10 @@
-import type { Access, CollectionBeforeChangeHook, CollectionBeforeDeleteHook, PayloadRequest } from 'payload'
+import type {
+  Access,
+  CollectionAfterReadHook,
+  CollectionBeforeChangeHook,
+  CollectionBeforeDeleteHook,
+  PayloadRequest,
+} from 'payload'
 
 import { ownerAccess } from './access'
 import { normalizeEntityId } from './identifiers'
@@ -125,6 +131,12 @@ type ChapterRecord = {
   book?: unknown
   id?: unknown
   order?: unknown
+  [key: string]: unknown
+}
+
+type ChapterPasswordRecord = {
+  hasPassword?: boolean
+  password?: unknown
   [key: string]: unknown
 }
 
@@ -390,4 +402,50 @@ export const enforceUniqueChapterOrderHook: CollectionBeforeChangeHook = async (
   }
 
   return workingData
+}
+
+/**
+ * Payload `beforeChange` hook that keeps chapter password state in sync with the actual password value.
+ *
+ * Sets `hasPassword` to `true` when a non-empty password is present and preserves the prior value
+ * when a save omits the password field.
+ */
+export const syncChapterPasswordStateHook: CollectionBeforeChangeHook = ({
+  data,
+  operation,
+  originalDoc,
+}) => {
+  const workingData = data ? { ...data } : {}
+  const workingRecord = workingData as ChapterPasswordRecord
+  const previousRecord = (originalDoc as ChapterPasswordRecord | undefined) ?? {}
+
+  const passwordWasProvided = Object.prototype.hasOwnProperty.call(workingRecord, 'password')
+
+  if (passwordWasProvided) {
+    const password = typeof workingRecord.password === 'string' ? workingRecord.password : ''
+    workingRecord.hasPassword = password.length > 0
+  } else if (operation === 'create') {
+    workingRecord.hasPassword = false
+  } else if (typeof previousRecord.hasPassword === 'boolean' && workingRecord.hasPassword == null) {
+    workingRecord.hasPassword = previousRecord.hasPassword
+  }
+
+  return workingData
+}
+
+/**
+ * Payload `afterRead` hook that hides the raw chapter password and derives `hasPassword` from storage.
+ */
+export const applyChapterPasswordReadStateHook: CollectionAfterReadHook = ({ doc }) => {
+  if (doc == null || typeof doc !== 'object') {
+    return doc
+  }
+
+  const chapter = doc as ChapterPasswordRecord
+
+  return {
+    ...chapter,
+    hasPassword: Boolean(chapter.hasPassword ?? chapter.password),
+    password: undefined,
+  }
 }

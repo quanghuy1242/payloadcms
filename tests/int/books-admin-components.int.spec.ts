@@ -3,9 +3,11 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { createElement } from 'react'
 import type { ComponentProps, ReactElement, ReactNode } from 'react'
 
+import BookAccessPanel from '@/components/admin/books/BookAccessPanel'
 import ChapterListButton from '@/components/admin/books/ChapterListButton'
 import DeleteBookButton from '@/components/admin/books/DeleteBookButton'
 import * as booksUtils from '@/utils/books'
+import * as httpUtils from '@/utils/http'
 
 const chapterUiMocks = vi.hoisted(() => ({
   lastButtonProps: undefined as
@@ -261,6 +263,40 @@ describe('Book admin components', () => {
     })
 
     expect(screen.getByTestId('chapter-document-drawer')).toBeTruthy()
+  })
+
+  it('renders private book access grants and the grant button', async () => {
+    chapterUiMocks.useDocumentInfo.mockReturnValue({
+      data: {
+        visibility: 'private',
+      },
+      id: 'book-99',
+    })
+
+    vi.spyOn(httpUtils, 'requestJSONWithRetry').mockResolvedValue({
+      grants: [
+        {
+          relation: 'reader',
+          tupleId: 'tuple-1',
+          userEmail: 'reader@example.com',
+          userId: 'user-1',
+        },
+      ],
+    } as never)
+
+    render(createElement(BookAccessPanel))
+
+    await waitFor(() => {
+      expect(httpUtils.requestJSONWithRetry).toHaveBeenCalledWith(
+        '/api/books/book-99/access',
+        {},
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      )
+    })
+
+    expect(screen.getByText('reader@example.com')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Revoke' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Grant reader' })).toBeTruthy()
   })
 
   it('disables the chapter drawer trigger before the book is saved', () => {

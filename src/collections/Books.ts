@@ -1,6 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
-import { authenticatedAccess, ownerAccess } from '../utils/access'
+import { authenticatedAccess, ownerAccess, publicBooksReadAccess } from '../utils/access'
 import {
   applyBookImportLifecycleHook,
   BOOK_IMPORT_STATUSES,
@@ -37,7 +37,7 @@ export const Books: CollectionConfig = {
   slug: 'books',
   access: {
     create: authenticatedAccess,
-    read: authenticatedAccess,
+    read: publicBooksReadAccess,
     update: ownerAccess('createdBy'),
     delete: bookDeleteAccess,
   },
@@ -54,6 +54,7 @@ export const Books: CollectionConfig = {
         beforeDocumentControls: [
           '/components/admin/books/DeleteBookButton',
           '/components/admin/books/ChapterListButton',
+          '/components/admin/books/BookAccessPanel',
         ],
       },
     },
@@ -199,6 +200,26 @@ export const Books: CollectionConfig = {
       options: SOURCE_TYPE_OPTIONS,
       admin: {
         position: 'sidebar',
+      },
+    },
+    {
+      name: 'visibility',
+      type: 'select',
+      required: true,
+      defaultValue: 'public',
+      options: [
+        {
+          label: 'Public',
+          value: 'public',
+        },
+        {
+          label: 'Private',
+          value: 'private',
+        },
+      ],
+      admin: {
+        position: 'sidebar',
+        description: 'Private books are only visible to users with explicit access in Auther.',
       },
     },
     {

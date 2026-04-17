@@ -44,6 +44,112 @@ export const authenticatedFieldAccess: FieldAccess = ({ req }) => {
   return getUserId(req.user) != null
 }
 
+export const publicBooksReadAccess: Access = ({ req }) => {
+  if (isAdminUser(req.user)) {
+    return true
+  }
+
+  if (!req.user) {
+    return {
+      and: [
+        {
+          visibility: {
+            equals: 'public',
+          },
+        },
+        {
+          _status: {
+            equals: 'published',
+          },
+        },
+      ],
+    } as never
+  }
+
+  const userId = getUserId(req.user)
+
+  if (userId == null) {
+    return false
+  }
+
+  return {
+    or: [
+      {
+        and: [
+          {
+            visibility: {
+              equals: 'public',
+            },
+          },
+          {
+            _status: {
+              equals: 'published',
+            },
+          },
+        ],
+      },
+      {
+        createdBy: {
+          equals: userId,
+        },
+      },
+    ],
+  } as never
+}
+
+export const chaptersReadAccess: Access = ({ req }) => {
+  if (isAdminUser(req.user)) {
+    return true
+  }
+
+  if (!req.user) {
+    return {
+      and: [
+        {
+          'book.visibility': {
+            equals: 'public',
+          },
+        },
+        {
+          _status: {
+            equals: 'published',
+          },
+        },
+      ],
+    } as never
+  }
+
+  const userId = getUserId(req.user)
+
+  if (userId == null) {
+    return false
+  }
+
+  return {
+    or: [
+      {
+        and: [
+          {
+            'book.visibility': {
+              equals: 'public',
+            },
+          },
+          {
+            _status: {
+              equals: 'published',
+            },
+          },
+        ],
+      },
+      {
+        createdBy: {
+          equals: userId,
+        },
+      },
+    ],
+  } as never
+}
+
 const resolveTargetId = (doc: unknown, id: unknown): string | number | null => {
   const docId = doc ? getUserId(doc as AccessUser) : null
 

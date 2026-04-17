@@ -23,7 +23,7 @@ Use this skill when code looks reusable or duplicated.
 | `src/utils/epubLexical.ts` | HTML → Lexical JSON conversion | EPUB conversion stage only |
 | `src/utils/chapterLexicalNodes.ts` | Custom Lexical node definitions | Chapter rich text node registration |
 | `src/utils/chapterRichText.ts` | Rich text traversal helpers | Reading/transforming stored Lexical content |
-| `src/utils/books.ts` | Book-specific utilities | Books collection helpers |
+| `src/utils/books.ts` | Book-specific utilities | Books and Chapters collection helpers |
 | `src/utils/lowres.ts` | Low-resolution image generation | Media backfill and thumbnail helpers |
 | `src/utils/apiKey.ts` | API key helpers | API key generation/validation |
 

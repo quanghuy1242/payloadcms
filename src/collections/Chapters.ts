@@ -1,8 +1,13 @@
 import type { CollectionConfig } from 'payload'
 
-import { authenticatedAccess, ownerAccess } from '../utils/access'
+import { authenticatedAccess, chaptersReadAccess, isAdminUser, ownerAccess } from '../utils/access'
 import { createChapterLexicalEditor } from '../utils/chapterRichText'
-import { enforceChapterBookOwnershipHook, enforceUniqueChapterOrderHook } from '../utils/books'
+import {
+  applyChapterPasswordReadStateHook,
+  enforceChapterBookOwnershipHook,
+  enforceUniqueChapterOrderHook,
+  syncChapterPasswordStateHook,
+} from '../utils/books'
 import { enforceOwnershipHook } from '../utils/ownership'
 import { createSlugHook } from '../utils/slug'
 
@@ -10,7 +15,7 @@ export const Chapters: CollectionConfig = {
   slug: 'chapters',
   access: {
     create: authenticatedAccess,
-    read: authenticatedAccess,
+    read: chaptersReadAccess,
     update: ownerAccess('createdBy'),
     delete: ownerAccess('createdBy'),
   },
@@ -36,7 +41,8 @@ export const Chapters: CollectionConfig = {
   },
   hooks: {
     beforeValidate: [enforceOwnershipHook('createdBy'), createSlugHook('title')],
-    beforeChange: [enforceChapterBookOwnershipHook, enforceUniqueChapterOrderHook],
+    beforeChange: [syncChapterPasswordStateHook, enforceChapterBookOwnershipHook, enforceUniqueChapterOrderHook],
+    afterRead: [applyChapterPasswordReadStateHook],
   },
   fields: [
     {
@@ -114,6 +120,29 @@ export const Chapters: CollectionConfig = {
       type: 'richText',
       required: true,
       editor: createChapterLexicalEditor(),
+    },
+    {
+      name: 'password',
+      type: 'text',
+      admin: {
+        position: 'sidebar',
+        description: 'Optional. If set, readers must enter this password to view the chapter.',
+      },
+      access: {
+        read: () => false,
+        create: ({ req }) => isAdminUser(req.user),
+        update: ({ req }) => isAdminUser(req.user),
+      },
+    },
+    {
+      name: 'hasPassword',
+      type: 'checkbox',
+      defaultValue: false,
+      admin: {
+        readOnly: true,
+        position: 'sidebar',
+        description: 'Auto-set. True when a password has been configured.',
+      },
     },
     {
       name: 'createdBy',

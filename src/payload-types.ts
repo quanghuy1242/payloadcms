@@ -237,6 +237,10 @@ export interface Book {
   cover?: (number | null) | Media;
   origin: 'manual' | 'epub-imported' | 'synced';
   sourceType: 'manual' | 'epub-upload' | 'meap-feed' | 'external-sync';
+  /**
+   * Private books are only visible to users with explicit access in Auther.
+   */
+  visibility: 'public' | 'private';
   sourceId?: string | null;
   sourceHash?: string | null;
   sourceVersion?: string | null;
@@ -303,6 +307,14 @@ export interface Chapter {
     };
     [k: string]: unknown;
   };
+  /**
+   * Optional. If set, readers must enter this password to view the chapter.
+   */
+  password?: string | null;
+  /**
+   * Auto-set. True when a password has been configured.
+   */
+  hasPassword?: boolean | null;
   createdBy: number | User;
   updatedAt: string;
   createdAt: string;
@@ -511,6 +523,7 @@ export interface BooksSelect<T extends boolean = true> {
   cover?: T;
   origin?: T;
   sourceType?: T;
+  visibility?: T;
   sourceId?: T;
   sourceHash?: T;
   sourceVersion?: T;
@@ -553,6 +566,8 @@ export interface ChaptersSelect<T extends boolean = true> {
   manualEditedAt?: T;
   chapterWordCount?: T;
   content?: T;
+  password?: T;
+  hasPassword?: T;
   createdBy?: T;
   updatedAt?: T;
   createdAt?: T;

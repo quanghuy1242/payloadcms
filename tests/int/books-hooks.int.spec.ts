@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import { Chapters } from '@/collections/Chapters'
 import {
   applyBookImportLifecycleHook,
   bookDeleteAccess,
@@ -257,5 +258,53 @@ describe('Books hooks', () => {
         credentials: 'include',
       }),
     )
+  })
+
+  it('syncs chapter password state before saving and after reading', () => {
+    const beforeChangeHook = Chapters.hooks?.beforeChange?.[0]
+    const afterReadHook = Chapters.hooks?.afterRead?.[0]
+
+    expect(beforeChangeHook).toEqual(expect.any(Function))
+    expect(afterReadHook).toEqual(expect.any(Function))
+
+    const createResult = beforeChangeHook?.({
+      collection: undefined as never,
+      data: {
+        password: 'reader-secret',
+      },
+      context: undefined as never,
+      operation: 'create',
+      req: {} as never,
+    }) as Record<string, unknown>
+
+    expect(createResult.hasPassword).toBe(true)
+
+    const updateResult = beforeChangeHook?.({
+      collection: undefined as never,
+      data: {
+        title: 'Updated chapter title',
+      },
+      context: undefined as never,
+      originalDoc: {
+        hasPassword: true,
+      },
+      operation: 'update',
+      req: {} as never,
+    }) as Record<string, unknown>
+
+    expect(updateResult.hasPassword).toBe(true)
+
+    const readResult = afterReadHook?.({
+      collection: undefined as never,
+      context: undefined as never,
+      doc: {
+        hasPassword: true,
+        password: 'reader-secret',
+      },
+      req: {} as never,
+    }) as Record<string, unknown>
+
+    expect(readResult.hasPassword).toBe(true)
+    expect(readResult.password).toBeUndefined()
   })
 })

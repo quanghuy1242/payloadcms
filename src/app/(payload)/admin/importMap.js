@@ -25,8 +25,11 @@ import { UploadFeatureClient as UploadFeatureClient_e70f5e05f09f93e00b997edb1ef0
 import { default as default_d9b8e24dcaf6cbba6d4f26d06d55f32b } from '../../../components/admin/media/MediaGridView'
 import { default as default_316a711d8b21591f8137727cba9d2f57 } from '../../../components/admin/books/DeleteBookButton'
 import { default as default_020c0ac6da2d31e821d17aafb71e4e18 } from '../../../components/admin/books/ChapterListButton'
+import { default as default_e707a77512d2b83c914b857a7f60e737 } from '../../../components/admin/books/BookAccessPanel'
 import { default as default_9bfbdc9e46ef128724bf1d0c1a0576db } from '../../../components/admin/books/BooksListView'
 import { TableFeatureClient as TableFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
+import { EpubCalloutFeatureClient as EpubCalloutFeatureClient_94975739da8e3f4aaa0ae62da55926d4 } from '@/features/epub-callout/feature.client'
+import { EpubFootnoteRefFeatureClient as EpubFootnoteRefFeatureClient_86ce629055a37992188e37b5bc90e80a } from '@/features/epub-footnote-ref/feature.client'
 import { EpubInternalLinkFeatureClient as EpubInternalLinkFeatureClient_39b1aa8e11ee1c4b71045ba13d597423 } from '@/features/epub-internal-link/feature.client'
 import { BlocksFeatureClient as BlocksFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { CodeComponent as CodeComponent_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
@@ -73,8 +76,11 @@ export const importMap = {
   "/components/admin/media/MediaGridView#default": default_d9b8e24dcaf6cbba6d4f26d06d55f32b,
   "/components/admin/books/DeleteBookButton#default": default_316a711d8b21591f8137727cba9d2f57,
   "/components/admin/books/ChapterListButton#default": default_020c0ac6da2d31e821d17aafb71e4e18,
+  "/components/admin/books/BookAccessPanel#default": default_e707a77512d2b83c914b857a7f60e737,
   "/components/admin/books/BooksListView#default": default_9bfbdc9e46ef128724bf1d0c1a0576db,
   "@payloadcms/richtext-lexical/client#TableFeatureClient": TableFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
+  "@/features/epub-callout/feature.client#EpubCalloutFeatureClient": EpubCalloutFeatureClient_94975739da8e3f4aaa0ae62da55926d4,
+  "@/features/epub-footnote-ref/feature.client#EpubFootnoteRefFeatureClient": EpubFootnoteRefFeatureClient_86ce629055a37992188e37b5bc90e80a,
   "@/features/epub-internal-link/feature.client#EpubInternalLinkFeatureClient": EpubInternalLinkFeatureClient_39b1aa8e11ee1c4b71045ba13d597423,
   "@payloadcms/richtext-lexical/client#BlocksFeatureClient": BlocksFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
   "@payloadcms/richtext-lexical/client#CodeComponent": CodeComponent_e70f5e05f09f93e00b997edb1ef0c864,
