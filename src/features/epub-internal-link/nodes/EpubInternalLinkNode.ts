@@ -71,6 +71,13 @@ export class EpubInternalLinkNode extends ElementNode {
   createDOM(_config: EditorConfig): HTMLElement {
     const element = document.createElement('span')
     element.setAttribute('data-epub-href', this.__fields.epubHref)
+    element.style.cssText = [
+      'text-decoration: underline',
+      'text-decoration-style: dashed',
+      'text-decoration-color: #d97706',
+      'color: inherit',
+      'cursor: help',
+    ].join('; ')
     return element
   }
 

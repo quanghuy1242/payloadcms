@@ -1,15 +1,19 @@
 'use client'
 
 import { Button, useDocumentInfo } from '@payloadcms/ui'
-import React, { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import React, { useCallback, useEffect, useState } from 'react'
 
 import { BOOK_CHAPTERS_UPDATED_EVENT, fetchBookChapterCount } from '@/utils/books'
+import { requestJSON } from '@/utils/http'
 
 const DeleteBookButton: React.FC = () => {
   const { id } = useDocumentInfo()
+  const router = useRouter()
   const bookId = typeof id === 'string' || typeof id === 'number' ? id : null
   const [chapterCount, setChapterCount] = useState<number | null>(null)
   const [isLoading, setIsLoading] = useState<boolean>(bookId != null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   useEffect(() => {
     let isMounted = true
@@ -103,26 +107,46 @@ const DeleteBookButton: React.FC = () => {
     }
   }, [bookId])
 
+  const handleDelete = useCallback(async () => {
+    if (bookId == null || isDeleting) {
+      return
+    }
+
+    if (!window.confirm('Delete this book? This action cannot be undone.')) {
+      return
+    }
+
+    setIsDeleting(true)
+    try {
+      await requestJSON(`/api/books/${bookId}`, { method: 'DELETE' })
+      router.push('/admin/collections/books')
+    } catch {
+      setIsDeleting(false)
+    }
+  }, [bookId, isDeleting, router])
+
   if (bookId == null) {
     return null
   }
 
-  if (!isLoading && chapterCount === 0) {
-    return null
-  }
+  const canDelete = !isLoading && !isDeleting && chapterCount === 0
+  const isDisabled = !canDelete
+
+  const tooltip = isLoading || isDeleting
+    ? 'Checking chapter count before deleting this book.'
+    : chapterCount !== null && chapterCount > 0
+      ? 'Remove all chapters before deleting this book.'
+      : undefined
 
   return (
     <Button
       buttonStyle="secondary"
-      disabled
+      disabled={isDisabled}
+      onClick={canDelete ? handleDelete : undefined}
       size="medium"
-      tooltip={
-        isLoading
-          ? 'Checking chapter count before deleting this book.'
-          : 'Remove all chapters before deleting this book.'
-      }
+      tooltip={tooltip}
     >
-      Delete book
+      {isDeleting ? 'Deleting...' : 'Delete book'}
     </Button>
   )
 }
