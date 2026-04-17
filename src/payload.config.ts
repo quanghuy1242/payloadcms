@@ -80,6 +80,8 @@ const seo = seoPlugin({
 })
 
 export default buildConfig({
+  cors: ['https://blog.quanghuy.dev'],
+  csrf: ['https://blog.quanghuy.dev'],
   admin: {
     user: Users.slug,
     importMap: {
