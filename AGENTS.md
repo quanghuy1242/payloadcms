@@ -65,5 +65,3 @@ pnpm promote:admin --email X      # Promote a user to admin (writes directly to 
 | `test-strategy-chooser` | Finishing a feature; adding utilities; changing access rules; asking "what tests should I write?" or "how do I test this?" |
 | `utility-extraction-adviser` | Logic is duplicated across files; inline fetch bypasses `requestJSON`; validation duplicates an existing util; asking "where should this helper live?" |
 | `verification-gate` | Before declaring any task done — whenever code, schema, access rules, admin UI, or migrations changed |
-
-
