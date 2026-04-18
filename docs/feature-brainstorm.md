@@ -54,10 +54,13 @@ Ideas gated behind having an authenticated viewer identity:
 - Simplest: use Giscus (GitHub Discussions) or a similar hosted service - zero backend work
 - In-house option: a `Comments` collection in Payload with `(post/chapter reference, author, content, status: pending|approved)`; admin moderates from Payload admin UI
 - Either way the blog renders them at the bottom of a chapter/post
+- **Access control note (do not skip)**: for comments on private book chapters, the Comments collection access function must inherit book access from the grant mirror — filter comments by `chapter.book IN [grantedBookIds]` using the same mirror lookup that book/chapter access uses. Do NOT add a separate Comments entity type in Auther for this — comments are not an independently grantable resource, they derive visibility from their parent book. The grant mirror's generic `entityType` field is already designed to support this without schema changes. See `docs/authz-local-projection-plan_detail.md` section 9.5 and section 12 item 3.
+- **Write permission**: whether a viewer can post comments is a separate question from whether they can read them. If write permission needs to differ from read permission, add a `commenter` relation to the book entity type in Auther's authorization model (not a new entity type). The mirror lookup can filter by relation if needed.
 
 **Inline / paragraph-level comments**
 - Complex. Would need anchor data (which Lexical node/block the comment is attached to)
 - Worth noting as a future idea but a lot of work to get right
+- If ever built in-house, the anchor data ties the comment to a specific Lexical node ID; the access model is the same as regular comments (derive from parent book grant)
 
 **Bookmarks**
 - Simple: `(userId, bookId, chapterId)` collection, heart/bookmark button on chapter pages

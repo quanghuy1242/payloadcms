@@ -1,5 +1,11 @@
 # PayloadCMS Project: AI Agent Instructions
 
+# Important
+
+- This payloadcms is using auth service using better-auth here https://github.com/quanghuy1242/auther
+- The blog site consumes data from this CMS project here https://github.com/quanghuy1242/next-blog 
+- When planning something across domain, use github mcp or tools to check needed or suggest recommendations for 2 others.
+
 ## Tech Stack
 
 - **PayloadCMS 3.60 + Next.js 15** headless CMS

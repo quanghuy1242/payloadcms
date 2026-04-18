@@ -1,4 +1,7 @@
-import type { Access, FieldAccess } from 'payload'
+import type { Access, FieldAccess, PayloadRequest } from 'payload'
+
+import { checkAutherBookAccess } from '@/lib/betterAuth/auther'
+import { extractTokenFromHeaders } from '@/lib/betterAuth/tokens'
 
 import { normalizeEntityId } from './identifiers'
 import { toNullableString } from './strings'
@@ -44,6 +47,260 @@ export const authenticatedFieldAccess: FieldAccess = ({ req }) => {
   return getUserId(req.user) != null
 }
 
+type BookReadRecord = {
+  createdBy?: unknown
+  id?: unknown
+}
+
+type ChapterReadRecord = {
+  book?: unknown
+  createdBy?: unknown
+  id?: unknown
+}
+
+type PrivateBookId = string | number
+
+const accessiblePrivateBookIdsCache = new WeakMap<PayloadRequest, Promise<PrivateBookId[]>>()
+
+const getSessionTokenFromRequest = (req: PayloadRequest): string | null => {
+  const headers = (req as { headers?: Headers | undefined }).headers
+
+  if (!headers || typeof headers.get !== 'function') {
+    return null
+  }
+
+  return extractTokenFromHeaders(headers)
+}
+
+const publicBooksQuery = {
+  and: [
+    {
+      visibility: {
+        equals: 'public',
+      },
+    },
+    {
+      _status: {
+        equals: 'published',
+      },
+    },
+  ],
+} as const
+
+const publicChaptersQuery = {
+  and: [
+    {
+      'book.visibility': {
+        equals: 'public',
+      },
+    },
+    {
+      _status: {
+        equals: 'published',
+      },
+    },
+  ],
+} as const
+
+const ownBooksQuery = (userId: string | number) => {
+  return {
+    createdBy: {
+      equals: userId,
+    },
+  }
+}
+
+const ownChaptersQuery = (userId: string | number) => {
+  return {
+    createdBy: {
+      equals: userId,
+    },
+  }
+}
+
+const buildPrivateBooksQuery = (privateBookIds: PrivateBookId[]) => {
+  if (privateBookIds.length === 0) {
+    return null
+  }
+
+  return {
+    and: [
+      {
+        id: {
+          in: privateBookIds,
+        },
+      },
+      {
+        _status: {
+          equals: 'published',
+        },
+      },
+    ],
+  }
+}
+
+const buildPrivateChaptersQuery = (privateBookIds: PrivateBookId[]) => {
+  if (privateBookIds.length === 0) {
+    return null
+  }
+
+  return {
+    and: [
+      {
+        book: {
+          in: privateBookIds,
+        },
+      },
+      {
+        _status: {
+          equals: 'published',
+        },
+      },
+    ],
+  }
+}
+
+const fetchPrivateBooksForRequest = async (
+  req: PayloadRequest,
+): Promise<Array<BookReadRecord>> => {
+  const privateBooks: Array<BookReadRecord> = []
+  const limit = 100
+  let page = 1
+
+  while (true) {
+    const response = await req.payload.find({
+      collection: 'books',
+      depth: 0,
+      limit,
+      page,
+      overrideAccess: true,
+      req,
+      select: {
+        createdBy: true,
+        id: true,
+      },
+      where: {
+        and: [
+          {
+            visibility: {
+              equals: 'private',
+            },
+          },
+          {
+            _status: {
+              equals: 'published',
+            },
+          },
+        ],
+      } as never,
+    })
+
+    privateBooks.push(...(response.docs as Array<BookReadRecord>))
+
+    if (!response.hasNextPage) {
+      break
+    }
+
+    page += 1
+  }
+
+  return privateBooks
+}
+
+const getGrantedPrivateBookIds = async (
+  req: PayloadRequest,
+  sessionToken: string,
+  userId: string | number,
+): Promise<PrivateBookId[]> => {
+  const cached = accessiblePrivateBookIdsCache.get(req)
+
+  if (cached) {
+    return cached
+  }
+
+  const promise = (async () => {
+    const privateBooks = await fetchPrivateBooksForRequest(req)
+    const candidateBooks = privateBooks.filter((book) => {
+      const ownerId = normalizeEntityId(book.createdBy)
+
+      if (ownerId == null) {
+        return true
+      }
+
+      return String(ownerId) !== String(userId)
+    })
+
+    const grants = await Promise.all(
+      candidateBooks.map(async (book) => {
+        const bookId = normalizeEntityId(book.id)
+
+        if (bookId == null) {
+          return null
+        }
+
+        const allowed = await checkAutherBookAccess({
+          bookId,
+          sessionToken,
+        }).catch(() => false)
+
+        return allowed ? bookId : null
+      }),
+    )
+
+    return grants.filter((bookId): bookId is PrivateBookId => bookId != null)
+  })().catch(() => [] as PrivateBookId[])
+
+  accessiblePrivateBookIdsCache.set(req, promise)
+
+  return promise
+}
+
+const resolveBooksReadAccess = async ({
+  req,
+  sessionToken,
+  userId,
+}: {
+  req: PayloadRequest
+  sessionToken: string
+  userId: string | number
+}) => {
+  const clauses: Array<Record<string, unknown>> = [publicBooksQuery, ownBooksQuery(userId)]
+  const privateBookIds = await getGrantedPrivateBookIds(req, sessionToken, userId)
+
+  const privateBooksQuery = buildPrivateBooksQuery(privateBookIds)
+
+  if (privateBooksQuery) {
+    clauses.push(privateBooksQuery as Record<string, unknown>)
+  }
+
+  return {
+    or: clauses,
+  } as never
+}
+
+const resolveChaptersReadAccess = async ({
+  req,
+  sessionToken,
+  userId,
+}: {
+  req: PayloadRequest
+  sessionToken: string
+  userId: string | number
+}) => {
+  const clauses: Array<Record<string, unknown>> = [publicChaptersQuery, ownChaptersQuery(userId)]
+  const privateBookIds = await getGrantedPrivateBookIds(req, sessionToken, userId)
+
+  const privateChaptersQuery = buildPrivateChaptersQuery(privateBookIds)
+
+  if (privateChaptersQuery) {
+    clauses.push(privateChaptersQuery as Record<string, unknown>)
+  }
+
+  return {
+    or: clauses,
+  } as never
+}
+
 export const publicBooksReadAccess: Access = ({ req }) => {
   if (isAdminUser(req.user)) {
     return true
@@ -72,29 +329,19 @@ export const publicBooksReadAccess: Access = ({ req }) => {
     return false
   }
 
-  return {
-    or: [
-      {
-        and: [
-          {
-            visibility: {
-              equals: 'public',
-            },
-          },
-          {
-            _status: {
-              equals: 'published',
-            },
-          },
-        ],
-      },
-      {
-        createdBy: {
-          equals: userId,
-        },
-      },
-    ],
-  } as never
+  const sessionToken = getSessionTokenFromRequest(req)
+
+  if (!sessionToken) {
+    return {
+      or: [publicBooksQuery, ownBooksQuery(userId)],
+    } as never
+  }
+
+  return resolveBooksReadAccess({
+    req,
+    sessionToken,
+    userId,
+  })
 }
 
 export const chaptersReadAccess: Access = ({ req }) => {
@@ -125,29 +372,19 @@ export const chaptersReadAccess: Access = ({ req }) => {
     return false
   }
 
-  return {
-    or: [
-      {
-        and: [
-          {
-            'book.visibility': {
-              equals: 'public',
-            },
-          },
-          {
-            _status: {
-              equals: 'published',
-            },
-          },
-        ],
-      },
-      {
-        createdBy: {
-          equals: userId,
-        },
-      },
-    ],
-  } as never
+  const sessionToken = getSessionTokenFromRequest(req)
+
+  if (!sessionToken) {
+    return {
+      or: [publicChaptersQuery, ownChaptersQuery(userId)],
+    } as never
+  }
+
+  return resolveChaptersReadAccess({
+    req,
+    sessionToken,
+    userId,
+  })
 }
 
 const resolveTargetId = (doc: unknown, id: unknown): string | number | null => {

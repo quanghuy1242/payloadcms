@@ -19,7 +19,7 @@
    - [A.6 auther — Grant Management HTTP Endpoint](#a6-auther--grant-management-http-endpoint)
    - [A.7 next-blog — Types and Query Changes](#a7-next-blog--types-and-query-changes)
    - [A.8 next-blog — Session Cookie Forwarding](#a8-next-blog--session-cookie-forwarding)
-   - [A.9 next-blog — `checkBookAccess` Utility](#a9-next-blog--checkbookaccess-utility)
+    - [A.9 payloadcms — Token-aware Book Read Access](#a9-payloadcms--token-aware-book-read-access)
    - [A.10 next-blog — Books Listing Page](#a10-next-blog--books-listing-page)
    - [A.11 next-blog — Book Detail Page](#a11-next-blog--book-detail-page)
    - [A.12 next-blog — Chapter Page](#a12-next-blog--chapter-page)
@@ -209,7 +209,7 @@ access: {
 },
 ```
 
-**Why the admin API key in next-blog bypasses this:** `publicBooksReadAccess` only restricts non-admin users. The `PAYLOAD_API_KEY` used by next-blog belongs to a Payload user with `role: 'admin'` (verified with `pnpm promote:admin`). That user hits the `if (isAdminUser(req.user)) return true` branch and gets all books including private ones. Gating is enforced by the `checkBookAccess` call in `getServerSideProps`, not by Payload access rules.
+**Why the viewer token should be forwarded instead:** the blog should not make a separate permission decision. It should forward the Better Auth session token to Payload, let the Better Auth strategy map that token into `req.user`, and let the Payload read helper decide whether the response should contain public books only or public plus Auther-granted private books.
 
 ---
 
@@ -705,7 +705,7 @@ const BOOK_FIELDS = `
 `
 ```
 
-Do **not** add a `visibility` filter to `createBooksWhere()` — the admin API key bypasses Payload access rules and returns all books. Gating is done in `getServerSideProps`.
+Do **not** add a `visibility` filter to `createBooksWhere()` — the blog should forward the viewer token to Payload, and Payload access rules should decide which books are returned. Anonymous requests still get public/published books only.
 
 ---
 
@@ -718,72 +718,69 @@ Do **not** add a `visibility` filter to `createBooksWhere()` — the admin API k
 ```ts
 export const getServerSideProps: GetServerSideProps = async (context) => {
   const sessionToken = context.req.cookies['better-auth.session_token'] ?? null
-  // sessionToken is null → unauthenticated → treat as no access
+  // sessionToken is null → anonymous request → Payload returns public/published books only
 }
 ```
 
 ---
 
-### A.9 next-blog — `checkBookAccess` Utility
+### A.9 payloadcms — Token-aware Book Read Access
 
-**New file:** `common/auth/checkBookAccess.ts`
+**Where:** `src/utils/access.ts`, `src/lib/betterAuth/auther.ts`, and the existing Better Auth auth strategy in `src/lib/betterAuth/strategy.ts`.
+
+**New file:** `src/lib/betterAuth/auther.ts`
+
+This helper calls Auther's `check-permission` endpoint with the viewer's token and the client-scoped book entity type.
+
+The blog should not run a separate `checkBookAccess()` helper. It should forward the viewer's Better Auth session token on requests to Payload. Payload authenticates that token into `req.user`, and the book read helper decides which books and chapters are visible.
+
+**How the flow should work:**
+- Anonymous request: Payload returns public/published books only.
+- Authenticated request: Payload returns public/published books plus any private books that Auther has granted to the token owner.
+- Admin request: Payload returns everything.
+
+**Payload-side sketch:**
 
 ```ts
-/**
- * Check whether the current user has been granted view access to a book
- * by forwarding their Better Auth session token to Auther's check-permission endpoint.
- *
- * Auther identifies the subject from the Authorization header — do NOT include
- * subjectType/subjectId in the body.
- */
-export async function checkBookAccess(
-  sessionToken: string,
-  bookId: string
-): Promise<boolean> {
-  const autherBase = process.env.AUTHER_BASE_URL
-  const payloadClientId = process.env.PAYLOAD_CLIENT_ID
-  if (!autherBase || !payloadClientId) return false
-  const scopedEntityType = `client_${payloadClientId}:book`
-  try {
-    const res = await fetch(
-      `${autherBase.replace(/\/+$/, '')}/api/auth/check-permission`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${sessionToken}`,
-        },
-        body: JSON.stringify({ entityType: scopedEntityType, entityId: bookId, permission: 'view' }),
-        cache: 'no-store',
-      }
-    )
-    if (!res.ok) return false
-    const data = (await res.json()) as { allowed: boolean }
-    return data.allowed === true
-  } catch {
-    return false
+// src/utils/access.ts
+export const booksReadAccess: Access = async ({ req }) => {
+  if (isAdminUser(req.user)) return true
+
+  const token = extractTokenFromHeaders(req.headers)
+  if (!token) {
+    return publicBooksQuery
   }
+
+  const permittedBookIds = await listAccessibleBookIds(token)
+
+  return {
+    or: [
+      publicBooksQuery,
+      { id: { in: permittedBookIds } },
+    ],
+  } as never
 }
 ```
 
 **Important implementation details:**
-- Body contains only `entityType`, `entityId`, `permission` and `entityType` must be client-scoped (`client_${PAYLOAD_CLIENT_ID}:book`)
-- No `subjectType`/`subjectId` in the body (Auther derives subject from `Bearer` header)
-- `cache: 'no-store'` — permissions are user-specific, must not be cached
-- Returns `false` on any error — fail closed
+- The blog only forwards the token; it does not decide access itself.
+- Any Auther permission lookup happens inside Payload.
+- Chapters should follow the same token-aware book access path.
+- If token parsing fails, fall back to public/published only.
 
 ---
 
 ### A.10 next-blog — Books Listing Page
 
-**File:** `pages/books/index.tsx` — filter out private books before passing as props:
+**File:** `pages/books/index.tsx` — forward the viewer token when fetching books; do not manually filter to public-only books in the blog:
 
 ```ts
-export const getServerSideProps: GetServerSideProps<BooksPageProps> = async () => {
-  const data = await getDataForBooksPage(BOOKS_PAGE_SIZE)
+export const getServerSideProps: GetServerSideProps<BooksPageProps> = async (context) => {
+  const sessionToken = context.req.cookies['better-auth.session_token'] ?? null
+  const data = await getDataForBooksPage(BOOKS_PAGE_SIZE, sessionToken)
   return {
     props: {
-      initialBooks: data.books.filter((b) => (b.visibility ?? 'public') === 'public'),
+      initialBooks: data.books,
       initialHasMore: data.hasMore,
       homepage: data.homepage,
     },
@@ -791,16 +788,17 @@ export const getServerSideProps: GetServerSideProps<BooksPageProps> = async () =
 }
 ```
 
-**File:** `pages/api/books.ts` — same filter for infinite scroll:
+**File:** `pages/api/books.ts` — proxy the token to Payload and return the books exactly as Payload exposes them:
 
 ```ts
-const publicBooks = books.filter((b) => (b.visibility ?? 'public') === 'public')
 res.status(200).json({
-  books: publicBooks,
+  books,
   hasMore,
-  nextOffset: offset + publicBooks.length,
+  nextOffset: offset + books.length,
 })
 ```
+
+**Why no local filter:** Payload should already have applied the read access rule, so the blog should not duplicate public/private logic.
 
 ---
 
@@ -808,37 +806,9 @@ res.status(200).json({
 
 **File:** `pages/books/[slug].tsx`
 
-```ts
-import { checkBookAccess } from 'common/auth/checkBookAccess'
+Forward the viewer token to Payload when fetching the book and chapters. If Payload returns an inaccessible response for a private book, render the locked state instead of running a separate permission check in the blog.
 
-export const getServerSideProps: GetServerSideProps<BookDetailPageProps> = async (context) => {
-  const slugParam = Array.isArray(context.params?.slug)
-    ? context.params?.slug[0] : context.params?.slug
-  if (!slugParam) return { notFound: true }
-
-  const { book, homepage } = await getBookBySlug(slugParam)
-  if (!book) return { notFound: true }
-
-  const chapters = await getChaptersByBookId(book.id)
-
-  if (book.visibility === 'private') {
-    const sessionToken = context.req.cookies['better-auth.session_token'] ?? null
-    const allowed = sessionToken
-      ? await checkBookAccess(sessionToken, String(book.id))
-      : false
-
-    if (!allowed) {
-      return {
-        props: { book, chapters: [], homepage, locked: true },
-      }
-    }
-  }
-
-  return {
-    props: { book, chapters, homepage, locked: false },
-  }
-}
-```
+The blog-side fetch helper should accept the token and pass it through as `Authorization: Bearer <sessionToken>`. The page can then branch on the Payload response, not on an Auther permission call.
 
 Update the component:
 
@@ -861,47 +831,9 @@ export default function BookDetailPage({ book, chapters, homepage, locked }: Boo
 
 **File:** `pages/books/[slug]/chapters/[chapterSlug].tsx`
 
-If the book is private and the user lacks access, redirect to the book detail page (which shows the locked state) rather than returning `notFound`.
+Same rule as the book detail page: forward the viewer token to Payload, and if Payload says the chapter is inaccessible through the parent book access rule, redirect to the book detail page / locked state. There should be no separate `checkBookAccess()` helper in the blog.
 
-```ts
-import { checkBookAccess } from 'common/auth/checkBookAccess'
-
-export const getServerSideProps: GetServerSideProps<ChapterPageProps> = async (context) => {
-  const bookSlug = Array.isArray(context.params?.slug)
-    ? context.params?.slug[0] : context.params?.slug
-  const chapterSlug = Array.isArray(context.params?.chapterSlug)
-    ? context.params?.chapterSlug[0] : context.params?.chapterSlug
-  if (!bookSlug || !chapterSlug) return { notFound: true }
-
-  const { book, homepage } = await getBookBySlug(bookSlug)
-  if (!book) return { notFound: true }
-
-  if (book.visibility === 'private') {
-    const sessionToken = context.req.cookies['better-auth.session_token'] ?? null
-    const allowed = sessionToken
-      ? await checkBookAccess(sessionToken, String(book.id))
-      : false
-
-    if (!allowed) {
-      return { redirect: { destination: `/books/${bookSlug}`, permanent: false } }
-    }
-  }
-
-  const chapterData = await getChapterByBookAndSlug(book.id, chapterSlug)
-  if (!chapterData.chapter) return { notFound: true }
-
-  return {
-    props: {
-      book,
-      chapter: chapterData.chapter,
-      chapters: chapterData.chapters,
-      homepage,
-    },
-  }
-}
-```
-
-**Why redirect and not `notFound`:** `notFound` makes it appear the chapter doesn't exist. Redirecting to the book locked state gives the user context and a path to request access.
+The chapter fetch helper should accept the token and pass it through to Payload. If Payload denies access, the blog renders the locked book page or a redirect based on the response shape.
 
 ---
 
@@ -1356,7 +1288,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 | `AUTHER_API_KEY` | payloadcms | `.env`, Dockerfile | = Auther's `INTERNAL_API_KEY`; service-to-service only |
 | `PAYLOAD_CLIENT_ID` | payloadcms | `.env`, Dockerfile | Better Auth OAuth client ID; reused to scope Auther entity type |
 | `AUTHER_BASE_URL` | next-blog | `.env.local`, Vercel | Same URL |
-| `PAYLOAD_CLIENT_ID` | next-blog | `.env.local`, Vercel | Better Auth OAuth client ID; used by `checkBookAccess` and Auther scoping |
+| `PAYLOAD_CLIENT_ID` | next-blog | `.env.local`, Vercel | Better Auth OAuth client ID; used for login/session sync |
 | `NEXT_PUBLIC_AUTHER_SIGN_IN_URL` | next-blog | `.env.local`, Vercel | e.g. `https://auth.quanghuy.dev/sign-in` |
 | `INTERNAL_API_KEY` | auther | `.env`, Fly secrets | Min 32 chars; `openssl rand -hex 32` |
 | `PAYLOAD_CLIENT_ID` | auther | `.env` | Existing OAuth client ID, reused as scope guard in A.6 |
@@ -1381,8 +1313,8 @@ INTERNAL_API_KEY: z.string().min(32),
 To avoid downtime or broken states, deploy in this order:
 
 1. **auther** — register `client_<PAYLOAD_CLIENT_ID>:book` entity type in auth model + deploy new `src/app/api/internal/clients/[clientId]/grants/` routes + `INTERNAL_API_KEY` secret
-2. **payloadcms** — deploy `visibility` field + access rules + proxy route + `BookAccessPanel` component + `AUTHER_BASE_URL`/`AUTHER_API_KEY`/`PAYLOAD_CLIENT_ID` env vars; run migration
-3. **next-blog** — deploy updated types + `checkBookAccess` + `getServerSideProps` changes + locked state UI + `AUTHER_BASE_URL`/`PAYLOAD_CLIENT_ID` env vars
+2. **payloadcms** — deploy `visibility` field + token-aware read access + proxy route + `BookAccessPanel` component + `AUTHER_BASE_URL`/`AUTHER_API_KEY`/`PAYLOAD_CLIENT_ID` env vars; run migration
+3. **next-blog** — deploy token-forwarding fetches + locked state UI + auth env vars; run the updated book-list and book-detail flows against Payload
 
 **Why this order:** The Auther check-permission endpoint must be ready before payloadcms or next-blog tries to call it. The Payload migration must run before the blog goes live with gating logic.
 
@@ -1428,12 +1360,11 @@ To avoid downtime or broken states, deploy in this order:
 **Feature A:**
 - [ ] Add `visibility?: 'public' | 'private'` to `Book` interface in `types/cms.ts`
 - [ ] Add `visibility` to `BOOK_FIELDS` in `common/apis/books.ts`
-- [ ] Create `common/auth/checkBookAccess.ts`
-- [ ] Filter private books in `pages/books/index.tsx` `getServerSideProps`
-- [ ] Filter private books in `pages/api/books.ts`
-- [ ] Update `pages/books/[slug].tsx` `getServerSideProps` (add `locked` prop + privacy check)
+- [ ] Forward the viewer token to Payload in `pages/books/index.tsx` `getServerSideProps`
+- [ ] Proxy the viewer token to Payload in `pages/api/books.ts`
+- [ ] Update `pages/books/[slug].tsx` `getServerSideProps` to render locked state from Payload responses
 - [ ] Create `components/pages/books/book-locked-state.tsx`
-- [ ] Update `pages/books/[slug]/chapters/[chapterSlug].tsx` `getServerSideProps` (redirect if private + no access)
+- [ ] Update `pages/books/[slug]/chapters/[chapterSlug].tsx` `getServerSideProps` to redirect when Payload denies access
 - [ ] Add `AUTHER_BASE_URL`, `PAYLOAD_CLIENT_ID`, and `NEXT_PUBLIC_AUTHER_SIGN_IN_URL` to `.env.local` and Vercel
 - [ ] Verify `PAYLOAD_API_KEY` user has `role: admin` in Payload
 
