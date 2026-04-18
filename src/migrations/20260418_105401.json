@@ -383,6 +383,94 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
+    "books_import_failure_log": {
+      "name": "books_import_failure_log",
+      "columns": {
+        "_order": {
+          "name": "_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "_parent_id": {
+          "name": "_parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "chapter_index": {
+          "name": "chapter_index",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "chapter_title": {
+          "name": "chapter_title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "error": {
+          "name": "error",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "timestamp": {
+          "name": "timestamp",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "books_import_failure_log_order_idx": {
+          "name": "books_import_failure_log_order_idx",
+          "columns": [
+            "_order"
+          ],
+          "isUnique": false
+        },
+        "books_import_failure_log_parent_id_idx": {
+          "name": "books_import_failure_log_parent_id_idx",
+          "columns": [
+            "_parent_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "books_import_failure_log_parent_id_fk": {
+          "name": "books_import_failure_log_parent_id_fk",
+          "tableFrom": "books_import_failure_log",
+          "tableTo": "books",
+          "columnsFrom": [
+            "_parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
     "books": {
       "name": "books",
       "columns": {
@@ -789,6 +877,101 @@
         "_books_v_version_subjects_parent_id_fk": {
           "name": "_books_v_version_subjects_parent_id_fk",
           "tableFrom": "_books_v_version_subjects",
+          "tableTo": "_books_v",
+          "columnsFrom": [
+            "_parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "_books_v_version_import_failure_log": {
+      "name": "_books_v_version_import_failure_log",
+      "columns": {
+        "_order": {
+          "name": "_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "_parent_id": {
+          "name": "_parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "chapter_index": {
+          "name": "chapter_index",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "chapter_title": {
+          "name": "chapter_title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "error": {
+          "name": "error",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "timestamp": {
+          "name": "timestamp",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "_uuid": {
+          "name": "_uuid",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "_books_v_version_import_failure_log_order_idx": {
+          "name": "_books_v_version_import_failure_log_order_idx",
+          "columns": [
+            "_order"
+          ],
+          "isUnique": false
+        },
+        "_books_v_version_import_failure_log_parent_id_idx": {
+          "name": "_books_v_version_import_failure_log_parent_id_idx",
+          "columns": [
+            "_parent_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "_books_v_version_import_failure_log_parent_id_fk": {
+          "name": "_books_v_version_import_failure_log_parent_id_fk",
+          "tableFrom": "_books_v_version_import_failure_log",
           "tableTo": "_books_v",
           "columnsFrom": [
             "_parent_id"
@@ -1300,6 +1483,13 @@
           "notNull": false,
           "autoincrement": false
         },
+        "chapter_word_count": {
+          "name": "chapter_word_count",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "content": {
           "name": "content",
           "type": "text",
@@ -1352,13 +1542,6 @@
           "notNull": false,
           "autoincrement": false,
           "default": "'draft'"
-        },
-        "chapter_word_count": {
-          "name": "chapter_word_count",
-          "type": "numeric",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
         }
       },
       "indexes": {
@@ -1538,6 +1721,13 @@
           "notNull": false,
           "autoincrement": false
         },
+        "version_chapter_word_count": {
+          "name": "version_chapter_word_count",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "version_content": {
           "name": "version_content",
           "type": "text",
@@ -1615,13 +1805,6 @@
         "autosave": {
           "name": "autosave",
           "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "version_chapter_word_count": {
-          "name": "version_chapter_word_count",
-          "type": "numeric",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
@@ -2576,6 +2759,281 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
+    "grant_mirror": {
+      "name": "grant_mirror",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "auther_tuple_id": {
+          "name": "auther_tuple_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "payload_user_id_id": {
+          "name": "payload_user_id_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "entity_type": {
+          "name": "entity_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "entity_id": {
+          "name": "entity_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "relation": {
+          "name": "relation",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "source_subject_type": {
+          "name": "source_subject_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "requires_live_check": {
+          "name": "requires_live_check",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": false
+        },
+        "sync_status": {
+          "name": "sync_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'active'"
+        },
+        "synced_at": {
+          "name": "synced_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
+        }
+      },
+      "indexes": {
+        "grant_mirror_auther_tuple_id_idx": {
+          "name": "grant_mirror_auther_tuple_id_idx",
+          "columns": [
+            "auther_tuple_id"
+          ],
+          "isUnique": false
+        },
+        "grant_mirror_payload_user_id_idx": {
+          "name": "grant_mirror_payload_user_id_idx",
+          "columns": [
+            "payload_user_id_id"
+          ],
+          "isUnique": false
+        },
+        "grant_mirror_updated_at_idx": {
+          "name": "grant_mirror_updated_at_idx",
+          "columns": [
+            "updated_at"
+          ],
+          "isUnique": false
+        },
+        "grant_mirror_created_at_idx": {
+          "name": "grant_mirror_created_at_idx",
+          "columns": [
+            "created_at"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "grant_mirror_payload_user_id_id_users_id_fk": {
+          "name": "grant_mirror_payload_user_id_id_users_id_fk",
+          "tableFrom": "grant_mirror",
+          "tableTo": "users",
+          "columnsFrom": [
+            "payload_user_id_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "deferred_grants": {
+      "name": "deferred_grants",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "better_auth_user_id": {
+          "name": "better_auth_user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "tuple_id": {
+          "name": "tuple_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "entity_type": {
+          "name": "entity_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "entity_id": {
+          "name": "entity_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "relation": {
+          "name": "relation",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "source_subject_type": {
+          "name": "source_subject_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "has_condition": {
+          "name": "has_condition",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'pending'"
+        },
+        "processed_at": {
+          "name": "processed_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
+        }
+      },
+      "indexes": {
+        "deferred_grants_better_auth_user_id_idx": {
+          "name": "deferred_grants_better_auth_user_id_idx",
+          "columns": [
+            "better_auth_user_id"
+          ],
+          "isUnique": false
+        },
+        "deferred_grants_tuple_id_idx": {
+          "name": "deferred_grants_tuple_id_idx",
+          "columns": [
+            "tuple_id"
+          ],
+          "isUnique": false
+        },
+        "deferred_grants_status_idx": {
+          "name": "deferred_grants_status_idx",
+          "columns": [
+            "status"
+          ],
+          "isUnique": false
+        },
+        "deferred_grants_updated_at_idx": {
+          "name": "deferred_grants_updated_at_idx",
+          "columns": [
+            "updated_at"
+          ],
+          "isUnique": false
+        },
+        "deferred_grants_created_at_idx": {
+          "name": "deferred_grants_created_at_idx",
+          "columns": [
+            "created_at"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
     "payload_locked_documents": {
       "name": "payload_locked_documents",
       "columns": {
@@ -2710,6 +3168,20 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
+        },
+        "grant_mirror_id": {
+          "name": "grant_mirror_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "deferred_grants_id": {
+          "name": "deferred_grants_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
         }
       },
       "indexes": {
@@ -2773,6 +3245,20 @@
           "name": "payload_locked_documents_rels_categories_id_idx",
           "columns": [
             "categories_id"
+          ],
+          "isUnique": false
+        },
+        "payload_locked_documents_rels_grant_mirror_id_idx": {
+          "name": "payload_locked_documents_rels_grant_mirror_id_idx",
+          "columns": [
+            "grant_mirror_id"
+          ],
+          "isUnique": false
+        },
+        "payload_locked_documents_rels_deferred_grants_id_idx": {
+          "name": "payload_locked_documents_rels_deferred_grants_id_idx",
+          "columns": [
+            "deferred_grants_id"
           ],
           "isUnique": false
         }
@@ -2862,6 +3348,32 @@
           "tableTo": "categories",
           "columnsFrom": [
             "categories_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "payload_locked_documents_rels_grant_mirror_fk": {
+          "name": "payload_locked_documents_rels_grant_mirror_fk",
+          "tableFrom": "payload_locked_documents_rels",
+          "tableTo": "grant_mirror",
+          "columnsFrom": [
+            "grant_mirror_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "payload_locked_documents_rels_deferred_grants_fk": {
+          "name": "payload_locked_documents_rels_deferred_grants_fk",
+          "tableFrom": "payload_locked_documents_rels",
+          "tableTo": "deferred_grants",
+          "columnsFrom": [
+            "deferred_grants_id"
           ],
           "columnsTo": [
             "id"
@@ -3220,189 +3732,6 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
-    },
-    "books_import_failure_log": {
-      "name": "books_import_failure_log",
-      "columns": {
-        "_order": {
-          "name": "_order",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "_parent_id": {
-          "name": "_parent_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "chapter_index": {
-          "name": "chapter_index",
-          "type": "numeric",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "chapter_title": {
-          "name": "chapter_title",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "error": {
-          "name": "error",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "timestamp": {
-          "name": "timestamp",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        }
-      },
-      "indexes": {
-        "books_import_failure_log_order_idx": {
-          "name": "books_import_failure_log_order_idx",
-          "columns": [
-            "_order"
-          ],
-          "isUnique": false
-        },
-        "books_import_failure_log_parent_id_idx": {
-          "name": "books_import_failure_log_parent_id_idx",
-          "columns": [
-            "_parent_id"
-          ],
-          "isUnique": false
-        }
-      },
-      "foreignKeys": {
-        "books_import_failure_log_parent_id_fk": {
-          "name": "books_import_failure_log_parent_id_fk",
-          "tableFrom": "books_import_failure_log",
-          "tableTo": "books",
-          "columnsFrom": [
-            "_parent_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "_books_v_version_import_failure_log": {
-      "name": "_books_v_version_import_failure_log",
-      "columns": {
-        "_order": {
-          "name": "_order",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "_parent_id": {
-          "name": "_parent_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "id": {
-          "name": "id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "chapter_index": {
-          "name": "chapter_index",
-          "type": "numeric",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "chapter_title": {
-          "name": "chapter_title",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "error": {
-          "name": "error",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "timestamp": {
-          "name": "timestamp",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "_uuid": {
-          "name": "_uuid",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        }
-      },
-      "indexes": {
-        "_books_v_version_import_failure_log_order_idx": {
-          "name": "_books_v_version_import_failure_log_order_idx",
-          "columns": [
-            "_order"
-          ],
-          "isUnique": false
-        },
-        "_books_v_version_import_failure_log_parent_id_idx": {
-          "name": "_books_v_version_import_failure_log_parent_id_idx",
-          "columns": [
-            "_parent_id"
-          ],
-          "isUnique": false
-        }
-      },
-      "foreignKeys": {
-        "_books_v_version_import_failure_log_parent_id_fk": {
-          "name": "_books_v_version_import_failure_log_parent_id_fk",
-          "tableFrom": "_books_v_version_import_failure_log",
-          "tableTo": "_books_v",
-          "columnsFrom": [
-            "_parent_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
     }
   },
   "views": {},
@@ -3414,6 +3743,6 @@
   "internal": {
     "indexes": {}
   },
-  "id": "0ccd5000-33a5-4c52-85f5-058fcc294778",
+  "id": "5bccd4f8-4fe4-404c-a907-cfb2e06bd0f6",
   "prevId": "00000000-0000-0000-0000-000000000000"
 }

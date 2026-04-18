@@ -120,13 +120,20 @@ R2_ACCESS_KEY_ID=your-key-id
 R2_SECRET_ACCESS_KEY=your-secret
 R2_PUBLIC_BASE_URL=https://cdn.example.com
 
-# Auther (required for private book access)
-AUTHER_BASE_URL=https://auth.example.com
+# Auth service (Better Auth + Auther endpoints)
+AUTH_BASE_URL=https://auth.example.com
 AUTHER_API_KEY=your-auther-internal-api-key
+AUTHER_WEBHOOK_SECRET=your-auther-webhook-secret
 
-# Better Auth (required for login and private book access)
+# Better Auth client
 PAYLOAD_CLIENT_ID=your-payload-client-id
-BETTER_AUTH_URL=https://your-auth-provider.example.com
+
+# Deferred grant queue (required for missing-user grant retries)
+QSTASH_TOKEN=your-qstash-token
+QSTASH_CURRENT_SIGNING_KEY=your-qstash-current-signing-key
+QSTASH_NEXT_SIGNING_KEY=your-qstash-next-signing-key
+QSTASH_URL=https://qstash.upstash.io
+QUEUE_TARGET_BASE_URL=https://cms.example.com
 ```
 
 All variables are validated at startup via Zod schemas in `src/lib/env.ts`. Missing production-required vars throw on boot; missing optional vars trigger graceful fallback in development.

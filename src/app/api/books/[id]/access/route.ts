@@ -55,35 +55,69 @@ export async function POST(request: Request, { params }: { params: { id: string 
     return Response.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  let body: { email?: string; relation?: string }
+  let body: { email?: string; relation?: string; groupId?: string; subjectType?: string }
 
   try {
-    body = (await request.json()) as { email?: string; relation?: string }
+    body = (await request.json()) as {
+      email?: string
+      relation?: string
+      groupId?: string
+      subjectType?: string
+    }
   } catch {
     return Response.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : ''
   const relation = typeof body.relation === 'string' ? body.relation.trim() : ''
+  const subjectType = body.subjectType === 'group' ? 'group' : 'user'
 
-  if (!email || !relation) {
-    return Response.json({ error: 'email and relation are required' }, { status: 400 })
+  if (!relation) {
+    return Response.json({ error: 'relation is required' }, { status: 400 })
   }
 
-  const response = await fetch(`${getAutherBaseUrl()}/api/internal/clients/${getPayloadClientId()}/grants`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': getAutherApiKey(),
-    },
-    body: JSON.stringify({
+  let grantBody: Record<string, string>
+
+  if (subjectType === 'group') {
+    const groupId = typeof body.groupId === 'string' ? body.groupId.trim() : ''
+
+    if (!groupId) {
+      return Response.json({ error: 'groupId is required for group grants' }, { status: 400 })
+    }
+
+    grantBody = {
+      entityTypeName: 'book',
+      entityId: params.id,
+      relation,
+      subjectType: 'group',
+      subjectId: groupId,
+    }
+  } else {
+    const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : ''
+
+    if (!email) {
+      return Response.json({ error: 'email is required for user grants' }, { status: 400 })
+    }
+
+    grantBody = {
       entityTypeName: 'book',
       entityId: params.id,
       relation,
       subjectType: 'user',
       subjectEmail: email,
-    }),
-  })
+    }
+  }
+
+  const response = await fetch(
+    `${getAutherBaseUrl()}/api/internal/clients/${getPayloadClientId()}/grants`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': getAutherApiKey(),
+      },
+      body: JSON.stringify(grantBody),
+    },
+  )
 
   if (!response.ok) {
     const errorBody = (await response.json().catch(() => null)) as { error?: string } | null

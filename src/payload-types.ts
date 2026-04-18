@@ -73,6 +73,8 @@ export interface Config {
     chapters: Chapter;
     posts: Post;
     categories: Category;
+    'grant-mirror': GrantMirror;
+    'deferred-grants': DeferredGrant;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
     'payload-migrations': PayloadMigration;
@@ -85,6 +87,8 @@ export interface Config {
     chapters: ChaptersSelect<false> | ChaptersSelect<true>;
     posts: PostsSelect<false> | PostsSelect<true>;
     categories: CategoriesSelect<false> | CategoriesSelect<true>;
+    'grant-mirror': GrantMirrorSelect<false> | GrantMirrorSelect<true>;
+    'deferred-grants': DeferredGrantsSelect<false> | DeferredGrantsSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
     'payload-migrations': PayloadMigrationsSelect<false> | PayloadMigrationsSelect<true>;
@@ -388,6 +392,77 @@ export interface Category {
   createdAt: string;
 }
 /**
+ * Internal read model: mirrors Auther grant tuples for fast access filtering.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "grant-mirror".
+ */
+export interface GrantMirror {
+  id: number;
+  /**
+   * Stable Auther tuple ID. Idempotency key for upsert operations.
+   */
+  autherTupleId: string;
+  /**
+   * Local Payload user who has this grant. Always resolved from group membership at sync time.
+   */
+  payloadUserId: number | User;
+  entityType: 'book' | 'chapter' | 'comment';
+  /**
+   * Payload entity ID as a string.
+   */
+  entityId: string;
+  /**
+   * Auther relation name, e.g. viewer, editor, owner.
+   */
+  relation: string;
+  /**
+   * Whether this row came from a direct user grant or a group-expanded grant.
+   */
+  sourceSubjectType: 'user' | 'group';
+  /**
+   * If true, must call Auther check-permission at read time (Lua condition present).
+   */
+  requiresLiveCheck?: boolean | null;
+  /**
+   * active = included in read filters, revoked = excluded, pending = in-progress.
+   */
+  syncStatus: 'active' | 'revoked' | 'pending';
+  /**
+   * Timestamp of the last sync operation that touched this row.
+   */
+  syncedAt: string;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Internal queue for grant events that arrived before the target Payload user was created.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "deferred-grants".
+ */
+export interface DeferredGrant {
+  id: number;
+  /**
+   * Better Auth user ID from the grant event.
+   */
+  betterAuthUserId: string;
+  /**
+   * Auther tuple ID from the grant event.
+   */
+  tupleId: string;
+  entityType: string;
+  entityId: string;
+  relation: string;
+  sourceSubjectType: 'user' | 'group';
+  hasCondition?: boolean | null;
+  status: 'pending' | 'processed' | 'expired';
+  processedAt?: string | null;
+  type?: ('grant' | 'revocation_tombstone') | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-locked-documents".
  */
@@ -417,6 +492,14 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'categories';
         value: number | Category;
+      } | null)
+    | ({
+        relationTo: 'grant-mirror';
+        value: number | GrantMirror;
+      } | null)
+    | ({
+        relationTo: 'deferred-grants';
+        value: number | DeferredGrant;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -612,6 +695,41 @@ export interface CategoriesSelect<T extends boolean = true> {
   description?: T;
   image?: T;
   createdBy?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "grant-mirror_select".
+ */
+export interface GrantMirrorSelect<T extends boolean = true> {
+  autherTupleId?: T;
+  payloadUserId?: T;
+  entityType?: T;
+  entityId?: T;
+  relation?: T;
+  sourceSubjectType?: T;
+  requiresLiveCheck?: T;
+  syncStatus?: T;
+  syncedAt?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "deferred-grants_select".
+ */
+export interface DeferredGrantsSelect<T extends boolean = true> {
+  betterAuthUserId?: T;
+  tupleId?: T;
+  entityType?: T;
+  entityId?: T;
+  relation?: T;
+  sourceSubjectType?: T;
+  hasCondition?: T;
+  status?: T;
+  processedAt?: T;
+  type?: T;
   updatedAt?: T;
   createdAt?: T;
 }

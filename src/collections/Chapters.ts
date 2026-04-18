@@ -1,6 +1,12 @@
 import type { CollectionConfig } from 'payload'
 
-import { authenticatedAccess, chaptersReadAccess, isAdminUser, ownerAccess } from '../utils/access'
+import {
+  adminAccess,
+  adminFieldAccess,
+  authenticatedAccess,
+  chaptersReadAccess,
+  ownerAccess,
+} from '../utils/access'
 import { createChapterLexicalEditor } from '../utils/chapterRichText'
 import {
   applyChapterPasswordReadStateHook,
@@ -130,8 +136,8 @@ export const Chapters: CollectionConfig = {
       },
       access: {
         read: () => false,
-        create: ({ req }) => isAdminUser(req.user),
-        update: ({ req }) => isAdminUser(req.user),
+        create: adminFieldAccess,
+        update: adminFieldAccess,
       },
     },
     {

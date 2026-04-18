@@ -53,6 +53,9 @@ importers:
       '@payloadcms/ui':
         specifier: 3.60.0
         version: 3.60.0(@types/react@19.1.8)(monaco-editor@0.54.0)(next@15.4.10(@babel/core@7.28.4)(@playwright/test@1.54.1)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(sass@1.77.4))(payload@3.60.0(bufferutil@4.0.9)(graphql@16.11.0)(typescript@5.7.3)(utf-8-validate@6.0.5))(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(typescript@5.7.3)
+      '@upstash/qstash':
+        specifier: ^2.10.1
+        version: 2.10.1
       cross-env:
         specifier: ^7.0.3
         version: 7.0.3
@@ -2081,6 +2084,9 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  '@upstash/qstash@2.10.1':
+    resolution: {integrity: sha512-LsTAPxPk0dFvhlEnRqwObRS94b8mmDHYaBlF3IaONUL+Scq6i9cZraA6936KSUVe+Vq3eNQle3CjOZkStPUFTw==}
+
   '@vercel/postgres@0.9.0':
     resolution: {integrity: sha512-WiI2g3+ce2g1u1gP41MoDj2DsMuQQ+us7vHobysRixKECGaLHpfTI7DuVZmHU087ozRAGr3GocSyqmWLLo+fig==}
     engines: {node: '>=14.6'}
@@ -2422,6 +2428,9 @@ packages:
 
   crypt@0.0.2:
     resolution: {integrity: sha512-mCxBlsHFYh9C+HVpiEacem8FEBnMXgU9gy4zmNC+SXAZNB/1idgp/aulFJ4FgCi7GPEVbfyng092GqL2k2rmow==}
+
+  crypto-js@4.2.0:
+    resolution: {integrity: sha512-KALDyEYgpY+Rlob/iriUtjV6d5Eq+Y191A5g4UqLAi8CyGP9N1+FdVbkc1SxKc2r4YAYqG8JzO2KGL+AizD70Q==}
 
   cssfilter@0.0.10:
     resolution: {integrity: sha512-FAaLDaplstoRsDR8XGYH51znUN0UY7nMc6Z9/fvE8EXGwvJE9hu7W2vHwx1+bd6gCYnln9nLbzxFTrcO9YQDZw==}
@@ -3641,6 +3650,10 @@ packages:
 
   natural-compare@1.4.0:
     resolution: {integrity: sha512-OWND8ei3VtNC9h7V60qff3SVobHr996CTwgxubgyQYEpg290h9J0buyECNNJexkFm5sOajh5G116RYA1c8ZMSw==}
+
+  neverthrow@7.2.0:
+    resolution: {integrity: sha512-iGBUfFB7yPczHHtA8dksKTJ9E8TESNTAx1UQWW6TzMF280vo9jdPYpLUXrMN1BCkPdHFdNG3fxOt2CUad8KhAw==}
+    engines: {node: '>=18'}
 
   next-tick@1.1.0:
     resolution: {integrity: sha512-CXdUiJembsNjuToQvxayPZF9Vqht7hewsvy2sOWafLvi2awflj9mOC6bHIg50orX8IJvWKY9wYQ/zB2kogPslQ==}
@@ -7329,6 +7342,12 @@ snapshots:
   '@unrs/resolver-binding-win32-x64-msvc@1.11.1':
     optional: true
 
+  '@upstash/qstash@2.10.1':
+    dependencies:
+      crypto-js: 4.2.0
+      jose: 5.9.6
+      neverthrow: 7.2.0
+
   '@vercel/postgres@0.9.0':
     dependencies:
       '@neondatabase/serverless': 0.9.5
@@ -7717,6 +7736,8 @@ snapshots:
       which: 2.0.2
 
   crypt@0.0.2: {}
+
+  crypto-js@4.2.0: {}
 
   cssfilter@0.0.10: {}
 
@@ -9197,6 +9218,8 @@ snapshots:
   napi-postinstall@0.3.4: {}
 
   natural-compare@1.4.0: {}
+
+  neverthrow@7.2.0: {}
 
   next-tick@1.1.0: {}
 

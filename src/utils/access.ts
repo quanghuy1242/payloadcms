@@ -1,7 +1,21 @@
-import type { Access, FieldAccess, PayloadRequest } from 'payload'
+import type {
+  Access,
+  CollectionAfterDeleteHook,
+  CollectionAfterOperationHook,
+  CollectionBeforeChangeHook,
+  CollectionBeforeValidateHook,
+  FieldAccess,
+  PayloadRequest,
+} from 'payload'
 
-import { checkAutherBookAccess } from '@/lib/betterAuth/auther'
+import {
+  BetterAuthRequestError,
+  BetterAuthUserExistsError,
+  signUpBetterAuthUser,
+} from '@/lib/betterAuth/api'
 import { extractTokenFromHeaders } from '@/lib/betterAuth/tokens'
+import { drainDeferredGrantsForUser } from '@/utils/deferredGrants'
+import { checkPermissionBatch } from '@/utils/grantMirror'
 
 import { normalizeEntityId } from './identifiers'
 import { toNullableString } from './strings'
@@ -47,15 +61,204 @@ export const authenticatedFieldAccess: FieldAccess = ({ req }) => {
   return getUserId(req.user) != null
 }
 
-type BookReadRecord = {
-  createdBy?: unknown
-  id?: unknown
+export const adminAccess: Access = ({ req }) => {
+  return isAdminUser(req.user)
 }
 
-type ChapterReadRecord = {
-  book?: unknown
-  createdBy?: unknown
-  id?: unknown
+export const adminFieldAccess: FieldAccess = ({ req }) => {
+  return isAdminUser(req.user)
+}
+
+type UserHookData = {
+  betterAuthUserId?: unknown
+  email?: unknown
+  fullName?: unknown
+  role?: unknown
+}
+
+type UserHookResult = {
+  id?: string | number | null
+  betterAuthUserId?: string | null
+}
+
+type MirrorDoc = {
+  id?: string | number
+}
+
+export const booksAfterDeleteGrantMirrorHook: CollectionAfterDeleteHook = async ({ id, req }) => {
+  const bookId = String(id)
+  const now = new Date().toISOString()
+
+  while (true) {
+    // Always re-fetch page 1: as rows are revoked they fall out of the
+    // `not_equals: 'revoked'` filter, so offset-based pagination would
+    // skip rows in the middle of a large batch.
+    const batch = await req.payload
+      .find({
+        collection: 'grant-mirror',
+        where: {
+          and: [
+            { entityType: { equals: 'book' } },
+            { entityId: { equals: bookId } },
+            { syncStatus: { not_equals: 'revoked' } },
+          ],
+        },
+        limit: 100,
+        page: 1,
+        depth: 0,
+        overrideAccess: true,
+      })
+      .catch(() => null)
+
+    if (!batch || batch.docs.length === 0) {
+      break
+    }
+
+    await Promise.all(
+      batch.docs.map(async (doc) => {
+        const mirrorDoc = doc as MirrorDoc
+
+        if (mirrorDoc.id == null) {
+          return
+        }
+
+        await req.payload
+          .update({
+            collection: 'grant-mirror',
+            id: mirrorDoc.id,
+            data: { syncStatus: 'revoked', syncedAt: now },
+            overrideAccess: true,
+          })
+          .catch(() => {
+            // Best-effort; reconciliation will catch stragglers.
+          })
+      }),
+    )
+  }
+}
+
+export const usersBeforeValidateHook: CollectionBeforeValidateHook = ({ data, originalDoc, operation, req }) => {
+  if (isAdminUser(req.user)) {
+    return data
+  }
+
+  const workingData = data ? { ...data } : {}
+  const originalRole = (originalDoc as { role?: unknown } | undefined)?.role
+
+  if (operation === 'create') {
+    return {
+      ...workingData,
+      role: 'user',
+    }
+  }
+
+  return {
+    ...workingData,
+    role: originalRole ?? 'user',
+  }
+}
+
+export const usersBeforeChangeHook: CollectionBeforeChangeHook = async ({ data, operation, originalDoc }) => {
+  if (!data) {
+    return data
+  }
+
+  const workingData = { ...(data as UserHookData) }
+
+  if (operation === 'update') {
+    const existingIdentifier = toNullableString(
+      (originalDoc as { betterAuthUserId?: unknown } | undefined)?.betterAuthUserId,
+    )
+
+    if (existingIdentifier != null) {
+      return {
+        ...workingData,
+        betterAuthUserId: existingIdentifier,
+      }
+    }
+
+    const incomingIdentifier = toNullableString(workingData.betterAuthUserId)
+
+    if (incomingIdentifier != null) {
+      return {
+        ...workingData,
+        betterAuthUserId: incomingIdentifier,
+      }
+    }
+
+    return {
+      ...workingData,
+      betterAuthUserId: null,
+    }
+  }
+
+  if (operation !== 'create') {
+    return data
+  }
+
+  const currentIdentifier = toNullableString(workingData.betterAuthUserId)
+
+  if (currentIdentifier != null) {
+    return {
+      ...workingData,
+      betterAuthUserId: currentIdentifier,
+    }
+  }
+
+  const email = toNullableString(workingData.email)
+
+  if (!email) {
+    throw new Error('Email is required to provision Better Auth users.')
+  }
+
+  const fullName = toNullableString(workingData.fullName)
+
+  try {
+    const signUpResult = await signUpBetterAuthUser({
+      email,
+      name: fullName ?? undefined,
+    })
+
+    return {
+      ...workingData,
+      betterAuthUserId: signUpResult.id,
+      email: signUpResult.email ?? email,
+      fullName: fullName ?? signUpResult.name ?? email,
+    }
+  } catch (error) {
+    if (error instanceof BetterAuthUserExistsError) {
+      throw new Error(
+        'A Better Auth user with this email already exists. Link the record by providing the Better Auth user ID.',
+      )
+    }
+
+    if (error instanceof BetterAuthRequestError) {
+      throw error
+    }
+
+    throw new Error(
+      error instanceof Error ? error.message : 'Unknown error occurred while provisioning Better Auth user.',
+    )
+  }
+}
+
+export const usersAfterOperationHook: CollectionAfterOperationHook = async ({ operation, result, req }) => {
+  if (operation !== 'create') {
+    return result
+  }
+
+  const user = result as UserHookResult | null
+
+  if (!user?.id || !user.betterAuthUserId) {
+    return result
+  }
+
+  // Fire-and-forget drain — do not block user creation.
+  void drainDeferredGrantsForUser(req.payload, user.betterAuthUserId, user.id).catch((error) => {
+    console.error('[users] Failed to drain deferred grants for user:', user.betterAuthUserId, error)
+  })
+
+  return result
 }
 
 type PrivateBookId = string | number
@@ -160,56 +363,19 @@ const buildPrivateChaptersQuery = (privateBookIds: PrivateBookId[]) => {
   }
 }
 
-const fetchPrivateBooksForRequest = async (
-  req: PayloadRequest,
-): Promise<Array<BookReadRecord>> => {
-  const privateBooks: Array<BookReadRecord> = []
-  const limit = 100
-  let page = 1
-
-  while (true) {
-    const response = await req.payload.find({
-      collection: 'books',
-      depth: 0,
-      limit,
-      page,
-      overrideAccess: true,
-      req,
-      select: {
-        createdBy: true,
-        id: true,
-      },
-      where: {
-        and: [
-          {
-            visibility: {
-              equals: 'private',
-            },
-          },
-          {
-            _status: {
-              equals: 'published',
-            },
-          },
-        ],
-      } as never,
-    })
-
-    privateBooks.push(...(response.docs as Array<BookReadRecord>))
-
-    if (!response.hasNextPage) {
-      break
-    }
-
-    page += 1
-  }
-
-  return privateBooks
-}
-
+/**
+ * Mirror-based read path: query the GrantMirror collection for active book grants.
+ *
+ * Returns a promise (cached per request) that resolves to the list of private book IDs
+ * the user can access. Zero Auther calls for unconditional grants; at most one Auther
+ * batch call for requiresLiveCheck rows.
+ *
+ * When sessionToken is null, only unconditional grants are returned (fail-closed for
+ * conditioned grants that require a live Auther check).
+ */
 const getGrantedPrivateBookIds = async (
   req: PayloadRequest,
-  sessionToken: string,
+  sessionToken: string | null,
   userId: string | number,
 ): Promise<PrivateBookId[]> => {
   const cached = accessiblePrivateBookIdsCache.get(req)
@@ -218,37 +384,90 @@ const getGrantedPrivateBookIds = async (
     return cached
   }
 
-  const promise = (async () => {
-    const privateBooks = await fetchPrivateBooksForRequest(req)
-    const candidateBooks = privateBooks.filter((book) => {
-      const ownerId = normalizeEntityId(book.createdBy)
+  const promise = (async (): Promise<PrivateBookId[]> => {
+    // Paginate all active mirror rows for this user to avoid the hard 1000-row cap
+    type MirrorDoc = { entityId?: string; requiresLiveCheck?: boolean }
 
-      if (ownerId == null) {
-        return true
+    const allDocs: MirrorDoc[] = []
+    let page = 1
+
+    while (true) {
+      const batch = await req.payload
+        .find({
+          collection: 'grant-mirror',
+          where: {
+            and: [
+              { payloadUserId: { equals: userId } },
+              { entityType: { equals: 'book' } },
+              { syncStatus: { equals: 'active' } },
+            ],
+          },
+          limit: 500,
+          page,
+          depth: 0,
+          overrideAccess: true,
+        })
+        .catch((err: unknown) => {
+          console.error('[access] Mirror query failed:', err)
+          return null
+        })
+
+      if (!batch) {
+        // DB error — fail-closed: return empty (only public books will be shown)
+        return [] as PrivateBookId[]
       }
 
-      return String(ownerId) !== String(userId)
-    })
+      allDocs.push(...(batch.docs as MirrorDoc[]))
 
-    const grants = await Promise.all(
-      candidateBooks.map(async (book) => {
-        const bookId = normalizeEntityId(book.id)
+      if (!batch.hasNextPage) {
+        break
+      }
 
-        if (bookId == null) {
-          return null
+      page++
+    }
+
+    const unconditionalIds: PrivateBookId[] = []
+    const conditionalIds: string[] = []
+
+    for (const d of allDocs) {
+      if (!d.entityId) {
+        continue
+      }
+
+      if (d.requiresLiveCheck) {
+        // Auther API expects string IDs
+        conditionalIds.push(d.entityId)
+      } else {
+        // Normalize to a number for the Payload SQL `id IN (...)` filter
+        const normalized = normalizeEntityId(d.entityId)
+
+        if (normalized != null) {
+          unconditionalIds.push(normalized)
         }
+      }
+    }
 
-        const allowed = await checkAutherBookAccess({
-          bookId,
-          sessionToken,
-        }).catch(() => false)
+    // For requiresLiveCheck rows, call Auther check-permission batch (fail-closed).
+    // Skip entirely when no session token is present — conditioned grants are denied (§10.4).
+    let approvedConditionalIds: string[] = []
 
-        return allowed ? bookId : null
-      }),
-    )
+    if (conditionalIds.length > 0 && sessionToken) {
+      // NOTE: context is currently empty. For purchase-gated books the caller should
+      // assemble a context object (e.g. { purchased_entity_ids: [...] }) before this call.
+      // TODO: inject purchase/entitlement context when that collection is available.
+      approvedConditionalIds = await checkPermissionBatch({
+        sessionToken,
+        entityType: 'book',
+        entityIds: conditionalIds,
+        context: {},
+      })
+    }
 
-    return grants.filter((bookId): bookId is PrivateBookId => bookId != null)
-  })().catch(() => [] as PrivateBookId[])
+    return [...unconditionalIds, ...approvedConditionalIds]
+  })().catch((err: unknown) => {
+    console.error('[access] getGrantedPrivateBookIds failed:', err)
+    return [] as PrivateBookId[]
+  })
 
   accessiblePrivateBookIdsCache.set(req, promise)
 
@@ -261,7 +480,7 @@ const resolveBooksReadAccess = async ({
   userId,
 }: {
   req: PayloadRequest
-  sessionToken: string
+  sessionToken: string | null
   userId: string | number
 }) => {
   const clauses: Array<Record<string, unknown>> = [publicBooksQuery, ownBooksQuery(userId)]
@@ -284,7 +503,7 @@ const resolveChaptersReadAccess = async ({
   userId,
 }: {
   req: PayloadRequest
-  sessionToken: string
+  sessionToken: string | null
   userId: string | number
 }) => {
   const clauses: Array<Record<string, unknown>> = [publicChaptersQuery, ownChaptersQuery(userId)]
@@ -329,13 +548,9 @@ export const publicBooksReadAccess: Access = ({ req }) => {
     return false
   }
 
+  // Pass token (may be null). getGrantedPrivateBookIds handles null gracefully:
+  // unconditional mirror grants are still returned; conditioned grants require a token.
   const sessionToken = getSessionTokenFromRequest(req)
-
-  if (!sessionToken) {
-    return {
-      or: [publicBooksQuery, ownBooksQuery(userId)],
-    } as never
-  }
 
   return resolveBooksReadAccess({
     req,
@@ -373,12 +588,6 @@ export const chaptersReadAccess: Access = ({ req }) => {
   }
 
   const sessionToken = getSessionTokenFromRequest(req)
-
-  if (!sessionToken) {
-    return {
-      or: [publicChaptersQuery, ownChaptersQuery(userId)],
-    } as never
-  }
 
   return resolveChaptersReadAccess({
     req,

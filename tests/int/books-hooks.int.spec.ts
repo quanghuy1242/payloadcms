@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { Chapters } from '@/collections/Chapters'
+import { booksAfterDeleteGrantMirrorHook } from '@/utils/access'
 import {
   applyBookImportLifecycleHook,
   bookDeleteAccess,
@@ -237,6 +238,42 @@ describe('Books hooks', () => {
         } as never,
       }),
     ).rejects.toThrow('Cannot delete book: it has 1 chapter')
+  })
+
+  it('revokes all grant mirror rows for a deleted book across paginated result sets', async () => {
+    const find = vi
+      .fn()
+      .mockResolvedValueOnce({
+        docs: [{ id: 1 }, { id: 2 }],
+        hasNextPage: true,
+      })
+      .mockResolvedValueOnce({
+        docs: [{ id: 3 }],
+        hasNextPage: false,
+      })
+
+    const update = vi.fn().mockResolvedValue({})
+
+    await booksAfterDeleteGrantMirrorHook({
+      id: 42,
+      req: {
+        payload: {
+          find,
+          update,
+        },
+      },
+    } as never)
+
+    expect(find).toHaveBeenCalledTimes(2)
+    expect(update).toHaveBeenCalledTimes(3)
+    expect(update.mock.calls[0]?.[0]).toMatchObject({
+      collection: 'grant-mirror',
+      data: {
+        syncStatus: 'revoked',
+      },
+      id: 1,
+      overrideAccess: true,
+    })
   })
 
   it('fetches chapter counts from the admin REST API', async () => {

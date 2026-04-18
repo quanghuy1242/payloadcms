@@ -21,7 +21,7 @@ import { POST as validateChapter } from '@/app/api/chapters/[id]/unlock/validate
 
 describe('Gated content API routes', () => {
   beforeEach(() => {
-    process.env.AUTHER_BASE_URL = 'https://auth.example.test'
+    process.env.AUTH_BASE_URL = 'https://auth.example.test'
     process.env.AUTHER_API_KEY = 'internal-api-key'
     process.env.PAYLOAD_CLIENT_ID = 'payload-client-id'
     process.env.PAYLOAD_SECRET = 'test-secret'
@@ -41,6 +41,10 @@ describe('Gated content API routes', () => {
   })
 
   afterEach(() => {
+    delete process.env.AUTH_BASE_URL
+    delete process.env.AUTHER_API_KEY
+    delete process.env.PAYLOAD_CLIENT_ID
+    delete process.env.PAYLOAD_SECRET
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
   })

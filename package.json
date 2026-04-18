@@ -38,6 +38,7 @@
     "@payloadcms/richtext-lexical": "3.60.0",
     "@payloadcms/storage-r2": "3.60.0",
     "@payloadcms/ui": "3.60.0",
+    "@upstash/qstash": "^2.10.1",
     "cross-env": "^7.0.3",
     "cross-fetch": "^4.1.0",
     "dotenv": "^17.4.1",

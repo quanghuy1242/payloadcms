@@ -17,6 +17,8 @@ import * as migration_20260416_000001_epub_import_gap_6 from './20260416_000001_
 import * as migration_20260417_000001_chapter_word_count from './20260417_000001_chapter_word_count';
 import * as migration_20260417_000002_import_failure_log_typed from './20260417_000002_import_failure_log_typed';
 import * as migration_20260417_134949 from './20260417_134949';
+import * as migration_20260418_105401 from './20260418_105401';
+import * as migration_20260418_135904 from './20260418_135904';
 
 export const migrations = [
   {
@@ -113,5 +115,15 @@ export const migrations = [
     up: migration_20260417_134949.up,
     down: migration_20260417_134949.down,
     name: '20260417_134949',
+  },
+  {
+    up: migration_20260418_105401.up,
+    down: migration_20260418_105401.down,
+    name: '20260418_105401',
+  },
+  {
+    up: migration_20260418_135904.up,
+    down: migration_20260418_135904.down,
+    name: '20260418_135904'
   },
 ];

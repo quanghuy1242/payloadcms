@@ -1,6 +1,11 @@
 import type { CollectionConfig } from 'payload'
 
-import { authenticatedAccess, ownerAccess, publicBooksReadAccess } from '../utils/access'
+import {
+  authenticatedAccess,
+  booksAfterDeleteGrantMirrorHook,
+  ownerAccess,
+  publicBooksReadAccess,
+} from '../utils/access'
 import {
   applyBookImportLifecycleHook,
   BOOK_IMPORT_STATUSES,
@@ -55,6 +60,7 @@ export const Books: CollectionConfig = {
           '/components/admin/books/DeleteBookButton',
           '/components/admin/books/ChapterListButton',
           '/components/admin/books/BookAccessPanel',
+          '/components/admin/books/ReconcileGrantsButton',
         ],
       },
     },
@@ -76,6 +82,7 @@ export const Books: CollectionConfig = {
     ],
     beforeChange: [applyBookImportLifecycleHook],
     beforeDelete: [enforceBookHasNoChaptersBeforeDelete],
+    afterDelete: [booksAfterDeleteGrantMirrorHook],
   },
   fields: [
     {

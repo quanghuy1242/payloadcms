@@ -4,12 +4,14 @@ import { chaptersReadAccess, normalizeEntityId, publicBooksReadAccess } from '@/
 
 describe('Access utilities', () => {
   beforeEach(() => {
-    process.env.AUTHER_BASE_URL = 'https://auth.example.test'
+    process.env.AUTH_BASE_URL = 'https://auth.example.test'
+    process.env.AUTHER_API_KEY = 'internal-api-key'
     process.env.PAYLOAD_CLIENT_ID = 'payload-client-id'
   })
 
   afterEach(() => {
-    delete process.env.AUTHER_BASE_URL
+    delete process.env.AUTH_BASE_URL
+    delete process.env.AUTHER_API_KEY
     delete process.env.PAYLOAD_CLIENT_ID
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
@@ -45,8 +47,25 @@ describe('Access utilities', () => {
     })
   })
 
-  it('allows authors to read their own books and chapters', () => {
-    expect(publicBooksReadAccess({ req: { user: { id: 9, role: 'user' } } } as never)).toEqual({
+  it('allows authors to read their own books and chapters', async () => {
+    const findMock = vi.fn().mockResolvedValue({
+      docs: [],
+      hasNextPage: false,
+    })
+
+    const request = {
+      payload: {
+        find: findMock,
+      },
+      user: {
+        id: 9,
+        role: 'user',
+      },
+    }
+
+    await expect(
+      publicBooksReadAccess({ req: request as never } as never),
+    ).resolves.toEqual({
       or: [
         {
           and: [
@@ -70,7 +89,7 @@ describe('Access utilities', () => {
       ],
     })
 
-    expect(chaptersReadAccess({ req: { user: { id: '17', role: 'user' } } } as never)).toEqual({
+    await expect(chaptersReadAccess({ req: request as never } as never)).resolves.toEqual({
       or: [
         {
           and: [
@@ -88,34 +107,41 @@ describe('Access utilities', () => {
         },
         {
           createdBy: {
-            equals: 17,
+            equals: 9,
           },
         },
       ],
     })
+
+    expect(findMock).toHaveBeenCalledTimes(1)
   })
 
   it('includes Auther-granted private books when a viewer token is forwarded', async () => {
     const findMock = vi.fn().mockResolvedValue({
       docs: [
         {
-          id: '99',
-          createdBy: 18,
+          entityId: '99',
+          requiresLiveCheck: false,
         },
         {
-          id: '100',
-          createdBy: 17,
+          entityId: '100',
+          requiresLiveCheck: true,
         },
       ],
       hasNextPage: false,
     })
 
     const fetchMock = vi.fn().mockImplementation(async (_url: string, init?: RequestInit) => {
-      const body = JSON.parse(String(init?.body ?? '{}')) as { entityId?: string }
+      const body = JSON.parse(String(init?.body ?? '{}')) as { entityIds?: string[] }
+      const entityIds = body.entityIds ?? []
 
       return new Response(
         JSON.stringify({
-          allowed: body.entityId === '99',
+          results: entityIds.reduce<Record<string, boolean>>((accumulator, entityId) => {
+            accumulator[entityId] = entityId === '99'
+
+            return accumulator
+          }, {}),
         }),
         {
           headers: {
@@ -230,5 +256,80 @@ describe('Access utilities', () => {
 
     expect(findMock).toHaveBeenCalledTimes(1)
     expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('still includes unconditional mirror grants when no session token is present', async () => {
+    const findMock = vi.fn().mockResolvedValue({
+      docs: [
+        {
+          entityId: '99',
+          requiresLiveCheck: false,
+        },
+        {
+          entityId: '100',
+          requiresLiveCheck: true,
+        },
+      ],
+      hasNextPage: false,
+    })
+
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+
+    const request = {
+      headers: new Headers(),
+      payload: {
+        find: findMock,
+      },
+      user: {
+        id: 17,
+        role: 'user',
+      },
+    }
+
+    const result = await publicBooksReadAccess({
+      req: request as never,
+    } as never)
+
+    expect(result).toEqual({
+      or: [
+        {
+          and: [
+            {
+              visibility: {
+                equals: 'public',
+              },
+            },
+            {
+              _status: {
+                equals: 'published',
+              },
+            },
+          ],
+        },
+        {
+          createdBy: {
+            equals: 17,
+          },
+        },
+        {
+          and: [
+            {
+              id: {
+                in: [99],
+              },
+            },
+            {
+              _status: {
+                equals: 'published',
+              },
+            },
+          ],
+        },
+      ],
+    })
+
+    expect(findMock).toHaveBeenCalledTimes(1)
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 })
