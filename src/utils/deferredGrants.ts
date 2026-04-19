@@ -20,6 +20,7 @@ import {
 
 /** 7 days in milliseconds — grants that have waited longer than this are expired. */
 export const DEFERRED_GRANT_TTL_MS = 7 * 24 * 60 * 60 * 1000
+export const REVOCATION_TOMBSTONE_TTL_MS = 48 * 60 * 60 * 1000
 export const DEFERRED_GRANTS_COLLECTION = 'deferred-grants' as const
 export const DEFERRED_GRANTS_QUEUE_PATH = '/api/internal/queues/deferred-grants' as const
 
@@ -428,4 +429,48 @@ export const drainDeferredGrantsForUser = async (
       }
     }),
   )
+}
+
+export const cleanupRevocationTombstones = async (
+  payload: Payload,
+  olderThanMs = REVOCATION_TOMBSTONE_TTL_MS,
+): Promise<number> => {
+  const cutoffIso = new Date(Date.now() - olderThanMs).toISOString()
+  let deletedCount = 0
+
+  while (true) {
+    const batch = await payload.find({
+      collection: DEFERRED_GRANTS_COLLECTION,
+      where: {
+        and: [
+          { type: { equals: 'revocation_tombstone' } },
+          { createdAt: { less_than: cutoffIso } },
+        ],
+      },
+      limit: 100,
+      page: 1,
+      depth: 0,
+      overrideAccess: true,
+    })
+
+    if (batch.docs.length === 0) {
+      break
+    }
+
+    await Promise.all(
+      batch.docs.map(async (doc) => {
+        const tombstone = doc as DeferredGrantDoc
+
+        await payload.delete({
+          collection: DEFERRED_GRANTS_COLLECTION,
+          id: tombstone.id,
+          overrideAccess: true,
+        })
+      }),
+    )
+
+    deletedCount += batch.docs.length
+  }
+
+  return deletedCount
 }

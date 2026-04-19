@@ -12,6 +12,7 @@ vi.mock('@upstash/qstash', () => ({
 }))
 
 import {
+  cleanupRevocationTombstones,
   enqueueDeferredGrantJob,
   processDeferredGrantJob,
 } from '@/utils/deferredGrants'
@@ -147,6 +148,43 @@ describe('Deferred grant utilities', () => {
       data: {
         status: 'expired',
       },
+      overrideAccess: true,
+    })
+  })
+
+  it('deletes stale revocation tombstones in batches', async () => {
+    const payload = {
+      delete: vi.fn().mockResolvedValue({}),
+      find: vi
+        .fn()
+        .mockResolvedValueOnce({ docs: [{ id: 1 }, { id: 2 }] })
+        .mockResolvedValueOnce({ docs: [] }),
+    }
+
+    await expect(cleanupRevocationTombstones(payload as never, 48 * 60 * 60 * 1000)).resolves.toBe(2)
+
+    expect(payload.find).toHaveBeenCalledWith({
+      collection: 'deferred-grants',
+      where: {
+        and: [
+          { type: { equals: 'revocation_tombstone' } },
+          { createdAt: { less_than: expect.any(String) } },
+        ],
+      },
+      limit: 100,
+      page: 1,
+      depth: 0,
+      overrideAccess: true,
+    })
+
+    expect(payload.delete).toHaveBeenNthCalledWith(1, {
+      collection: 'deferred-grants',
+      id: 1,
+      overrideAccess: true,
+    })
+    expect(payload.delete).toHaveBeenNthCalledWith(2, {
+      collection: 'deferred-grants',
+      id: 2,
       overrideAccess: true,
     })
   })

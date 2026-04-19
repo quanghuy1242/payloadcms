@@ -281,9 +281,11 @@ const handleGroupMemberAdded = async (
     return
   }
 
+  const authoritativeTupleIds = autherItems.flatMap((item) => item.tupleIds)
+
   const tupleMetadata = await listGrantMirrorTupleMetadata(
     payload,
-    autherItems.map((item) => item.tupleId),
+    authoritativeTupleIds,
   )
 
   const payloadUserId = await resolvePayloadUserId(payload, event.userId)
@@ -291,19 +293,22 @@ const handleGroupMemberAdded = async (
   if (!payloadUserId) {
     // User not in Payload yet — enqueue deferred grants for each book
     for (const item of autherItems) {
-      const existingTuple = tupleMetadata.get(item.tupleId)
+      for (const tupleId of item.tupleIds) {
+        const existingTuple = tupleMetadata.get(tupleId)
+        const listObjectsTuple = item.tuples.find((tuple) => tuple.tupleId === tupleId)
 
-      await enqueueDeferredGrantJob(payload, {
-        id: `defer-${event.id}-${item.tupleId}`,
-        betterAuthUserId: event.userId,
-        tupleId: item.tupleId,
-        entityType: 'book',
-        entityId: item.entityId,
-        relation: existingTuple?.relation ?? 'viewer',
-        sourceSubjectType: 'group',
-        hasCondition: existingTuple?.requiresLiveCheck ?? item.abacRequired,
-        timestampMs: event.timestamp,
-      })
+        await enqueueDeferredGrantJob(payload, {
+          id: `defer-${event.id}-${tupleId}`,
+          betterAuthUserId: event.userId,
+          tupleId,
+          entityType: 'book',
+          entityId: item.entityId,
+          relation: listObjectsTuple?.relation ?? existingTuple?.relation ?? 'viewer',
+          sourceSubjectType: listObjectsTuple?.sourceSubjectType ?? 'group',
+          hasCondition: existingTuple?.requiresLiveCheck ?? item.abacRequired,
+          timestampMs: event.timestamp,
+        })
+      }
     }
 
     return
@@ -314,22 +319,25 @@ const handleGroupMemberAdded = async (
   // - New rows (accessible only via this group) are created with sourceSubjectType='group'.
   // upsertGrantMirrorRow does NOT overwrite sourceSubjectType on existing rows.
   await Promise.all(
-    autherItems.map((item) => {
-      const existingTuple = tupleMetadata.get(item.tupleId)
+    autherItems.flatMap((item) =>
+      item.tupleIds.map((tupleId) => {
+        const existingTuple = tupleMetadata.get(tupleId)
+        const listObjectsTuple = item.tuples.find((tuple) => tuple.tupleId === tupleId)
 
-      return upsertGrantMirrorRow(payload, {
-        autherTupleId: item.tupleId,
-        payloadUserId,
-        entityType: 'book',
-        entityId: item.entityId,
-        relation: existingTuple?.relation ?? 'viewer',
-        sourceSubjectType: 'group',
-        requiresLiveCheck: existingTuple?.requiresLiveCheck ?? item.abacRequired,
-        syncStatus: 'active',
-      }).catch(() => {
-        // Best-effort per row
-      })
-    }),
+        return upsertGrantMirrorRow(payload, {
+          autherTupleId: tupleId,
+          payloadUserId,
+          entityType: 'book',
+          entityId: item.entityId,
+          relation: listObjectsTuple?.relation ?? existingTuple?.relation ?? 'viewer',
+          sourceSubjectType: listObjectsTuple?.sourceSubjectType ?? 'group',
+          requiresLiveCheck: existingTuple?.requiresLiveCheck ?? item.abacRequired,
+          syncStatus: 'active',
+        }).catch(() => {
+          // Best-effort per row
+        })
+      }),
+    ),
   )
 }
 
@@ -362,7 +370,9 @@ const handleGroupMemberRemoved = async (
     if (pendingDeferred.docs.length > 0) {
       // Re-fetch authoritative grants to expire only rows for tuples the user no longer holds.
       const remainingItems = await listAutherObjects(event.userId, 'book').catch(() => null)
-      const remainingTupleIds = remainingItems ? new Set(remainingItems.map((i) => i.tupleId)) : null
+      const remainingTupleIds = remainingItems
+        ? new Set(remainingItems.flatMap((item) => item.tupleIds))
+        : null
 
       await Promise.all(
         pendingDeferred.docs.map(async (doc) => {
@@ -388,8 +398,8 @@ const handleGroupMemberRemoved = async (
   }
 
   // Fetch the user's remaining authoritative grants from Auther AFTER the group removal.
-  // This correctly handles rows tagged as either sourceSubjectType='group' OR 'user'
-  // (reconciliation may have tagged group-derived rows as 'user' — §sourceSubjectType bug).
+  // This handles both direct-user and group-derived tuples because the comparison is keyed
+  // by Auther tuple ID, not by the local sourceSubjectType label alone.
   const autherItems = await listAutherObjects(event.userId, 'book').catch(() => null)
 
   if (autherItems === null) {
@@ -401,7 +411,7 @@ const handleGroupMemberRemoved = async (
     return
   }
 
-  const remainingTupleIds = new Set(autherItems.map((item) => item.tupleId))
+  const remainingTupleIds = new Set(autherItems.flatMap((item) => item.tupleIds))
 
   // Collect all active mirror rows for this user first (read-only pass, safe for page++),
   // then revoke in a second pass. Separating read and write avoids the offset-pagination

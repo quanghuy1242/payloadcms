@@ -28,6 +28,27 @@ type GroupMembersResponse = {
   members?: Array<{ userId: string }>
 }
 
+export type AutherClientGrantRecord = {
+  tupleId: string
+  relation: string
+  subjectType: 'user' | 'group'
+  subjectId: string
+  userId: string | null
+  userEmail: string | null
+}
+
+export type AutherTupleMetadata = {
+  relation: string
+  sourceSubjectType: 'user' | 'group'
+  subjectId: string
+}
+
+type AutherClientGrantsResponse = {
+  grants?: AutherClientGrantRecord[]
+  nextCursor?: string | null
+  hasMore?: boolean
+}
+
 // ---------------------------------------------------------------------------
 // Auther API helpers
 // ---------------------------------------------------------------------------
@@ -53,10 +74,110 @@ type ListObjectsItem = {
   entityId: string
   abacRequired: boolean
   tupleId: string
+  tupleIds: string[]
+  tuples: Array<{
+    tupleId: string
+    relation: string
+    sourceSubjectType?: 'user' | 'group'
+    subjectId?: string
+    subjectRelation?: string | null
+  }>
 }
 
 type ListObjectsResponse = {
-  items?: ListObjectsItem[]
+  items?: Array<{
+    entityId?: string
+    abacRequired?: boolean
+    abac_required?: boolean
+    tupleId?: string
+    tupleIds?: string[]
+    tuples?: Array<{
+      tupleId?: string
+      relation?: string
+      subjectType?: 'user' | 'group'
+      subjectId?: string
+      subjectRelation?: string | null
+    }>
+  }>
+}
+
+export type AutherClientGrantsPage = {
+  grants: AutherClientGrantRecord[]
+  nextCursor: string | null
+  hasMore: boolean
+}
+
+/**
+ * Calls Auther's client-scoped grants endpoint.
+ * When entityTypeName/entityId are omitted, Auther returns a paginated full grant sweep for the client.
+ */
+export const listAutherClientGrants = async ({
+  cursor,
+  entityId,
+  entityTypeName,
+  limit,
+}: {
+  cursor?: string
+  entityId?: string
+  entityTypeName?: string
+  limit?: number
+} = {}): Promise<AutherClientGrantsPage> => {
+  const url = new URL(`/api/internal/clients/${getPayloadClientId()}/grants`, getAutherBaseUrl())
+
+  if (entityTypeName) {
+    url.searchParams.set('entityTypeName', entityTypeName)
+  }
+
+  if (entityId) {
+    url.searchParams.set('entityId', entityId)
+  }
+
+  if (cursor) {
+    url.searchParams.set('cursor', cursor)
+  }
+
+  if (typeof limit === 'number' && Number.isFinite(limit) && limit > 0) {
+    url.searchParams.set('limit', String(limit))
+  }
+
+  const response = await requestJSON<AutherClientGrantsResponse>(url.toString(), {
+    headers: { 'x-api-key': getAutherApiKey() },
+  })
+
+  return {
+    grants: (response.grants ?? []).filter(
+      (grant): grant is AutherClientGrantRecord =>
+        grant != null &&
+        typeof grant.tupleId === 'string' &&
+        typeof grant.relation === 'string' &&
+        (grant.subjectType === 'user' || grant.subjectType === 'group') &&
+        typeof grant.subjectId === 'string',
+    ),
+    hasMore: response.hasMore === true,
+    nextCursor: typeof response.nextCursor === 'string' && response.nextCursor.length > 0
+      ? response.nextCursor
+      : null,
+  }
+}
+
+export const buildAutherTupleMetadataMap = (
+  grants: AutherClientGrantRecord[],
+): Map<string, AutherTupleMetadata> => {
+  const tupleMetadata = new Map<string, AutherTupleMetadata>()
+
+  for (const grant of grants) {
+    if (!grant.tupleId) {
+      continue
+    }
+
+    tupleMetadata.set(grant.tupleId, {
+      relation: grant.relation,
+      sourceSubjectType: grant.subjectType,
+      subjectId: grant.subjectId,
+    })
+  }
+
+  return tupleMetadata
 }
 
 /**
@@ -81,7 +202,56 @@ export const listAutherObjects = async (
     body: JSON.stringify({ userId: autherUserId, entityType: entityTypeName, permission }),
   })
 
-  return response.items ?? []
+  return (response.items ?? []).reduce<ListObjectsItem[]>((items, item) => {
+    if (!item || typeof item.entityId !== 'string') {
+      return items
+    }
+
+    const tuples = Array.isArray(item.tuples)
+      ? item.tuples.reduce<ListObjectsItem['tuples']>((accumulator, tuple) => {
+          if (!tuple || typeof tuple.tupleId !== 'string' || typeof tuple.relation !== 'string') {
+            return accumulator
+          }
+
+          accumulator.push({
+            tupleId: tuple.tupleId,
+            relation: tuple.relation,
+            sourceSubjectType:
+              tuple.subjectType === 'user' || tuple.subjectType === 'group'
+                ? tuple.subjectType
+                : undefined,
+            subjectId:
+              typeof tuple.subjectId === 'string' && tuple.subjectId.length > 0
+                ? tuple.subjectId
+                : undefined,
+            subjectRelation:
+              tuple.subjectRelation == null || typeof tuple.subjectRelation === 'string'
+                ? tuple.subjectRelation
+                : undefined,
+          })
+
+          return accumulator
+        }, [])
+      : []
+
+    const tupleIds = tuples.length > 0
+      ? tuples.map((tuple) => tuple.tupleId)
+      : Array.isArray(item.tupleIds)
+        ? item.tupleIds.filter((tupleId): tupleId is string => typeof tupleId === 'string' && tupleId.length > 0)
+        : typeof item.tupleId === 'string' && item.tupleId.length > 0
+          ? [item.tupleId]
+          : []
+
+    items.push({
+      entityId: item.entityId,
+      abacRequired: item.abacRequired ?? item.abac_required ?? false,
+      tupleId: tupleIds[0] ?? '',
+      tupleIds,
+      tuples,
+    })
+
+    return items
+  }, [])
 }
 
 export const listGrantMirrorTupleMetadata = async (

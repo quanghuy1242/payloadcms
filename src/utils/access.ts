@@ -363,6 +363,52 @@ const buildPrivateChaptersQuery = (privateBookIds: PrivateBookId[]) => {
   }
 }
 
+const buildAutherPermissionContext = ({
+  entityIds,
+  entityType,
+  req,
+  userId,
+}: {
+  entityIds: string[]
+  entityType: string
+  req: PayloadRequest
+  userId: string | number
+}): Record<string, unknown> => {
+  const requestUser = req.user as {
+    betterAuthUserId?: unknown
+    email?: unknown
+    role?: unknown
+  } | null | undefined
+  const betterAuthUserId = toNullableString(requestUser?.betterAuthUserId)
+  const email = toNullableString(requestUser?.email)
+  const role = toNullableString(requestUser?.role)
+  const userContext: Record<string, unknown> = {
+    payloadUserId: String(userId),
+  }
+
+  if (betterAuthUserId) {
+    userContext.betterAuthUserId = betterAuthUserId
+  }
+
+  if (email) {
+    userContext.payloadEmail = email
+  }
+
+  if (role) {
+    userContext.payloadRole = role
+  }
+
+  // When a purchase/subscription collection is added, extend this context here so
+  // Auther Lua conditions can evaluate entitlement-specific fields in batch checks.
+  return {
+    user: userContext,
+    resource: {
+      entityType,
+      payloadEntityIds: entityIds,
+    },
+  }
+}
+
 /**
  * Mirror-based read path: query the GrantMirror collection for active book grants.
  *
@@ -452,14 +498,16 @@ const getGrantedPrivateBookIds = async (
     let approvedConditionalIds: string[] = []
 
     if (conditionalIds.length > 0 && sessionToken) {
-      // NOTE: context is currently empty. For purchase-gated books the caller should
-      // assemble a context object (e.g. { purchased_entity_ids: [...] }) before this call.
-      // TODO: inject purchase/entitlement context when that collection is available.
       approvedConditionalIds = await checkPermissionBatch({
         sessionToken,
         entityType: 'book',
         entityIds: conditionalIds,
-        context: {},
+        context: buildAutherPermissionContext({
+          entityIds: conditionalIds,
+          entityType: 'book',
+          req,
+          userId,
+        }),
       })
     }
 

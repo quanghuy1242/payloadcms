@@ -162,6 +162,8 @@ describe('Access utilities', () => {
         find: findMock,
       },
       user: {
+        betterAuthUserId: 'auth-user-17',
+        email: 'reader@example.com',
         id: 17,
         role: 'user',
       },
@@ -211,6 +213,29 @@ describe('Access utilities', () => {
 
     expect(findMock).toHaveBeenCalledTimes(1)
     expect(fetchMock).toHaveBeenCalledTimes(1)
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    const body = JSON.parse(String(init.body)) as {
+      context?: {
+        resource?: Record<string, unknown>
+        user?: Record<string, unknown>
+      }
+      entityIds?: string[]
+    }
+
+    expect(body.entityIds).toEqual(['100'])
+    expect(body.context).toEqual({
+      resource: {
+        entityType: 'book',
+        payloadEntityIds: ['100'],
+      },
+      user: {
+        betterAuthUserId: 'auth-user-17',
+        payloadEmail: 'reader@example.com',
+        payloadRole: 'user',
+        payloadUserId: '17',
+      },
+    })
 
     const chapterResult = await chaptersReadAccess({
       req: request as never,
