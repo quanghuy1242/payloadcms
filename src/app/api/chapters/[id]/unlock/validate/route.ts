@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from 'crypto'
 
-export async function POST(request: Request, { params }: { params: { id: string } }) {
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   let body: { token?: string }
 
   try {
@@ -22,7 +23,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
   const [chapterId, expiryString, signature] = parts
   const expiry = Number.parseInt(expiryString, 10)
 
-  if (chapterId !== params.id || Number.isNaN(expiry) || Date.now() > expiry) {
+  if (chapterId !== id || Number.isNaN(expiry) || Date.now() > expiry) {
     return Response.json({ valid: false })
   }
 

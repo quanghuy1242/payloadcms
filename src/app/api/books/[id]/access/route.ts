@@ -30,12 +30,14 @@ const buildGrantsURL = (bookId: string): URL => {
   return url
 }
 
-export async function GET(_request: Request, { params }: { params: { id: string } }) {
+export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   if (!(await requireAdmin())) {
     return Response.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const response = await fetch(buildGrantsURL(params.id), {
+  const { id } = await params
+
+  const response = await fetch(buildGrantsURL(id), {
     headers: {
       'x-api-key': getAutherApiKey(),
     },
@@ -50,10 +52,12 @@ export async function GET(_request: Request, { params }: { params: { id: string 
   return Response.json({ grants: payload?.grants ?? [] })
 }
 
-export async function POST(request: Request, { params }: { params: { id: string } }) {
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   if (!(await requireAdmin())) {
     return Response.json({ error: 'Forbidden' }, { status: 403 })
   }
+
+  const { id } = await params
 
   let body: { email?: string; relation?: string; groupId?: string; subjectType?: string }
 
@@ -86,7 +90,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
 
     grantBody = {
       entityTypeName: 'book',
-      entityId: params.id,
+      entityId: id,
       relation,
       subjectType: 'group',
       subjectId: groupId,
@@ -100,7 +104,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
 
     grantBody = {
       entityTypeName: 'book',
-      entityId: params.id,
+      entityId: id,
       relation,
       subjectType: 'user',
       subjectEmail: email,

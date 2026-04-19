@@ -6,7 +6,7 @@ import type {
   PayloadRequest,
 } from 'payload'
 
-import { ownerAccess } from './access'
+import { ownerAccess } from './access-shared'
 import { normalizeEntityId } from './identifiers'
 import { requestJSONWithRetry } from './http'
 import { toPositiveInteger } from './numbers'

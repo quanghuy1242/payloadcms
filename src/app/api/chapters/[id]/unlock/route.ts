@@ -3,7 +3,8 @@ import { createHmac, timingSafeEqual } from 'crypto'
 import configPromise from '@payload-config'
 import { getPayload } from 'payload'
 
-export async function POST(request: Request, { params }: { params: { id: string } }) {
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   let body: { password?: string }
 
   try {
@@ -24,7 +25,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
     chapter = await payload.findByID({
       collection: 'chapters',
       depth: 0,
-      id: params.id,
+      id,
       overrideAccess: true,
     })
   } catch {
@@ -62,7 +63,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
   }
 
   const expiry = Date.now() + 60 * 60 * 1000
-  const message = `${params.id}:${expiry}`
+  const message = `${id}:${expiry}`
   const signature = createHmac('sha256', secret).update(message).digest('base64url')
   const token = `${message}:${signature}`
 
