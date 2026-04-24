@@ -10,7 +10,10 @@ import {
   getPayloadRedirectUri,
 } from '@/lib/betterAuth/env'
 import { getNextAuthorizeCookieOptions, readPkceCookie } from '@/lib/betterAuth/authorize'
-import { getNextTokenCookieOptions } from '@/lib/betterAuth/cookies'
+import {
+  getNextHostOnlyTokenCookieOptions,
+  getNextTokenCookieOptions,
+} from '@/lib/betterAuth/cookies'
 
 const buildRedirectResponse = (location: string) => {
   return NextResponse.redirect(location)
@@ -42,15 +45,6 @@ export async function GET(request: NextRequest) {
     const response = buildRedirectResponse(`${url.origin}/admin?error=missing_code`)
     clearPkceCookie(response)
 
-    return response
-  }
-
-  // Check if user already has a valid session - prevent reusing old OAuth flow
-  const existingToken = request.cookies.get(BETTER_AUTH_TOKEN_COOKIE)?.value
-  if (existingToken) {
-    // User already authenticated, just redirect to admin
-    const response = buildRedirectResponse(`${url.origin}/admin`)
-    clearPkceCookie(response)
     return response
   }
 
@@ -122,9 +116,18 @@ export async function GET(request: NextRequest) {
   const response = buildRedirectResponse(`${url.origin}/admin`)
 
   const cookieOptions = getNextTokenCookieOptions(expiresInSeconds)
+  const hostOnlyCookieOptions = getNextHostOnlyTokenCookieOptions(expiresInSeconds)
 
   response.cookies.set(BETTER_AUTH_TOKEN_COOKIE, idToken, cookieOptions)
   response.cookies.set(PAYLOAD_ADMIN_TOKEN_COOKIE, idToken, cookieOptions)
+  response.cookies.set(BETTER_AUTH_TOKEN_COOKIE, '', {
+    ...hostOnlyCookieOptions,
+    maxAge: 0,
+  })
+  response.cookies.set(PAYLOAD_ADMIN_TOKEN_COOKIE, '', {
+    ...hostOnlyCookieOptions,
+    maxAge: 0,
+  })
   clearPkceCookie(response)
 
   response.headers.set('Cache-Control', 'no-store')

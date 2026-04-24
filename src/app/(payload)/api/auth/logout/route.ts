@@ -1,16 +1,16 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { cookies } from 'next/headers'
 
 import {
   BETTER_AUTH_TOKEN_COOKIE,
   PAYLOAD_ADMIN_TOKEN_COOKIE,
   getAuthBaseUrl,
 } from '@/lib/betterAuth/env'
-import { getNextTokenCookieOptions } from '@/lib/betterAuth/cookies'
+import {
+  getNextHostOnlyTokenCookieOptions,
+  getNextTokenCookieOptions,
+} from '@/lib/betterAuth/cookies'
 
 export async function POST(request: NextRequest) {
-  const cookieStore = await cookies()
-
   const baseUrl = getAuthBaseUrl()
   const redirectOrigin = request.headers.get('origin') ?? request.nextUrl.origin
 
@@ -29,6 +29,7 @@ export async function POST(request: NextRequest) {
 
   // Clear cookies in the browser by setting them with maxAge: 0
   const cookieOptions = getNextTokenCookieOptions(0)
+  const hostOnlyCookieOptions = getNextHostOnlyTokenCookieOptions(0)
 
   response.cookies.set(BETTER_AUTH_TOKEN_COOKIE, '', {
     ...cookieOptions,
@@ -37,6 +38,16 @@ export async function POST(request: NextRequest) {
 
   response.cookies.set(PAYLOAD_ADMIN_TOKEN_COOKIE, '', {
     ...cookieOptions,
+    maxAge: 0,
+  })
+
+  response.cookies.set(BETTER_AUTH_TOKEN_COOKIE, '', {
+    ...hostOnlyCookieOptions,
+    maxAge: 0,
+  })
+
+  response.cookies.set(PAYLOAD_ADMIN_TOKEN_COOKIE, '', {
+    ...hostOnlyCookieOptions,
     maxAge: 0,
   })
 

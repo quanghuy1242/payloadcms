@@ -1,3 +1,5 @@
+import { getAuthBaseUrl } from './env'
+
 export type BetterAuthPkceCookiePayload = {
   state: string
   verifier: string
@@ -63,6 +65,37 @@ const sharedCookieOptions = {
   path: '/',
 }
 
+const deriveSharedCookieDomain = (url: string): string | null => {
+  try {
+    const hostname = new URL(url).hostname.toLowerCase()
+
+    if (hostname === 'localhost' || hostname.endsWith('.localhost')) {
+      return null
+    }
+
+    const parts = hostname.split('.')
+
+    if (parts.length < 3) {
+      return null
+    }
+
+    return `.${parts.slice(-2).join('.')}`
+  } catch {
+    return null
+  }
+}
+
+const sharedCookieDomain = deriveSharedCookieDomain(getAuthBaseUrl())
+
+const createTokenCookieOptions = (
+  maxAgeSeconds: number,
+  domain: string | null = sharedCookieDomain,
+) => ({
+  ...sharedCookieOptions,
+  ...(domain ? { domain } : {}),
+  maxAge: clampCookieAge(maxAgeSeconds),
+})
+
 export const getExpressPkceCookieOptions = () => ({
   ...sharedCookieOptions,
   maxAge: PKCE_COOKIE_MAX_AGE_SECONDS * 1000,
@@ -82,11 +115,14 @@ const clampCookieAge = (seconds: number): number => {
 }
 
 export const getExpressTokenCookieOptions = (maxAgeSeconds: number) => ({
-  ...sharedCookieOptions,
+  ...createTokenCookieOptions(maxAgeSeconds),
   maxAge: clampCookieAge(maxAgeSeconds) * 1000,
 })
 
 export const getNextTokenCookieOptions = (maxAgeSeconds: number) => ({
-  ...sharedCookieOptions,
-  maxAge: clampCookieAge(maxAgeSeconds),
+  ...createTokenCookieOptions(maxAgeSeconds),
+})
+
+export const getNextHostOnlyTokenCookieOptions = (maxAgeSeconds: number) => ({
+  ...createTokenCookieOptions(maxAgeSeconds, null),
 })

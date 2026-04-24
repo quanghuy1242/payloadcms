@@ -898,7 +898,7 @@ export const publishedMediaReadAccess: Access = async ({ req, data, id }) => {
     collection: 'books',
     depth: 0,
     limit: 1,
-    overrideAccess: false,
+    overrideAccess: true,
     where: {
       cover: {
         in: mediaIdVariants,
