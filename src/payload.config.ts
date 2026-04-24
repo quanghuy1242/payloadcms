@@ -116,6 +116,7 @@ export default buildConfig({
   // @ts-ignore
   plugins: [...storagePlugins, seo],
   graphQL: {
+    disableIntrospectionInProduction: false,
     queries,
   },
 })

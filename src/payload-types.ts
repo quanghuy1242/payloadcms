@@ -242,7 +242,7 @@ export interface Book {
   origin: 'manual' | 'epub-imported' | 'synced';
   sourceType: 'manual' | 'epub-upload' | 'meap-feed' | 'external-sync';
   /**
-   * Private books are only visible to users with explicit access in Auther.
+   * Private books are only visible to users with explicit access in Auther. Manage grants from the header controls.
    */
   visibility: 'public' | 'private';
   sourceId?: string | null;
