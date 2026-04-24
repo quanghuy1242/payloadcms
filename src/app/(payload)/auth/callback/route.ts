@@ -10,10 +10,7 @@ import {
   getPayloadRedirectUri,
 } from '@/lib/betterAuth/env'
 import { getNextAuthorizeCookieOptions, readPkceCookie } from '@/lib/betterAuth/authorize'
-import {
-  getNextHostOnlyTokenCookieOptions,
-  getNextTokenCookieOptions,
-} from '@/lib/betterAuth/cookies'
+import { getNextTokenCookieOptions } from '@/lib/betterAuth/cookies'
 
 const buildRedirectResponse = (location: string) => {
   return NextResponse.redirect(location)
@@ -125,18 +122,9 @@ export async function GET(request: NextRequest) {
   const response = buildRedirectResponse(`${url.origin}/admin`)
 
   const cookieOptions = getNextTokenCookieOptions(expiresInSeconds)
-  const hostOnlyCookieOptions = getNextHostOnlyTokenCookieOptions(expiresInSeconds)
 
   response.cookies.set(BETTER_AUTH_TOKEN_COOKIE, idToken, cookieOptions)
   response.cookies.set(PAYLOAD_ADMIN_TOKEN_COOKIE, idToken, cookieOptions)
-  response.cookies.set(BETTER_AUTH_TOKEN_COOKIE, '', {
-    ...hostOnlyCookieOptions,
-    maxAge: 0,
-  })
-  response.cookies.set(PAYLOAD_ADMIN_TOKEN_COOKIE, '', {
-    ...hostOnlyCookieOptions,
-    maxAge: 0,
-  })
   clearPkceCookie(response)
 
   response.headers.set('Cache-Control', 'no-store')

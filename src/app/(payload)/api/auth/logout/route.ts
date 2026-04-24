@@ -5,10 +5,7 @@ import {
   PAYLOAD_ADMIN_TOKEN_COOKIE,
   getAuthBaseUrl,
 } from '@/lib/betterAuth/env'
-import {
-  getNextHostOnlyTokenCookieOptions,
-  getNextTokenCookieOptions,
-} from '@/lib/betterAuth/cookies'
+import { getNextTokenCookieOptions } from '@/lib/betterAuth/cookies'
 
 export async function POST(request: NextRequest) {
   const baseUrl = getAuthBaseUrl()
@@ -29,7 +26,6 @@ export async function POST(request: NextRequest) {
 
   // Clear cookies in the browser by setting them with maxAge: 0
   const cookieOptions = getNextTokenCookieOptions(0)
-  const hostOnlyCookieOptions = getNextHostOnlyTokenCookieOptions(0)
 
   response.cookies.set(BETTER_AUTH_TOKEN_COOKIE, '', {
     ...cookieOptions,
@@ -38,16 +34,6 @@ export async function POST(request: NextRequest) {
 
   response.cookies.set(PAYLOAD_ADMIN_TOKEN_COOKIE, '', {
     ...cookieOptions,
-    maxAge: 0,
-  })
-
-  response.cookies.set(BETTER_AUTH_TOKEN_COOKIE, '', {
-    ...hostOnlyCookieOptions,
-    maxAge: 0,
-  })
-
-  response.cookies.set(PAYLOAD_ADMIN_TOKEN_COOKIE, '', {
-    ...hostOnlyCookieOptions,
     maxAge: 0,
   })
 
