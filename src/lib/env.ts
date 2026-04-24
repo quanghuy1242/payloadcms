@@ -21,6 +21,7 @@ let cachedR2PublicBaseUrl: string | null | undefined
 let cachedAutherBaseUrl: string | undefined
 let cachedAutherApiKey: string | undefined
 let cachedAutherWebhookSecret: string | undefined
+let cachedAutherClientId: string | undefined
 let cachedQStashToken: string | undefined
 let cachedQStashBaseUrl: string | undefined
 let cachedQStashCurrentSigningKey: string | undefined
@@ -91,6 +92,21 @@ export const getAutherWebhookSecret = (): string => {
   cachedAutherWebhookSecret = autherWebhookSecretSchema.parse(value)
 
   return cachedAutherWebhookSecret
+}
+
+/**
+ * Returns the Auther OAuth client ID this Payload instance belongs to.
+ * When set, the webhook route will reject events not scoped to this client.
+ * Optional — if not set, all events pass through without client filtering.
+ */
+export const getAutherClientId = (): string | null => {
+  if (cachedAutherClientId !== undefined) {
+    return cachedAutherClientId
+  }
+
+  cachedAutherClientId = process.env.AUTHER_CLIENT_ID?.trim() || undefined
+
+  return cachedAutherClientId ?? null
 }
 
 export const getQStashToken = (): string => {

@@ -11,7 +11,10 @@ import crypto from 'node:crypto'
 import { getPayload } from 'payload'
 import configPromise from '@payload-config'
 
-import { getAutherWebhookSecret } from '@/lib/env'
+import {
+  getAutherWebhookSecret,
+  getAutherClientId,
+} from '@/lib/env'
 import {
   enqueueDeferredGrantJob,
   expirePendingDeferredGrantsByTupleId,
@@ -83,19 +86,27 @@ type AutherWebhookEvent =
   | GroupMemberAddedEvent
   | GroupMemberRemovedEvent
 
+type AutherWebhookEnvelope = {
+  id?: string
+  type?: string
+  timestamp?: number
+  data?: Record<string, unknown>
+}
+
 // ---------------------------------------------------------------------------
 // Signature verification
 // ---------------------------------------------------------------------------
 
 const verifySignature = (
   secret: string,
-  _timestampMs: number,
+  timestampMs: number,
   rawBody: string,
   signatureHeader: string,
 ): boolean => {
+  const signedPayload = `${timestampMs}.${rawBody}`
   const expected = crypto
     .createHmac('sha256', secret)
-    .update(rawBody)
+    .update(signedPayload)
     .digest('hex')
 
   const received = signatureHeader.replace(/^sha256=/, '')
@@ -530,17 +541,24 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ error: 'Invalid signature' }, { status: 401 })
   }
 
+  const expectedClientId = getAutherClientId()
+
   let event: AutherWebhookEvent
 
   try {
     // Auther wraps the grant payload in a WebhookEventPayload envelope:
     // { id, origin, type, timestamp, data: { tupleId, entityType, ... } }
     // We need to unwrap it and flatten into the event shape.
-    const envelope = JSON.parse(rawBody) as {
-      id?: string
-      type?: string
-      timestamp?: number
-      data?: Record<string, unknown>
+    const envelope = JSON.parse(rawBody) as AutherWebhookEnvelope
+
+    // If AUTHER_CLIENT_ID is configured, reject events not scoped to this client.
+    // Events without a clientId in the payload are platform-level and pass through.
+    if (expectedClientId) {
+      const eventClientId = envelope?.data?.clientId
+      if (eventClientId !== undefined && eventClientId !== expectedClientId) {
+        // Wrong client — acknowledge to prevent retries; this is not our event.
+        return Response.json({ ok: true, skipped: 'wrong_client' })
+      }
     }
 
     if (!envelope.type || !envelope.id) {
