@@ -263,7 +263,7 @@ export const usersAfterOperationHook: CollectionAfterOperationHook = async ({ op
 
 type PrivateBookId = string | number
 
-const accessiblePrivateBookIdsCache = new WeakMap<PayloadRequest, Promise<PrivateBookId[]>>()
+const accessiblePrivateBookIdsCache = new WeakMap<PayloadRequest, Promise<GrantedPrivateBookIds>>()
 
 const getSessionTokenFromRequest = (req: PayloadRequest): string | null => {
   const headers = (req as { headers?: Headers | undefined }).headers
@@ -435,7 +435,7 @@ const getGrantedPrivateBookIds = async (
     return cached
   }
 
-  const promise = (async (): Promise<PrivateBookId[]> => {
+  const promise = (async (): Promise<GrantedPrivateBookIds> => {
     // Paginate all active mirror rows for this user to avoid the hard 1000-row cap
     type MirrorDoc = { entityId?: string; requiresLiveCheck?: boolean }
 
