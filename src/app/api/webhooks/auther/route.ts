@@ -89,13 +89,13 @@ type AutherWebhookEvent =
 
 const verifySignature = (
   secret: string,
-  timestampMs: number,
+  _timestampMs: number,
   rawBody: string,
   signatureHeader: string,
 ): boolean => {
   const expected = crypto
     .createHmac('sha256', secret)
-    .update(`${timestampMs}.${rawBody}`)
+    .update(rawBody)
     .digest('hex')
 
   const received = signatureHeader.replace(/^sha256=/, '')
@@ -493,12 +493,12 @@ const handleGroupMemberRemoved = async (
 
 export async function POST(request: Request): Promise<Response> {
   const rawBody = await request.text()
-  const signatureHeader = request.headers.get('x-auther-signature-256') ?? ''
-  const timestampHeader = request.headers.get('x-auther-timestamp') ?? ''
+  const signatureHeader = request.headers.get('x-webhook-signature') ?? ''
+  const timestampHeader = request.headers.get('x-webhook-timestamp') ?? ''
 
   const timestampMs = parseInt(timestampHeader, 10)
 
-  if (!signatureHeader || !timestampMs || Number.isNaN(timestampMs)) {
+  if (!signatureHeader || !timestampHeader || Number.isNaN(timestampMs)) {
     return Response.json({ error: 'Missing signature or timestamp' }, { status: 400 })
   }
 
