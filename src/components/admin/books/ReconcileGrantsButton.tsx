@@ -1,7 +1,6 @@
 'use client'
 
-import { Button, Drawer } from '@payloadcms/ui'
-import { useModal } from '@faceless-ui/modal'
+import { Button, Drawer, useModal } from '@payloadcms/ui'
 import { useState } from 'react'
 
 import { requestJSONWithRetry } from '@/utils/http'
