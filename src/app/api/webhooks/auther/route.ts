@@ -42,7 +42,7 @@ type GrantCreatedEvent = {
   type: 'grant.created'
   timestamp: number
   tupleId: string
-  subjectType: 'user' | 'group'
+  subjectType: 'user' | 'group' | 'apikey'
   subjectId: string
   entityType: string
   entityId: string
@@ -55,7 +55,7 @@ type GrantRevokedEvent = {
   type: 'grant.revoked'
   timestamp: number
   tupleId: string
-  subjectType: 'user' | 'group'
+  subjectType: 'user' | 'group' | 'apikey'
   subjectId: string
   entityType: string
   entityId: string
@@ -116,6 +116,11 @@ const handleGrantCreated = async (
   payload: ReturnType<typeof getPayload> extends Promise<infer T> ? T : never,
   event: GrantCreatedEvent,
 ): Promise<void> => {
+  // API key grants (e.g. full_access) have no Payload user mirror — skip silently.
+  if (event.subjectType === 'apikey') {
+    return
+  }
+
   const rawEntityType = stripEntityTypeScope(event.entityType)
   const validEntityTypes = ['book', 'chapter', 'comment'] as const
   const entityType = validEntityTypes.includes(rawEntityType as (typeof validEntityTypes)[number])
@@ -250,6 +255,11 @@ const handleGrantRevoked = async (
   payload: ReturnType<typeof getPayload> extends Promise<infer T> ? T : never,
   event: GrantRevokedEvent,
 ): Promise<void> => {
+  // API key grants (e.g. full_access) have no Payload user mirror — skip silently.
+  if (event.subjectType === 'apikey') {
+    return
+  }
+
   const revokedCount = await revokeGrantMirrorRows(payload, event.tupleId)
   await expirePendingDeferredGrantsByTupleId(payload, event.tupleId)
 
@@ -523,7 +533,26 @@ export async function POST(request: Request): Promise<Response> {
   let event: AutherWebhookEvent
 
   try {
-    event = JSON.parse(rawBody) as AutherWebhookEvent
+    // Auther wraps the grant payload in a WebhookEventPayload envelope:
+    // { id, origin, type, timestamp, data: { tupleId, entityType, ... } }
+    // We need to unwrap it and flatten into the event shape.
+    const envelope = JSON.parse(rawBody) as {
+      id?: string
+      type?: string
+      timestamp?: number
+      data?: Record<string, unknown>
+    }
+
+    if (!envelope.type || !envelope.id) {
+      return Response.json({ error: 'Missing event type or id' }, { status: 400 })
+    }
+
+    event = {
+      id: envelope.id,
+      type: envelope.type,
+      timestamp: envelope.timestamp ?? timestampMs,
+      ...(envelope.data ?? {}),
+    } as AutherWebhookEvent
   } catch {
     return Response.json({ error: 'Invalid JSON' }, { status: 400 })
   }
