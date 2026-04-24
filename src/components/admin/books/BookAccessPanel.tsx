@@ -1,6 +1,7 @@
 'use client'
 
-import { Button, Drawer, DrawerToggler, useDocumentInfo } from '@payloadcms/ui'
+import { Button, Drawer, useDocumentInfo } from '@payloadcms/ui'
+import { useModal } from '@faceless-ui/modal'
 import { useCallback, useEffect, useState } from 'react'
 
 import { requestJSONWithRetry } from '@/utils/http'
@@ -25,6 +26,7 @@ const DRAWER_SLUG = 'book-access-drawer'
 
 const BookAccessPanel = () => {
   const { id, data } = useDocumentInfo()
+  const { openModal } = useModal()
   const bookId = typeof id === 'string' || typeof id === 'number' ? id : null
   const isPrivate = (data as { visibility?: string } | null | undefined)?.visibility === 'private'
 
@@ -358,14 +360,15 @@ const BookAccessPanel = () => {
         </section>
       </Drawer>
 
-      <DrawerToggler
-        slug={DRAWER_SLUG}
-        style={{ background: 'transparent', border: 0, padding: 0 }}
+      <Button
+        buttonStyle="secondary"
+        disabled={bookId == null}
+        onClick={() => openModal(DRAWER_SLUG)}
+        size="medium"
+        tooltip={bookId == null ? 'Save the book first to manage access.' : undefined}
       >
-        <Button buttonStyle="secondary" el="span" size="medium">
-          {accessLabel}
-        </Button>
-      </DrawerToggler>
+        {accessLabel}
+      </Button>
     </>
   )
 }

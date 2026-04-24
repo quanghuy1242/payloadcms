@@ -1,6 +1,7 @@
 'use client'
 
-import { Button, Drawer, DrawerToggler } from '@payloadcms/ui'
+import { Button, Drawer } from '@payloadcms/ui'
+import { useModal } from '@faceless-ui/modal'
 import { useState } from 'react'
 
 import { requestJSONWithRetry } from '@/utils/http'
@@ -18,6 +19,7 @@ type ReconcileResult = {
 const DRAWER_SLUG = 'grant-mirror-reconciliation-drawer'
 
 const ReconcileGrantsButton = () => {
+  const { openModal } = useModal()
   const [isRunning, setIsRunning] = useState(false)
   const [result, setResult] = useState<ReconcileResult | null>(null)
 
@@ -111,14 +113,9 @@ const ReconcileGrantsButton = () => {
         </section>
       </Drawer>
 
-      <DrawerToggler
-        slug={DRAWER_SLUG}
-        style={{ background: 'transparent', border: 0, padding: 0 }}
-      >
-        <Button buttonStyle="secondary" el="span" size="medium">
-          Reconcile grants
-        </Button>
-      </DrawerToggler>
+      <Button buttonStyle="secondary" onClick={() => openModal(DRAWER_SLUG)} size="medium">
+        Reconcile grants
+      </Button>
     </>
   )
 }
