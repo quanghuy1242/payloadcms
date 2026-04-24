@@ -783,26 +783,16 @@ export const postsReadAccess: Access = ({ req }) => {
   }
 }
 
-// Allow authenticated users to read media tied to published posts or their own media
+// Allow media reads for owners/admins and media referenced by readable documents.
 export const publishedMediaReadAccess: Access = async ({ req, data, id }) => {
-  // No authentication = no access
-  if (!req.user) {
-    return false
-  }
-
   if (isAdminUser(req.user)) {
     return true
   }
 
   const userId = getUserId(req.user)
 
-  // Must be authenticated
-  if (userId == null) {
-    return false
-  }
-
   if (data == null && id == null) {
-    return true
+    return userId != null
   }
 
   const candidateId = normalizeEntityId(data?.id ?? id)
@@ -821,6 +811,10 @@ export const publishedMediaReadAccess: Access = async ({ req, data, id }) => {
       : null)
 
   if (!mediaRecord) {
+    if (userId == null) {
+      return false
+    }
+
     return {
       owner: {
         equals: userId,
@@ -831,7 +825,7 @@ export const publishedMediaReadAccess: Access = async ({ req, data, id }) => {
   const mediaId = normalizeEntityId(mediaRecord.id ?? candidateId)
   const ownerId = normalizeEntityId(mediaRecord.owner)
 
-  if (ownerId != null && String(ownerId) === String(userId)) {
+  if (userId != null && ownerId != null && String(ownerId) === String(userId)) {
     return true
   }
 
@@ -900,6 +894,22 @@ export const publishedMediaReadAccess: Access = async ({ req, data, id }) => {
     return true
   }
 
+  const isReferencedByBooks = await req.payload.find({
+    collection: 'books',
+    depth: 0,
+    limit: 1,
+    overrideAccess: false,
+    where: {
+      cover: {
+        in: mediaIdVariants,
+      },
+    },
+  })
+
+  if (isReferencedByBooks.docs.length > 0) {
+    return true
+  }
+
   // Check if media is used as a user avatar
   const isReferencedByUsers = await req.payload.find({
     collection: 'users',
@@ -933,6 +943,10 @@ export const publishedMediaReadAccess: Access = async ({ req, data, id }) => {
     }
   } catch (error) {
     // Homepage might not exist or user doesn't have access, continue
+  }
+
+  if (userId == null) {
+    return false
   }
 
   return {
