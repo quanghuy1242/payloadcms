@@ -1,4 +1,3 @@
-import { headers } from 'next/headers'
 import { getPayload } from 'payload'
 
 import configPromise from '@payload-config'
@@ -11,14 +10,26 @@ type GrantRecord = {
   tupleId: string
   userEmail: string
   userId: string
+  scope: 'direct' | 'wildcard'
 }
 
-const requireAdmin = async (): Promise<boolean> => {
-  const payload = await getPayload({ config: configPromise })
-  const headerStore = await headers()
-  const { user } = await payload.auth({ headers: headerStore })
+type PopulatedUser = {
+  email?: string | null
+  id?: string | number | null
+}
 
-  return user?.role === 'admin'
+type GrantMirrorWildcardDoc = {
+  autherTupleId?: string
+  entityId?: string
+  payloadUserId?: string | number | PopulatedUser | null
+  relation?: string
+}
+
+const getAdminPayload = async (requestHeaders: Headers) => {
+  const payload = await getPayload({ config: configPromise })
+  const { user } = await payload.auth({ headers: requestHeaders })
+
+  return user?.role === 'admin' ? payload : null
 }
 
 const buildGrantsURL = (bookId: string): URL => {
@@ -30,30 +41,79 @@ const buildGrantsURL = (bookId: string): URL => {
   return url
 }
 
-export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
-  if (!(await requireAdmin())) {
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const payload = await getAdminPayload(request.headers)
+
+  if (!payload) {
     return Response.json({ error: 'Forbidden' }, { status: 403 })
   }
 
   const { id } = await params
 
-  const response = await fetch(buildGrantsURL(id), {
-    headers: {
-      'x-api-key': getAutherApiKey(),
-    },
-  })
+  const [response, wildcardGrantResult] = await Promise.all([
+    fetch(buildGrantsURL(id), {
+      headers: {
+        'x-api-key': getAutherApiKey(),
+      },
+    }),
+    payload.find({
+      collection: 'grant-mirror',
+      where: {
+        and: [
+          { entityType: { equals: 'book' } },
+          { entityId: { equals: '*' } },
+          { syncStatus: { equals: 'active' } },
+        ],
+      },
+      depth: 1,
+      limit: 100,
+      page: 1,
+      overrideAccess: true,
+    }),
+  ])
 
   if (!response.ok) {
     return Response.json({ error: 'Auther error' }, { status: 502 })
   }
 
-  const payload = (await response.json().catch(() => null)) as { grants?: GrantRecord[] } | null
+  const directPayload = (await response.json().catch(() => null)) as { grants?: GrantRecord[] } | null
 
-  return Response.json({ grants: payload?.grants ?? [] })
+  const directGrants = (directPayload?.grants ?? []).map<GrantRecord>((grant) => ({
+    relation: grant.relation,
+    scope: 'direct',
+    tupleId: grant.tupleId,
+    userEmail: grant.userEmail,
+    userId: grant.userId,
+  }))
+
+  const wildcardGrants = (wildcardGrantResult.docs as GrantMirrorWildcardDoc[])
+    .filter((doc) => doc.autherTupleId && doc.relation)
+    .map<GrantRecord>((doc) => {
+      const payloadUser =
+        doc.payloadUserId != null && typeof doc.payloadUserId === 'object'
+          ? (doc.payloadUserId as PopulatedUser)
+          : null
+      const userId =
+        payloadUser?.id != null
+          ? String(payloadUser.id)
+          : doc.payloadUserId != null
+            ? String(doc.payloadUserId)
+            : ''
+
+      return {
+        relation: doc.relation ?? 'viewer',
+        scope: 'wildcard',
+        tupleId: doc.autherTupleId ?? '',
+        userEmail: payloadUser?.email ? String(payloadUser.email) : userId || 'Unknown user',
+        userId: userId || 'unknown',
+      }
+    })
+
+  return Response.json({ grants: [...directGrants, ...wildcardGrants] })
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  if (!(await requireAdmin())) {
+  if (!(await getAdminPayload(request.headers))) {
     return Response.json({ error: 'Forbidden' }, { status: 403 })
   }
 
@@ -135,7 +195,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 }
 
 export async function DELETE(request: Request) {
-  if (!(await requireAdmin())) {
+  if (!(await getAdminPayload(request.headers))) {
     return Response.json({ error: 'Forbidden' }, { status: 403 })
   }
 

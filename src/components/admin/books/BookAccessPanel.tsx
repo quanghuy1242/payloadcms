@@ -1,7 +1,7 @@
 'use client'
 
 import { Button, Drawer, DrawerToggler, useDocumentInfo } from '@payloadcms/ui'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 import { requestJSONWithRetry } from '@/utils/http'
 
@@ -10,6 +10,7 @@ type GrantEntry = {
   tupleId: string
   userEmail: string
   userId: string
+  scope?: 'direct' | 'wildcard'
 }
 
 type GrantListResponse = {
@@ -40,19 +41,22 @@ const BookAccessPanel = () => {
   const isInputValid =
     subjectType === 'user' ? normalizedEmail.length > 0 : normalizedGroupId.length > 0
 
-  const fetchGrants = async (signal?: AbortSignal): Promise<GrantEntry[]> => {
-    if (bookId == null) {
-      return []
-    }
+  const fetchGrants = useCallback(
+    async (signal?: AbortSignal): Promise<GrantEntry[]> => {
+      if (bookId == null) {
+        return []
+      }
 
-    const response = await requestJSONWithRetry<GrantListResponse>(
-      `/api/books/${bookId}/access`,
-      {},
-      signal ? { signal } : {},
-    )
+      const response = await requestJSONWithRetry<GrantListResponse>(
+        `/api/books/${bookId}/access`,
+        {},
+        signal ? { signal } : {},
+      )
 
-    return response.grants ?? []
-  }
+      return response.grants ?? []
+    },
+    [bookId],
+  )
 
   useEffect(() => {
     if (bookId == null) {
@@ -94,7 +98,7 @@ const BookAccessPanel = () => {
       isMounted = false
       controller.abort()
     }
-  }, [bookId, isPrivate])
+  }, [bookId, fetchGrants, isPrivate])
 
   const refreshGrants = async (): Promise<void> => {
     const nextGrants = await fetchGrants()
@@ -242,7 +246,12 @@ const BookAccessPanel = () => {
                       padding: '0.5rem 0',
                     }}
                   >
-                    {grant.userEmail}
+                    <div>{grant.userEmail}</div>
+                    {grant.scope === 'wildcard' ? (
+                      <div style={{ color: 'var(--theme-elevation-600, #4b5563)', fontSize: '0.75rem' }}>
+                        All books
+                      </div>
+                    ) : null}
                   </td>
                   <td
                     style={{
@@ -349,8 +358,11 @@ const BookAccessPanel = () => {
         </section>
       </Drawer>
 
-      <DrawerToggler slug={DRAWER_SLUG}>
-        <Button buttonStyle="secondary" size="medium">
+      <DrawerToggler
+        slug={DRAWER_SLUG}
+        style={{ background: 'transparent', border: 0, padding: 0 }}
+      >
+        <Button buttonStyle="secondary" el="span" size="medium">
           {accessLabel}
         </Button>
       </DrawerToggler>

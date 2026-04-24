@@ -95,7 +95,6 @@ const ReconcileGrantsButton = () => {
                       <dd style={{ margin: 0 }}>
                         <ul style={{ margin: '0.25rem 0 0', paddingLeft: '1rem' }}>
                           {result.errors.slice(0, 5).map((e, i) => (
-                            // eslint-disable-next-line react/no-array-index-key
                             <li key={i}>{e}</li>
                           ))}
                           {result.errors.length > 5 ? (
@@ -112,8 +111,11 @@ const ReconcileGrantsButton = () => {
         </section>
       </Drawer>
 
-      <DrawerToggler slug={DRAWER_SLUG}>
-        <Button buttonStyle="secondary" size="medium">
+      <DrawerToggler
+        slug={DRAWER_SLUG}
+        style={{ background: 'transparent', border: 0, padding: 0 }}
+      >
+        <Button buttonStyle="secondary" el="span" size="medium">
           Reconcile grants
         </Button>
       </DrawerToggler>

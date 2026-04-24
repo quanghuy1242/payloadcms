@@ -409,6 +409,11 @@ const buildAutherPermissionContext = ({
   }
 }
 
+type GrantedPrivateBookIds = {
+  hasWildcardGrant: boolean
+  privateBookIds: PrivateBookId[]
+}
+
 /**
  * Mirror-based read path: query the GrantMirror collection for active book grants.
  *
@@ -423,7 +428,7 @@ const getGrantedPrivateBookIds = async (
   req: PayloadRequest,
   sessionToken: string | null,
   userId: string | number,
-): Promise<PrivateBookId[]> => {
+): Promise<GrantedPrivateBookIds> => {
   const cached = accessiblePrivateBookIdsCache.get(req)
 
   if (cached) {
@@ -460,7 +465,7 @@ const getGrantedPrivateBookIds = async (
 
       if (!batch) {
         // DB error — fail-closed: return empty (only public books will be shown)
-        return [] as PrivateBookId[]
+        return { hasWildcardGrant: false, privateBookIds: [] }
       }
 
       allDocs.push(...(batch.docs as MirrorDoc[]))
@@ -474,9 +479,20 @@ const getGrantedPrivateBookIds = async (
 
     const unconditionalIds: PrivateBookId[] = []
     const conditionalIds: string[] = []
+    let hasUnconditionalWildcardGrant = false
 
     for (const d of allDocs) {
       if (!d.entityId) {
+        continue
+      }
+
+      if (d.entityId === '*') {
+        if (d.requiresLiveCheck) {
+          conditionalIds.push(d.entityId)
+        } else {
+          hasUnconditionalWildcardGrant = true
+        }
+
         continue
       }
 
@@ -490,6 +506,13 @@ const getGrantedPrivateBookIds = async (
         if (normalized != null) {
           unconditionalIds.push(normalized)
         }
+      }
+    }
+
+    if (hasUnconditionalWildcardGrant) {
+      return {
+        hasWildcardGrant: true,
+        privateBookIds: [],
       }
     }
 
@@ -511,10 +534,15 @@ const getGrantedPrivateBookIds = async (
       })
     }
 
-    return [...unconditionalIds, ...approvedConditionalIds]
+    const hasWildcardGrant = approvedConditionalIds.includes('*')
+
+    return {
+      hasWildcardGrant,
+      privateBookIds: [...unconditionalIds, ...approvedConditionalIds.filter((id) => id !== '*')],
+    }
   })().catch((err: unknown) => {
     console.error('[access] getGrantedPrivateBookIds failed:', err)
-    return [] as PrivateBookId[]
+    return { hasWildcardGrant: false, privateBookIds: [] }
   })
 
   accessiblePrivateBookIdsCache.set(req, promise)
@@ -532,7 +560,11 @@ const resolveBooksReadAccess = async ({
   userId: string | number
 }) => {
   const clauses: Array<Record<string, unknown>> = [publicBooksQuery, ownBooksQuery(userId)]
-  const privateBookIds = await getGrantedPrivateBookIds(req, sessionToken, userId)
+  const { hasWildcardGrant, privateBookIds } = await getGrantedPrivateBookIds(req, sessionToken, userId)
+
+  if (hasWildcardGrant) {
+    return true as never
+  }
 
   const privateBooksQuery = buildPrivateBooksQuery(privateBookIds)
 
@@ -555,7 +587,11 @@ const resolveChaptersReadAccess = async ({
   userId: string | number
 }) => {
   const clauses: Array<Record<string, unknown>> = [publicChaptersQuery, ownChaptersQuery(userId)]
-  const privateBookIds = await getGrantedPrivateBookIds(req, sessionToken, userId)
+  const { hasWildcardGrant, privateBookIds } = await getGrantedPrivateBookIds(req, sessionToken, userId)
+
+  if (hasWildcardGrant) {
+    return true as never
+  }
 
   const privateChaptersQuery = buildPrivateChaptersQuery(privateBookIds)
 
