@@ -792,7 +792,7 @@ export const publishedMediaReadAccess: Access = async ({ req, data, id }) => {
   const userId = getUserId(req.user)
 
   if (data == null && id == null) {
-    return userId != null
+    return true
   }
 
   const candidateId = normalizeEntityId(data?.id ?? id)
