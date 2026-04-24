@@ -48,6 +48,15 @@ export async function GET(request: NextRequest) {
     return response
   }
 
+  // Keep the existing session intact and avoid reprocessing an already-completed flow.
+  const existingToken = request.cookies.get(BETTER_AUTH_TOKEN_COOKIE)?.value
+  if (existingToken) {
+    const response = buildRedirectResponse(`${url.origin}/admin`)
+    clearPkceCookie(response)
+
+    return response
+  }
+
   const pkceCookie = request.cookies.get(BETTER_AUTH_STATE_COOKIE)?.value ?? null
   const pkcePayload = readPkceCookie(pkceCookie)
 
