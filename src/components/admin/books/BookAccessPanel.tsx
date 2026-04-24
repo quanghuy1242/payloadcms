@@ -1,6 +1,6 @@
 'use client'
 
-import { Button, useDocumentInfo } from '@payloadcms/ui'
+import { Button, Drawer, DrawerToggler, useDocumentInfo } from '@payloadcms/ui'
 import { useEffect, useState } from 'react'
 
 import { requestJSONWithRetry } from '@/utils/http'
@@ -19,6 +19,8 @@ type GrantListResponse = {
 const ACCESS_RELATION = 'reader' as const
 
 type SubjectType = 'user' | 'group'
+
+const DRAWER_SLUG = 'book-access-drawer'
 
 const BookAccessPanel = () => {
   const { id, data } = useDocumentInfo()
@@ -53,7 +55,7 @@ const BookAccessPanel = () => {
   }
 
   useEffect(() => {
-    if (!isPrivate || bookId == null) {
+    if (bookId == null) {
       setGrants([])
       setError(null)
       setIsLoading(false)
@@ -162,26 +164,18 @@ const BookAccessPanel = () => {
     }
   }
 
-  if (!isPrivate) {
-    return null
-  }
+  const accessLabel =
+    bookId == null
+      ? 'Book access'
+      : isLoading
+        ? 'Book access (...)'
+        : `Book access (${grants.length})`
 
   if (bookId == null) {
     return (
-      <section
-        style={{
-          border: '1px solid var(--theme-elevation-200, #d1d5db)',
-          borderRadius: '8px',
-          display: 'grid',
-          gap: '0.75rem',
-          padding: '1rem',
-        }}
-      >
-        <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>Book access</h3>
-        <p style={{ color: 'var(--theme-elevation-600, #4b5563)', margin: 0 }}>
-          Save the book before managing access.
-        </p>
-      </section>
+      <Button buttonStyle="secondary" disabled size="medium" tooltip="Save the book first to manage access.">
+        {accessLabel}
+      </Button>
     )
   }
 
@@ -196,167 +190,171 @@ const BookAccessPanel = () => {
   })
 
   return (
-    <section
-      style={{
-        border: '1px solid var(--theme-elevation-200, #d1d5db)',
-        borderRadius: '8px',
-        display: 'grid',
-        gap: '0.75rem',
-        padding: '1rem',
-      }}
-    >
-      <div style={{ display: 'grid', gap: '0.25rem' }}>
-        <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>Book access</h3>
-        <p style={{ color: 'var(--theme-elevation-600, #4b5563)', margin: 0 }}>
-          Grant reader access to a user or group for this private book.
-        </p>
-      </div>
+    <>
+      <Drawer slug={DRAWER_SLUG}>
+        <section style={{ display: 'grid', gap: '1rem', maxWidth: '48rem' }}>
+          <div style={{ display: 'grid', gap: '0.25rem' }}>
+            <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>Book access</h3>
+            <p style={{ color: 'var(--theme-elevation-600, #4b5563)', margin: 0 }}>
+              {isPrivate
+                ? 'Grant reader access to a user or group for this private book.'
+                : 'This book is public. You can pre-configure grants here and they will become active if visibility is switched to private.'}
+            </p>
+          </div>
 
-      {error ? <p style={{ color: 'var(--theme-error-500, #c00)', margin: 0 }}>{error}</p> : null}
+          {error ? <p style={{ color: 'var(--theme-error-500, #c00)', margin: 0 }}>{error}</p> : null}
 
-      {isLoading ? <p style={{ margin: 0 }}>Loading access grants...</p> : null}
+          {isLoading ? <p style={{ margin: 0 }}>Loading access grants...</p> : null}
 
-      <table style={{ borderCollapse: 'collapse', width: '100%' }}>
-        <thead>
-          <tr>
-            <th
-              style={{
-                borderBottom: '1px solid var(--theme-elevation-200, #d1d5db)',
-                textAlign: 'left',
-              }}
+          <table style={{ borderCollapse: 'collapse', width: '100%' }}>
+            <thead>
+              <tr>
+                <th
+                  style={{
+                    borderBottom: '1px solid var(--theme-elevation-200, #d1d5db)',
+                    textAlign: 'left',
+                  }}
+                >
+                  User
+                </th>
+                <th
+                  style={{
+                    borderBottom: '1px solid var(--theme-elevation-200, #d1d5db)',
+                    textAlign: 'left',
+                  }}
+                >
+                  Relation
+                </th>
+                <th
+                  style={{
+                    borderBottom: '1px solid var(--theme-elevation-200, #d1d5db)',
+                    textAlign: 'right',
+                  }}
+                ></th>
+              </tr>
+            </thead>
+            <tbody>
+              {grants.map((grant) => (
+                <tr key={grant.tupleId}>
+                  <td
+                    style={{
+                      borderBottom: '1px solid var(--theme-elevation-100, #e5e7eb)',
+                      padding: '0.5rem 0',
+                    }}
+                  >
+                    {grant.userEmail}
+                  </td>
+                  <td
+                    style={{
+                      borderBottom: '1px solid var(--theme-elevation-100, #e5e7eb)',
+                      padding: '0.5rem 0',
+                    }}
+                  >
+                    {grant.relation}
+                  </td>
+                  <td
+                    style={{
+                      borderBottom: '1px solid var(--theme-elevation-100, #e5e7eb)',
+                      padding: '0.5rem 0',
+                      textAlign: 'right',
+                    }}
+                  >
+                    <Button
+                      buttonStyle="secondary"
+                      disabled={isSaving}
+                      onClick={() => void handleRevoke(grant.tupleId)}
+                      size="small"
+                    >
+                      Revoke
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+              {grants.length === 0 && !isLoading ? (
+                <tr>
+                  <td
+                    colSpan={3}
+                    style={{ color: 'var(--theme-elevation-500, #6b7280)', padding: '0.5rem 0' }}
+                  >
+                    No users have been granted access yet.
+                  </td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+
+          {/* Subject type toggle */}
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button
+              disabled={isSaving}
+              onClick={() => setSubjectType('user')}
+              style={subjectTabStyle(subjectType === 'user')}
+              type="button"
             >
               User
-            </th>
-            <th
-              style={{
-                borderBottom: '1px solid var(--theme-elevation-200, #d1d5db)',
-                textAlign: 'left',
-              }}
+            </button>
+            <button
+              disabled={isSaving}
+              onClick={() => setSubjectType('group')}
+              style={subjectTabStyle(subjectType === 'group')}
+              type="button"
             >
-              Relation
-            </th>
-            <th
-              style={{
-                borderBottom: '1px solid var(--theme-elevation-200, #d1d5db)',
-                textAlign: 'right',
-              }}
-            ></th>
-          </tr>
-        </thead>
-        <tbody>
-          {grants.map((grant) => (
-            <tr key={grant.tupleId}>
-              <td
-                style={{
-                  borderBottom: '1px solid var(--theme-elevation-100, #e5e7eb)',
-                  padding: '0.5rem 0',
-                }}
-              >
-                {grant.userEmail}
-              </td>
-              <td
-                style={{
-                  borderBottom: '1px solid var(--theme-elevation-100, #e5e7eb)',
-                  padding: '0.5rem 0',
-                }}
-              >
-                {grant.relation}
-              </td>
-              <td
-                style={{
-                  borderBottom: '1px solid var(--theme-elevation-100, #e5e7eb)',
-                  padding: '0.5rem 0',
-                  textAlign: 'right',
-                }}
-              >
-                <Button
-                  buttonStyle="secondary"
-                  disabled={isSaving}
-                  onClick={() => void handleRevoke(grant.tupleId)}
-                  size="small"
-                >
-                  Revoke
-                </Button>
-              </td>
-            </tr>
-          ))}
-          {grants.length === 0 && !isLoading ? (
-            <tr>
-              <td
-                colSpan={3}
-                style={{ color: 'var(--theme-elevation-500, #6b7280)', padding: '0.5rem 0' }}
-              >
-                No users have been granted access yet.
-              </td>
-            </tr>
-          ) : null}
-        </tbody>
-      </table>
+              Group
+            </button>
+          </div>
 
-      {/* Subject type toggle */}
-      <div style={{ display: 'flex', gap: '0.5rem' }}>
-        <button
-          disabled={isSaving}
-          onClick={() => setSubjectType('user')}
-          style={subjectTabStyle(subjectType === 'user')}
-          type="button"
-        >
-          User
-        </button>
-        <button
-          disabled={isSaving}
-          onClick={() => setSubjectType('group')}
-          style={subjectTabStyle(subjectType === 'group')}
-          type="button"
-        >
-          Group
-        </button>
-      </div>
+          <div style={{ display: 'flex', gap: '0.75rem' }}>
+            {subjectType === 'user' ? (
+              <input
+                aria-label="User email"
+                disabled={isSaving}
+                onChange={(event) => setEmailInput(event.target.value)}
+                placeholder="User email"
+                type="email"
+                value={emailInput}
+                style={{
+                  border: '1px solid var(--theme-elevation-200, #d1d5db)',
+                  borderRadius: '6px',
+                  flex: 1,
+                  minWidth: 0,
+                  padding: '0.5rem 0.75rem',
+                }}
+              />
+            ) : (
+              <input
+                aria-label="Group ID"
+                disabled={isSaving}
+                onChange={(event) => setGroupIdInput(event.target.value)}
+                placeholder="Auther group ID"
+                type="text"
+                value={groupIdInput}
+                style={{
+                  border: '1px solid var(--theme-elevation-200, #d1d5db)',
+                  borderRadius: '6px',
+                  flex: 1,
+                  minWidth: 0,
+                  padding: '0.5rem 0.75rem',
+                }}
+              />
+            )}
+            <Button
+              buttonStyle="secondary"
+              disabled={isSaving || !isInputValid}
+              onClick={() => void handleGrant()}
+              size="small"
+            >
+              {isSaving ? 'Saving...' : 'Grant reader'}
+            </Button>
+          </div>
+        </section>
+      </Drawer>
 
-      <div style={{ display: 'flex', gap: '0.75rem' }}>
-        {subjectType === 'user' ? (
-          <input
-            aria-label="User email"
-            disabled={isSaving}
-            onChange={(event) => setEmailInput(event.target.value)}
-            placeholder="User email"
-            type="email"
-            value={emailInput}
-            style={{
-              border: '1px solid var(--theme-elevation-200, #d1d5db)',
-              borderRadius: '6px',
-              flex: 1,
-              minWidth: 0,
-              padding: '0.5rem 0.75rem',
-            }}
-          />
-        ) : (
-          <input
-            aria-label="Group ID"
-            disabled={isSaving}
-            onChange={(event) => setGroupIdInput(event.target.value)}
-            placeholder="Auther group ID"
-            type="text"
-            value={groupIdInput}
-            style={{
-              border: '1px solid var(--theme-elevation-200, #d1d5db)',
-              borderRadius: '6px',
-              flex: 1,
-              minWidth: 0,
-              padding: '0.5rem 0.75rem',
-            }}
-          />
-        )}
-        <Button
-          buttonStyle="secondary"
-          disabled={isSaving || !isInputValid}
-          onClick={() => void handleGrant()}
-          size="small"
-        >
-          {isSaving ? 'Saving...' : `Grant reader`}
+      <DrawerToggler slug={DRAWER_SLUG}>
+        <Button buttonStyle="secondary" size="medium">
+          {accessLabel}
         </Button>
-      </div>
-    </section>
+      </DrawerToggler>
+    </>
   )
 }
 

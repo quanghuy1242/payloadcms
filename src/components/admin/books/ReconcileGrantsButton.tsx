@@ -1,6 +1,6 @@
 'use client'
 
-import { Button } from '@payloadcms/ui'
+import { Button, Drawer, DrawerToggler } from '@payloadcms/ui'
 import { useState } from 'react'
 
 import { requestJSONWithRetry } from '@/utils/http'
@@ -14,6 +14,8 @@ type ReconcileResult = {
   errors?: string[]
   error?: string
 }
+
+const DRAWER_SLUG = 'grant-mirror-reconciliation-drawer'
 
 const ReconcileGrantsButton = () => {
   const [isRunning, setIsRunning] = useState(false)
@@ -37,79 +39,85 @@ const ReconcileGrantsButton = () => {
   }
 
   return (
-    <div
-      style={{
-        border: '1px solid var(--theme-elevation-200, #d1d5db)',
-        borderRadius: '8px',
-        display: 'grid',
-        gap: '0.75rem',
-        padding: '1rem',
-      }}
-    >
-      <div style={{ display: 'grid', gap: '0.25rem' }}>
-        <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>Grant mirror reconciliation</h3>
-        <p style={{ color: 'var(--theme-elevation-600, #4b5563)', margin: 0, fontSize: '0.875rem' }}>
-          Sync the local grant mirror against Auther. Inserts missing rows, revokes stale rows, and
-          corrects requiresLiveCheck flags.
-        </p>
-      </div>
+    <>
+      <Drawer slug={DRAWER_SLUG}>
+        <section style={{ display: 'grid', gap: '1rem', maxWidth: '40rem' }}>
+          <div style={{ display: 'grid', gap: '0.25rem' }}>
+            <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>Grant mirror reconciliation</h3>
+            <p style={{ color: 'var(--theme-elevation-600, #4b5563)', margin: 0, fontSize: '0.875rem' }}>
+              Sync the local grant mirror against Auther. Inserts missing rows, revokes stale rows, and
+              corrects requiresLiveCheck flags.
+            </p>
+            <p style={{ color: 'var(--theme-elevation-600, #4b5563)', margin: 0, fontSize: '0.875rem' }}>
+              Use this when webhook delivery falls behind, after grant imports, or whenever you want to
+              confirm the mirror matches Auther before a release.
+            </p>
+          </div>
 
-      <div>
-        <Button
-          buttonStyle="secondary"
-          disabled={isRunning}
-          onClick={() => void handleReconcile()}
-          size="small"
-        >
-          {isRunning ? 'Reconciling...' : 'Run reconciliation'}
+          <div>
+            <Button
+              buttonStyle="secondary"
+              disabled={isRunning}
+              onClick={() => void handleReconcile()}
+              size="small"
+            >
+              {isRunning ? 'Reconciling...' : 'Run reconciliation'}
+            </Button>
+          </div>
+
+          {result ? (
+            <div style={{ fontSize: '0.875rem' }}>
+              {result.error ? (
+                <p style={{ color: 'var(--theme-error-500, #c00)', margin: 0 }}>{result.error}</p>
+              ) : (
+                <dl style={{ display: 'grid', gap: '0.25rem', margin: 0 }}>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <dt style={{ fontWeight: 600 }}>Users processed:</dt>
+                    <dd style={{ margin: 0 }}>{result.usersProcessed ?? 0}</dd>
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <dt style={{ fontWeight: 600 }}>Inserted:</dt>
+                    <dd style={{ margin: 0 }}>{result.inserted ?? 0}</dd>
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <dt style={{ fontWeight: 600 }}>Revoked:</dt>
+                    <dd style={{ margin: 0 }}>{result.revoked ?? 0}</dd>
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <dt style={{ fontWeight: 600 }}>Flag updated:</dt>
+                    <dd style={{ margin: 0 }}>{result.flagUpdated ?? 0}</dd>
+                  </div>
+                  {result.errors && result.errors.length > 0 ? (
+                    <div>
+                      <dt style={{ fontWeight: 600, color: 'var(--theme-error-500, #c00)' }}>
+                        Errors ({result.errors.length}):
+                      </dt>
+                      <dd style={{ margin: 0 }}>
+                        <ul style={{ margin: '0.25rem 0 0', paddingLeft: '1rem' }}>
+                          {result.errors.slice(0, 5).map((e, i) => (
+                            // eslint-disable-next-line react/no-array-index-key
+                            <li key={i}>{e}</li>
+                          ))}
+                          {result.errors.length > 5 ? (
+                            <li>...and {result.errors.length - 5} more</li>
+                          ) : null}
+                        </ul>
+                      </dd>
+                    </div>
+                  ) : null}
+                </dl>
+              )}
+            </div>
+          ) : null}
+        </section>
+      </Drawer>
+
+      <DrawerToggler slug={DRAWER_SLUG}>
+        <Button buttonStyle="secondary" size="medium">
+          Reconcile grants
         </Button>
-      </div>
-
-      {result ? (
-        <div style={{ fontSize: '0.875rem' }}>
-          {result.error ? (
-            <p style={{ color: 'var(--theme-error-500, #c00)', margin: 0 }}>{result.error}</p>
-          ) : (
-            <dl style={{ display: 'grid', gap: '0.25rem', margin: 0 }}>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <dt style={{ fontWeight: 600 }}>Users processed:</dt>
-                <dd style={{ margin: 0 }}>{result.usersProcessed ?? 0}</dd>
-              </div>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <dt style={{ fontWeight: 600 }}>Inserted:</dt>
-                <dd style={{ margin: 0 }}>{result.inserted ?? 0}</dd>
-              </div>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <dt style={{ fontWeight: 600 }}>Revoked:</dt>
-                <dd style={{ margin: 0 }}>{result.revoked ?? 0}</dd>
-              </div>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <dt style={{ fontWeight: 600 }}>Flag updated:</dt>
-                <dd style={{ margin: 0 }}>{result.flagUpdated ?? 0}</dd>
-              </div>
-              {result.errors && result.errors.length > 0 ? (
-                <div>
-                  <dt style={{ fontWeight: 600, color: 'var(--theme-error-500, #c00)' }}>
-                    Errors ({result.errors.length}):
-                  </dt>
-                  <dd style={{ margin: 0 }}>
-                    <ul style={{ margin: '0.25rem 0 0', paddingLeft: '1rem' }}>
-                      {result.errors.slice(0, 5).map((e, i) => (
-                        // eslint-disable-next-line react/no-array-index-key
-                        <li key={i}>{e}</li>
-                      ))}
-                      {result.errors.length > 5 ? (
-                        <li>…and {result.errors.length - 5} more</li>
-                      ) : null}
-                    </ul>
-                  </dd>
-                </div>
-              ) : null}
-            </dl>
-          )}
-        </div>
-      ) : null}
-    </div>
+      </DrawerToggler>
+    </>
   )
 }
 

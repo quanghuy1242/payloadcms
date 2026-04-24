@@ -226,7 +226,8 @@ export const Books: CollectionConfig = {
       ],
       admin: {
         position: 'sidebar',
-        description: 'Private books are only visible to users with explicit access in Auther.',
+        description:
+          'Private books are only visible to users with explicit access in Auther. Manage grants from the header controls.',
       },
     },
     {
