@@ -894,16 +894,21 @@ export const publishedMediaReadAccess: Access = async ({ req, data, id }) => {
     return true
   }
 
+  const bookCoverConditions = mediaIdVariants.map((candidateMediaId) => ({
+    cover: {
+      equals: candidateMediaId,
+    },
+  }))
+
   const isReferencedByBooks = await req.payload.find({
     collection: 'books',
     depth: 0,
     limit: 1,
     overrideAccess: true,
-    where: {
-      cover: {
-        in: mediaIdVariants,
-      },
-    },
+    where:
+      bookCoverConditions.length === 1
+        ? (bookCoverConditions[0] as never)
+        : ({ or: bookCoverConditions } as never),
   })
 
   if (isReferencedByBooks.docs.length > 0) {
