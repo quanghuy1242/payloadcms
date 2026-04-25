@@ -580,8 +580,10 @@ in `tests/int/epub-lexical.int.spec.ts`.
 At the time a chapter is being imported, the other chapters do not yet exist in the database.
 Internal EPUB links point to heading IDs or fragment identifiers within other spine files.
 Resolving these requires knowing the Payload chapter ID for the target file and the anchor
-within it. This information is only complete after all chapters have been created. The
-sentinel node stores the raw EPUB href so a two-pass resolution job can patch it later.
+within it. Heading anchors are preserved on the chapter JSON so the reader can scroll to a
+semantic subsection target once the destination chapter is loaded. This information is only
+complete after all chapters have been created. The sentinel node stores the raw EPUB href so
+a two-pass resolution job can patch it later.
 
 **Why `Chapters` uses `createSlugHook` (deterministic) while `Books` uses
 `createRandomizedSlugHook` (randomized)**
@@ -2089,7 +2091,9 @@ before implementation.
 **What**: After all chapters are created for a book, run a resolution pass that:
 1. Builds a map: `chapterSourceKey → { payloadChapterId, tocHref }`.
 2. Scans every chapter's Lexical JSON for `epub-internal-link` nodes.
-3. Resolves each sentinel's `href` to a Payload chapter ID and anchor fragment.
+3. Resolves each sentinel's `href` to a Payload chapter ID and anchor fragment, using the
+   preserved heading anchor ids on the target chapter when the fragment points at a section
+   heading.
 4. Replaces the sentinel with a real `link` node.
 5. PATCHes the chapter record.
 

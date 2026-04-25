@@ -1,6 +1,7 @@
 import type { SerializedEditorState, SerializedLexicalNode } from 'lexical'
 
 import { buildStableHash } from './epubImport'
+import { parseDelimitedIdentifiers, sanitizeIdentifiers } from './identifiers'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -31,6 +32,7 @@ type WalkContext = {
   insidePre: boolean
   insideListItem: boolean
   listDepth: number
+  headingAnchorIds?: string[]
   nodeCounter: { value: number }
   footnotesById: FootnoteDefinitionMap
   referencedFootnotes: Map<string, FootnoteReference>
@@ -146,15 +148,22 @@ const normalizeUploadValue = (value: string): string | number => {
 }
 
 /** Creates a Lexical `heading` node for the given HTML heading tag (e.g. `"h2"`). */
-const makeHeading = (tag: string, children: AnyNode[]): AnyNode => ({
-  type: 'heading',
-  tag,
-  version: 1,
-  format: '',
-  indent: 0,
-  direction: 'ltr',
-  children,
-})
+const makeHeading = (tag: string, children: AnyNode[], anchorIds: string[] = []): AnyNode => {
+  const normalizedAnchorIds = sanitizeIdentifiers(anchorIds)
+  const primaryAnchorId = normalizedAnchorIds[0]
+
+  return {
+    type: 'heading',
+    tag,
+    version: 1,
+    format: '',
+    indent: 0,
+    direction: 'ltr',
+    children,
+    ...(primaryAnchorId ? { id: primaryAnchorId } : {}),
+    ...(normalizedAnchorIds.length > 0 ? { fields: { anchorIds: normalizedAnchorIds } } : {}),
+  }
+}
 
 /** Creates a Lexical `text` node with the given raw text and inline format bitmask. */
 const makeText = (text: string, format: number): AnyNode => ({
@@ -563,12 +572,26 @@ const walkNode = (node: Node, ctx: WalkContext): AnyNode[] => {
     case 'h1':
     case 'h2':
     case 'h3':
-    case 'h4':
-      return [makeHeading(tag, walkChildren(el, ctx))]
+    case 'h4': {
+      const headingAnchorIds = sanitizeIdentifiers([
+        trimToNull(el.getAttribute('id')),
+        ...parseDelimitedIdentifiers(el.getAttribute('data-anchor-ids')),
+      ])
+
+      return [makeHeading(tag, walkChildren(el, { ...ctx, headingAnchorIds }), headingAnchorIds)]
+    }
 
     case 'h5':
-    case 'h6':
-      return [makeHeading('h4', walkChildren(el, ctx))]
+    case 'h6': {
+      const headingAnchorIds = sanitizeIdentifiers([
+        trimToNull(el.getAttribute('id')),
+        ...parseDelimitedIdentifiers(el.getAttribute('data-anchor-ids')),
+      ])
+
+      return [
+        makeHeading('h4', walkChildren(el, { ...ctx, headingAnchorIds }), headingAnchorIds),
+      ]
+    }
 
     case 'blockquote':
       {
@@ -835,11 +858,24 @@ const walkNode = (node: Node, ctx: WalkContext): AnyNode[] => {
         const newTab = target === '_blank' || relTokens.includes('noopener') || relTokens.includes('noreferrer')
         return [makeLink(href, walkChildren(el, ctx), newTab)]
       }
-      // Case 2: id-only anchor with no href and empty children → drop
+      // Case 2: id-only anchor inside a real heading → preserve the id on the heading node
+      if (ctx.headingAnchorIds && !trimmedHref) {
+        const anchorId = trimToNull(el.getAttribute('id'))
+
+        if (anchorId) {
+          if (!ctx.headingAnchorIds.includes(anchorId)) {
+            ctx.headingAnchorIds.push(anchorId)
+          }
+        }
+
+        return walkChildren(el, ctx)
+      }
+
+      // Case 3: id-only anchor with no href and empty children → drop
       if (!el.hasAttribute('href') && el.hasAttribute('id') && !el.textContent?.trim()) {
         return []
       }
-      // Case 3: internal EPUB anchor or relative link → preserve as a sentinel node
+      // Case 4: internal EPUB anchor or relative link → preserve as a sentinel node
       if (!trimmedHref) {
         return walkChildren(el, ctx)
       }
@@ -849,7 +885,7 @@ const walkNode = (node: Node, ctx: WalkContext): AnyNode[] => {
       ) {
         return [makeEpubInternalLink(trimmedHref, walkChildren(el, ctx))]
       }
-      // Case 4: any other anchor (blob:, data:, etc.) → unwrap
+      // Case 5: any other anchor (blob:, data:, etc.) → unwrap
       return walkChildren(el, ctx)
     }
 
@@ -973,6 +1009,7 @@ export const htmlToPayloadLexical = (
     insidePre: false,
     insideListItem: false,
     listDepth: 0,
+    headingAnchorIds: undefined,
     nodeCounter: { value: 0 },
     footnotesById,
     referencedFootnotes: new Map(),

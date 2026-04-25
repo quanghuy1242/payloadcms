@@ -6,6 +6,7 @@ import { HeadingNode, QuoteNode } from '@lexical/rich-text'
 import { TableCellNode, TableNode, TableRowNode } from '@lexical/table'
 
 import { EpubCalloutNode } from '../features/epub-callout/nodes/EpubCalloutNode'
+import { EpubHeadingNode } from '../features/epub-heading/nodes/EpubHeadingNode'
 
 /**
  * The complete set of Lexical node classes registered for the chapter rich-text editor.
@@ -17,6 +18,7 @@ export const chapterLexicalNodes: Array<Klass<LexicalNode> | LexicalNodeReplacem
   TextNode,
   LineBreakNode,
   HeadingNode,
+  EpubHeadingNode,
   QuoteNode,
   LinkNode,
   AutoLinkNode,

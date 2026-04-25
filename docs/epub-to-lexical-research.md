@@ -785,9 +785,9 @@ The new converter handles `<a>` tags with three cases:
 }
 ```
 
-**Case 2: Anchor-only (no href, has id)** — strip the `<a>` element entirely (it's a cross-reference marker). Its text/child content is promoted to the parent context. This handles Manning's `<a id="pgfId-...">` markers and Calibre's `<a class="calibre1"><span class="calibre2"></span></a>` page-break anchors.
+**Case 2: Anchor-only (no href, has id)** — if the anchor sits inside a real section heading, preserve the id on that heading node (`id` plus `fields.anchorIds`). Otherwise strip the `<a>` element entirely. This keeps Manning-style `<a id="pgfId-...">` heading targets while still dropping decorative Calibre page-break anchors such as `<a class="calibre1"><span class="calibre2"></span></a>`.
 
-**Case 3: Internal fragment link (href="#section-id")** — The current `sanitizeLexicalLinkURLValue` correctly returns `null` for fragment-only URLs (`value.startsWith('#')`). These should be unwrapped to their text content (the anchor text without the link). This is correct for imported EPUB content where chapter-internal anchors are meaningless in a multi-page web context.
+**Case 3: Internal fragment link (href="#section-id")** — preserve it as an `epub-internal-link` sentinel node. The reader can resolve it later to the chapter URL plus fragment once the chapter map is known.
 
 ### 6.6 Phase 4 — Table of Contents as Chapter Hierarchy (Future)
 
@@ -954,9 +954,11 @@ If an EPUB image is still missing upload metadata, it will fall back to a placeh
 
 ### 7.6 Unsupported / Drop Elements
 
-Elements that should be **silently stripped** (their children may still be processed):
+Elements that should be **handled specially** (some are stripped, some are preserved as heading metadata or sentinel nodes):
 - `<a>` with no `href` and non-empty content → unwrap, keep children
-- `<a>` with only an `id` attribute and empty children → drop entirely (cross-reference anchor)
+- `<a>` with only an `id` attribute inside a real heading → preserve the anchor on the heading node
+- `<a>` with only an `id` attribute and empty children outside headings → drop entirely (decorative cross-reference anchor)
+- `<a href="#fragment">` → preserve as an `epub-internal-link` sentinel node
 - `<span>` with no recognized format class → unwrap, keep children
 - `<svg>` → emit `[Image: SVG diagram]` placeholder paragraph
 - `<video>`, `<audio>`, `<object>`, `<embed>` → drop silently
@@ -1225,9 +1227,9 @@ describe('htmlToPayloadLexical', () => {
   it('sets fields.linkType = "custom" for external URLs', ...)
   it('sets fields.newTab = false by default', ...)
   it('unwraps <a> with no href attribute', ...)
-  it('unwraps <a id="anchor"> with no href', ...)  // Manning pattern
-  it('unwraps <a href="#fragment"> fragment-only links', ...)  // Calibre pattern
-  it('strips empty <a class="calibre1"><span></span></a> entirely', ...)  // Calibre page breaks
+  it('preserves <a id="anchor"> inside headings', ...)  // Manning pattern
+  it('preserves <a href="#fragment"> fragment-only links as sentinels', ...)
+  it('drops empty decorative <a class="calibre1"><span></span></a> anchors', ...)  // Calibre page breaks
   
   // Lists
   it('converts <ul> to bullet list', ...)
@@ -1589,9 +1591,9 @@ There is no server-side usage of `htmlToPayloadLexical`, so Node.js compatibilit
 
 ### 11.5 Empty `<a>` Anchor Handling
 
-Calibre and Manning both produce `<a>` elements with only an `id` attribute and empty content. The proposed rule is to **drop them entirely**. However, some EPUBs may have `<a id="chapter-2">` at the start of a chapter as a navigation target, and other chapters may link to it with `href="#chapter-2"`. Dropping the anchor makes the internal link a dead link.
+Calibre and Manning both produce `<a>` elements with only an `id` attribute and empty content. That is ambiguous: some are decorative page-break anchors, while others are semantic heading targets. The importer now distinguishes them.
 
-**Decision:** Internal fragment links are already stripped by `sanitizeLexicalLinkURLValue` (any `#fragment` href returns null). So both the anchor definition and the anchor reference are removed. This is consistent. Internal links don't work in the Payload reader anyway since content is split into separate Chapter records.
+**Decision:** Preserve `a[id]` anchors when they belong to a real heading and store them on the heading node as `id` plus `fields.anchorIds`. Drop decorative empty anchors elsewhere. Internal fragment links (`href="#fragment"`) remain `epub-internal-link` sentinels so the reader can resolve them once all chapters are imported.
 
 ### 11.6 Right-to-Left Languages
 

@@ -23,6 +23,7 @@ import {
 import { EpubInternalLinkFeature } from '../features/epub-internal-link/feature.server'
 import { EpubFootnoteRefFeature } from '../features/epub-footnote-ref/feature.server'
 import { EpubCalloutFeature } from '../features/epub-callout/feature.server'
+import { EpubHeadingFeature } from '../features/epub-heading/feature.server'
 
 /**
  * Payload block definition for end-of-chapter footnotes.
@@ -62,6 +63,7 @@ export const chapterRichTextFeatureProviders = () => {
     UnderlineFeature(),
     InlineCodeFeature(),
     HeadingFeature({ enabledHeadingSizes: ['h1', 'h2', 'h3', 'h4'] }),
+    EpubHeadingFeature(),
     BlockquoteFeature(),
     BlocksFeature({
       blocks: [

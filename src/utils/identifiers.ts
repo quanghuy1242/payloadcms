@@ -29,6 +29,16 @@ export const normalizeEntityId = (value: unknown): string | number | null => {
   return null
 }
 
+export const parseDelimitedIdentifiers = (value: unknown): string[] => {
+  const normalized = toNullableString(value)
+
+  if (!normalized) {
+    return []
+  }
+
+  return sanitizeIdentifiers(normalized.split(/[\s,]+/))
+}
+
 export const sanitizeIdentifiers = (values: Iterable<unknown>): string[] => {
   const seen = new Set<string>()
 

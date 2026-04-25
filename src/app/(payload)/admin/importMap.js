@@ -36,6 +36,7 @@ import { BlocksFeatureClient as BlocksFeatureClient_e70f5e05f09f93e00b997edb1ef0
 import { CodeComponent as CodeComponent_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { codeConverterClient as codeConverterClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { CodeBlockBlockComponent as CodeBlockBlockComponent_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
+import { EpubHeadingFeatureClient as EpubHeadingFeatureClient_e608618f7df8fdf7bfc2a337fe0bb894 } from '@/features/epub-heading/feature.client'
 import { default as default_a32202f8132378571bc3b6291cee117f } from '../../../components/admin/chapters/ChaptersListView'
 import { default as default_e772d3600208baaf557751b3292dc5da } from '@/components/admin/posts/SlugFieldLabel'
 import { default as default_e7ca0fe434bd780ebdc8814b7d6a7637 } from '@/components/admin/posts/SlugField'
@@ -88,6 +89,7 @@ export const importMap = {
   "@payloadcms/richtext-lexical/client#CodeComponent": CodeComponent_e70f5e05f09f93e00b997edb1ef0c864,
   "@payloadcms/richtext-lexical/client#codeConverterClient": codeConverterClient_e70f5e05f09f93e00b997edb1ef0c864,
   "@payloadcms/richtext-lexical/client#CodeBlockBlockComponent": CodeBlockBlockComponent_e70f5e05f09f93e00b997edb1ef0c864,
+  "@/features/epub-heading/feature.client#EpubHeadingFeatureClient": EpubHeadingFeatureClient_e608618f7df8fdf7bfc2a337fe0bb894,
   "/components/admin/chapters/ChaptersListView#default": default_a32202f8132378571bc3b6291cee117f,
   "@/components/admin/posts/SlugFieldLabel#default": default_e772d3600208baaf557751b3292dc5da,
   "@/components/admin/posts/SlugField#default": default_e7ca0fe434bd780ebdc8814b7d6a7637,

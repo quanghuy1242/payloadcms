@@ -1,10 +1,15 @@
 import { describe, expect, it } from 'vitest'
+import { createHeadlessEditor } from '@lexical/headless'
 
 import {
   collectFootnoteDefinitionsFromHTML,
   htmlToPayloadLexical,
   isSubstantiveChapterContent,
 } from '@/utils/epubLexical'
+import {
+  $createEpubHeadingNode,
+  EpubHeadingNode,
+} from '@/features/epub-heading/nodes/EpubHeadingNode'
 
 function findNodes(state: any, type: string): any[] {
   const results: any[] = []
@@ -68,6 +73,30 @@ describe('htmlToPayloadLexical', () => {
     const heading = result.root.children[0] as any
     expect(heading.type).toBe('heading')
     expect(heading.tag).toBe('h4')
+  })
+
+  it('preserves a semantic anchor id on a heading node', () => {
+    const result = htmlToPayloadLexical(
+      '<h2><a id="pgfId-1011875" class="calibre6"></a>8.1 Example Heading</h2>',
+    )
+
+    const heading = result.root.children[0] as any
+    expect(heading.type).toBe('heading')
+    expect(heading.tag).toBe('h2')
+    expect(heading.id).toBe('pgfId-1011875')
+    expect(heading.fields?.anchorIds).toEqual(['pgfId-1011875'])
+  })
+
+  it('preserves multiple semantic anchor aliases on a heading node', () => {
+    const result = htmlToPayloadLexical(
+      '<h3><a id="pgfId-1012022"></a><a id="pgfId-1012138"></a>Alias Heading</h3>',
+    )
+
+    const heading = result.root.children[0] as any
+    expect(heading.type).toBe('heading')
+    expect(heading.tag).toBe('h3')
+    expect(heading.id).toBe('pgfId-1012022')
+    expect(heading.fields?.anchorIds).toEqual(['pgfId-1012022', 'pgfId-1012138'])
   })
 
   // --- Text formatting ---
@@ -196,6 +225,29 @@ describe('htmlToPayloadLexical', () => {
     const textNodes = findNodes(result, 'text')
     expect(textNodes.some((n: any) => n.text === 'after')).toBe(true)
     expect(textNodes.every((n: any) => n.text !== '')).toBe(true)
+  })
+
+  it('round-trips EpubHeadingNode anchor ids through JSON serialization', () => {
+    const editor = createHeadlessEditor({
+      nodes: [EpubHeadingNode],
+    })
+
+    let exportedJson: any
+    let importedJson: any
+
+    editor.update(() => {
+      const node = $createEpubHeadingNode('h4', ['pgfId-1', 'pgfId-2'])
+      exportedJson = node.exportJSON() as any
+
+      expect(exportedJson.type).toBe('heading')
+      expect(exportedJson.tag).toBe('h4')
+      expect(exportedJson.id).toBe('pgfId-1')
+      expect(exportedJson.fields?.anchorIds).toEqual(['pgfId-1', 'pgfId-2'])
+
+      importedJson = EpubHeadingNode.importJSON(exportedJson as any).exportJSON()
+    })
+
+    expect(importedJson).toEqual(exportedJson)
   })
 
   // --- Lists ---
