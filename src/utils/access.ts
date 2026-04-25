@@ -17,31 +17,18 @@ import { extractTokenFromHeaders } from '@/lib/betterAuth/tokens'
 import { drainDeferredGrantsForUser } from '@/utils/deferredGrants'
 import { checkPermissionBatch } from '@/utils/grantMirror'
 
-import { normalizeEntityId } from './identifiers'
+import {
+  getUserId,
+  isAdminUser,
+  normalizeEntityId,
+  type SharedUserIdentity,
+} from '../../shared/auth/identity'
+export { USER_ROLES, type UserRole } from '../../shared/auth/roles'
 import { toNullableString } from './strings'
 
-export { normalizeEntityId }
+export { getUserId, isAdminUser, normalizeEntityId }
 
-export const USER_ROLES = ['admin', 'user'] as const
-
-export type UserRole = (typeof USER_ROLES)[number]
-
-type AccessUser = {
-  id?: string | number | null
-  role?: UserRole | null
-}
-
-export const getUserId = (user?: AccessUser | null): string | number | null => {
-  if (!user) {
-    return null
-  }
-
-  return normalizeEntityId(user.id)
-}
-
-export const isAdminUser = (user?: AccessUser | null): boolean => {
-  return user?.role === 'admin'
-}
+type AccessUser = SharedUserIdentity
 
 export const publicReadAccess: Access = () => true
 

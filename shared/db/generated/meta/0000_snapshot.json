@@ -1,0 +1,3456 @@
+{
+  "id": "00000000-0000-0000-0000-000000000000",
+  "prevId": "",
+  "version": "6",
+  "dialect": "sqlite",
+  "tables": {
+    "users_sessions": {
+      "name": "users_sessions",
+      "columns": {
+        "_order": {
+          "autoincrement": false,
+          "name": "_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "_parent_id": {
+          "autoincrement": false,
+          "name": "_parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id": {
+          "autoincrement": false,
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "created_at": {
+          "autoincrement": false,
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "expires_at": {
+          "autoincrement": false,
+          "name": "expires_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "compositePrimaryKeys": {},
+      "indexes": {
+        "users_sessions_parent_id_idx": {
+          "name": "users_sessions_parent_id_idx",
+          "columns": ["_parent_id"],
+          "isUnique": false
+        },
+        "users_sessions_order_idx": {
+          "name": "users_sessions_order_idx",
+          "columns": ["_order"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "users_sessions__parent_id_users_id_fk": {
+          "name": "users_sessions__parent_id_users_id_fk",
+          "tableFrom": "users_sessions",
+          "tableTo": "users",
+          "columnsFrom": ["_parent_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "users": {
+      "name": "users",
+      "columns": {
+        "id": {
+          "autoincrement": false,
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "updated_at": {
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
+          "autoincrement": false,
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
+          "autoincrement": false,
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email": {
+          "autoincrement": false,
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reset_password_token": {
+          "autoincrement": false,
+          "name": "reset_password_token",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reset_password_expiration": {
+          "autoincrement": false,
+          "name": "reset_password_expiration",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "salt": {
+          "autoincrement": false,
+          "name": "salt",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "hash": {
+          "autoincrement": false,
+          "name": "hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "login_attempts": {
+          "default": 0,
+          "autoincrement": false,
+          "name": "login_attempts",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "lock_until": {
+          "autoincrement": false,
+          "name": "lock_until",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "full_name": {
+          "default": "''",
+          "autoincrement": false,
+          "name": "full_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "role": {
+          "default": "'user'",
+          "autoincrement": false,
+          "name": "role",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "avatar_id": {
+          "autoincrement": false,
+          "name": "avatar_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "enable_a_p_i_key": {
+          "autoincrement": false,
+          "name": "enable_a_p_i_key",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "api_key": {
+          "autoincrement": false,
+          "name": "api_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "api_key_index": {
+          "autoincrement": false,
+          "name": "api_key_index",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bio": {
+          "autoincrement": false,
+          "name": "bio",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "better_auth_user_id": {
+          "autoincrement": false,
+          "name": "better_auth_user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "compositePrimaryKeys": {},
+      "indexes": {
+        "users_better_auth_user_id_idx": {
+          "name": "users_better_auth_user_id_idx",
+          "columns": ["better_auth_user_id"],
+          "isUnique": true
+        },
+        "users_avatar_idx": {
+          "name": "users_avatar_idx",
+          "columns": ["avatar_id"],
+          "isUnique": false
+        },
+        "users_email_idx": {
+          "name": "users_email_idx",
+          "columns": ["email"],
+          "isUnique": true
+        },
+        "users_created_at_idx": {
+          "name": "users_created_at_idx",
+          "columns": ["created_at"],
+          "isUnique": false
+        },
+        "users_updated_at_idx": {
+          "name": "users_updated_at_idx",
+          "columns": ["updated_at"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "users_avatar_id_media_id_fk": {
+          "name": "users_avatar_id_media_id_fk",
+          "tableFrom": "users",
+          "tableTo": "media",
+          "columnsFrom": ["avatar_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "media": {
+      "name": "media",
+      "columns": {
+        "id": {
+          "autoincrement": false,
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "alt": {
+          "autoincrement": false,
+          "name": "alt",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
+          "autoincrement": false,
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
+          "autoincrement": false,
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "url": {
+          "autoincrement": false,
+          "name": "url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "thumbnail_u_r_l": {
+          "autoincrement": false,
+          "name": "thumbnail_u_r_l",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "filename": {
+          "autoincrement": false,
+          "name": "filename",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "mime_type": {
+          "autoincrement": false,
+          "name": "mime_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "filesize": {
+          "autoincrement": false,
+          "name": "filesize",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "width": {
+          "autoincrement": false,
+          "name": "width",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "height": {
+          "autoincrement": false,
+          "name": "height",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "focal_x": {
+          "autoincrement": false,
+          "name": "focal_x",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "focal_y": {
+          "autoincrement": false,
+          "name": "focal_y",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "owner_id": {
+          "autoincrement": false,
+          "name": "owner_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "low_res_url": {
+          "autoincrement": false,
+          "name": "low_res_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "optimized_url": {
+          "autoincrement": false,
+          "name": "optimized_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "compositePrimaryKeys": {},
+      "indexes": {
+        "media_owner_idx": {
+          "name": "media_owner_idx",
+          "columns": ["owner_id"],
+          "isUnique": false
+        },
+        "media_filename_idx": {
+          "name": "media_filename_idx",
+          "columns": ["filename"],
+          "isUnique": true
+        },
+        "media_created_at_idx": {
+          "name": "media_created_at_idx",
+          "columns": ["created_at"],
+          "isUnique": false
+        },
+        "media_updated_at_idx": {
+          "name": "media_updated_at_idx",
+          "columns": ["updated_at"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "media_owner_id_users_id_fk": {
+          "name": "media_owner_id_users_id_fk",
+          "tableFrom": "media",
+          "tableTo": "users",
+          "columnsFrom": ["owner_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "payload_locked_documents": {
+      "name": "payload_locked_documents",
+      "columns": {
+        "id": {
+          "autoincrement": false,
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "global_slug": {
+          "autoincrement": false,
+          "name": "global_slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
+          "autoincrement": false,
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
+          "autoincrement": false,
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "compositePrimaryKeys": {},
+      "indexes": {
+        "payload_locked_documents_created_at_idx": {
+          "name": "payload_locked_documents_created_at_idx",
+          "columns": ["created_at"],
+          "isUnique": false
+        },
+        "payload_locked_documents_updated_at_idx": {
+          "name": "payload_locked_documents_updated_at_idx",
+          "columns": ["updated_at"],
+          "isUnique": false
+        },
+        "payload_locked_documents_global_slug_idx": {
+          "name": "payload_locked_documents_global_slug_idx",
+          "columns": ["global_slug"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "payload_locked_documents_rels": {
+      "name": "payload_locked_documents_rels",
+      "columns": {
+        "id": {
+          "autoincrement": false,
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "order": {
+          "autoincrement": false,
+          "name": "order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "parent_id": {
+          "autoincrement": false,
+          "name": "parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "path": {
+          "autoincrement": false,
+          "name": "path",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "users_id": {
+          "autoincrement": false,
+          "name": "users_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "media_id": {
+          "autoincrement": false,
+          "name": "media_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "posts_id": {
+          "autoincrement": false,
+          "name": "posts_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "categories_id": {
+          "autoincrement": false,
+          "name": "categories_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "books_id": {
+          "autoincrement": false,
+          "name": "books_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "chapters_id": {
+          "autoincrement": false,
+          "name": "chapters_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "grant_mirror_id": {
+          "autoincrement": false,
+          "name": "grant_mirror_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "deferred_grants_id": {
+          "autoincrement": false,
+          "name": "deferred_grants_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "compositePrimaryKeys": {},
+      "indexes": {
+        "payload_locked_documents_rels_deferred_grants_id_idx": {
+          "name": "payload_locked_documents_rels_deferred_grants_id_idx",
+          "columns": ["deferred_grants_id"],
+          "isUnique": false
+        },
+        "payload_locked_documents_rels_grant_mirror_id_idx": {
+          "name": "payload_locked_documents_rels_grant_mirror_id_idx",
+          "columns": ["grant_mirror_id"],
+          "isUnique": false
+        },
+        "payload_locked_documents_rels_chapters_id_idx": {
+          "name": "payload_locked_documents_rels_chapters_id_idx",
+          "columns": ["chapters_id"],
+          "isUnique": false
+        },
+        "payload_locked_documents_rels_books_id_idx": {
+          "name": "payload_locked_documents_rels_books_id_idx",
+          "columns": ["books_id"],
+          "isUnique": false
+        },
+        "payload_locked_documents_rels_categories_id_idx": {
+          "name": "payload_locked_documents_rels_categories_id_idx",
+          "columns": ["categories_id"],
+          "isUnique": false
+        },
+        "payload_locked_documents_rels_posts_id_idx": {
+          "name": "payload_locked_documents_rels_posts_id_idx",
+          "columns": ["posts_id"],
+          "isUnique": false
+        },
+        "payload_locked_documents_rels_media_id_idx": {
+          "name": "payload_locked_documents_rels_media_id_idx",
+          "columns": ["media_id"],
+          "isUnique": false
+        },
+        "payload_locked_documents_rels_users_id_idx": {
+          "name": "payload_locked_documents_rels_users_id_idx",
+          "columns": ["users_id"],
+          "isUnique": false
+        },
+        "payload_locked_documents_rels_path_idx": {
+          "name": "payload_locked_documents_rels_path_idx",
+          "columns": ["path"],
+          "isUnique": false
+        },
+        "payload_locked_documents_rels_parent_idx": {
+          "name": "payload_locked_documents_rels_parent_idx",
+          "columns": ["parent_id"],
+          "isUnique": false
+        },
+        "payload_locked_documents_rels_order_idx": {
+          "name": "payload_locked_documents_rels_order_idx",
+          "columns": ["order"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "payload_locked_documents_rels_media_id_media_id_fk": {
+          "name": "payload_locked_documents_rels_media_id_media_id_fk",
+          "tableFrom": "payload_locked_documents_rels",
+          "tableTo": "media",
+          "columnsFrom": ["media_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "payload_locked_documents_rels_users_id_users_id_fk": {
+          "name": "payload_locked_documents_rels_users_id_users_id_fk",
+          "tableFrom": "payload_locked_documents_rels",
+          "tableTo": "users",
+          "columnsFrom": ["users_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "payload_locked_documents_rels_parent_id_payload_locked_documents_id_fk": {
+          "name": "payload_locked_documents_rels_parent_id_payload_locked_documents_id_fk",
+          "tableFrom": "payload_locked_documents_rels",
+          "tableTo": "payload_locked_documents",
+          "columnsFrom": ["parent_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "payload_locked_documents_rels_deferred_grants_id_deferred_grants_id_fk": {
+          "name": "payload_locked_documents_rels_deferred_grants_id_deferred_grants_id_fk",
+          "tableFrom": "payload_locked_documents_rels",
+          "tableTo": "deferred_grants",
+          "columnsFrom": ["deferred_grants_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "payload_locked_documents_rels_grant_mirror_id_grant_mirror_id_fk": {
+          "name": "payload_locked_documents_rels_grant_mirror_id_grant_mirror_id_fk",
+          "tableFrom": "payload_locked_documents_rels",
+          "tableTo": "grant_mirror",
+          "columnsFrom": ["grant_mirror_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "payload_locked_documents_rels_chapters_id_chapters_id_fk": {
+          "name": "payload_locked_documents_rels_chapters_id_chapters_id_fk",
+          "tableFrom": "payload_locked_documents_rels",
+          "tableTo": "chapters",
+          "columnsFrom": ["chapters_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "payload_locked_documents_rels_books_id_books_id_fk": {
+          "name": "payload_locked_documents_rels_books_id_books_id_fk",
+          "tableFrom": "payload_locked_documents_rels",
+          "tableTo": "books",
+          "columnsFrom": ["books_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "payload_locked_documents_rels_categories_id_categories_id_fk": {
+          "name": "payload_locked_documents_rels_categories_id_categories_id_fk",
+          "tableFrom": "payload_locked_documents_rels",
+          "tableTo": "categories",
+          "columnsFrom": ["categories_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "payload_locked_documents_rels_posts_id_posts_id_fk": {
+          "name": "payload_locked_documents_rels_posts_id_posts_id_fk",
+          "tableFrom": "payload_locked_documents_rels",
+          "tableTo": "posts",
+          "columnsFrom": ["posts_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "payload_preferences": {
+      "name": "payload_preferences",
+      "columns": {
+        "id": {
+          "autoincrement": false,
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "key": {
+          "autoincrement": false,
+          "name": "key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "value": {
+          "autoincrement": false,
+          "name": "value",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
+          "autoincrement": false,
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
+          "autoincrement": false,
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "compositePrimaryKeys": {},
+      "indexes": {
+        "payload_preferences_created_at_idx": {
+          "name": "payload_preferences_created_at_idx",
+          "columns": ["created_at"],
+          "isUnique": false
+        },
+        "payload_preferences_updated_at_idx": {
+          "name": "payload_preferences_updated_at_idx",
+          "columns": ["updated_at"],
+          "isUnique": false
+        },
+        "payload_preferences_key_idx": {
+          "name": "payload_preferences_key_idx",
+          "columns": ["key"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "payload_preferences_rels": {
+      "name": "payload_preferences_rels",
+      "columns": {
+        "id": {
+          "autoincrement": false,
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "order": {
+          "autoincrement": false,
+          "name": "order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "parent_id": {
+          "autoincrement": false,
+          "name": "parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "path": {
+          "autoincrement": false,
+          "name": "path",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "users_id": {
+          "autoincrement": false,
+          "name": "users_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "compositePrimaryKeys": {},
+      "indexes": {
+        "payload_preferences_rels_users_id_idx": {
+          "name": "payload_preferences_rels_users_id_idx",
+          "columns": ["users_id"],
+          "isUnique": false
+        },
+        "payload_preferences_rels_path_idx": {
+          "name": "payload_preferences_rels_path_idx",
+          "columns": ["path"],
+          "isUnique": false
+        },
+        "payload_preferences_rels_parent_idx": {
+          "name": "payload_preferences_rels_parent_idx",
+          "columns": ["parent_id"],
+          "isUnique": false
+        },
+        "payload_preferences_rels_order_idx": {
+          "name": "payload_preferences_rels_order_idx",
+          "columns": ["order"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "payload_preferences_rels_users_id_users_id_fk": {
+          "name": "payload_preferences_rels_users_id_users_id_fk",
+          "tableFrom": "payload_preferences_rels",
+          "tableTo": "users",
+          "columnsFrom": ["users_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "payload_preferences_rels_parent_id_payload_preferences_id_fk": {
+          "name": "payload_preferences_rels_parent_id_payload_preferences_id_fk",
+          "tableFrom": "payload_preferences_rels",
+          "tableTo": "payload_preferences",
+          "columnsFrom": ["parent_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "payload_migrations": {
+      "name": "payload_migrations",
+      "columns": {
+        "id": {
+          "autoincrement": false,
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "name": {
+          "autoincrement": false,
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "batch": {
+          "autoincrement": false,
+          "name": "batch",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
+          "autoincrement": false,
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
+          "autoincrement": false,
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "compositePrimaryKeys": {},
+      "indexes": {
+        "payload_migrations_created_at_idx": {
+          "name": "payload_migrations_created_at_idx",
+          "columns": ["created_at"],
+          "isUnique": false
+        },
+        "payload_migrations_updated_at_idx": {
+          "name": "payload_migrations_updated_at_idx",
+          "columns": ["updated_at"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "posts_tags": {
+      "name": "posts_tags",
+      "columns": {
+        "_order": {
+          "autoincrement": false,
+          "name": "_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "_parent_id": {
+          "autoincrement": false,
+          "name": "_parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id": {
+          "autoincrement": false,
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "tag": {
+          "autoincrement": false,
+          "name": "tag",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "compositePrimaryKeys": {},
+      "indexes": {
+        "posts_tags_parent_id_idx": {
+          "name": "posts_tags_parent_id_idx",
+          "columns": ["_parent_id"],
+          "isUnique": false
+        },
+        "posts_tags_order_idx": {
+          "name": "posts_tags_order_idx",
+          "columns": ["_order"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "posts_tags__parent_id_posts_id_fk": {
+          "name": "posts_tags__parent_id_posts_id_fk",
+          "tableFrom": "posts_tags",
+          "tableTo": "posts",
+          "columnsFrom": ["_parent_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "homepage": {
+      "name": "homepage",
+      "columns": {
+        "id": {
+          "autoincrement": false,
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "header": {
+          "autoincrement": false,
+          "name": "header",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sub_header": {
+          "autoincrement": false,
+          "name": "sub_header",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "autoincrement": false,
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "autoincrement": false,
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "image_banner_id": {
+          "autoincrement": false,
+          "name": "image_banner_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "meta_title": {
+          "autoincrement": false,
+          "name": "meta_title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "meta_description": {
+          "autoincrement": false,
+          "name": "meta_description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "meta_image_id": {
+          "autoincrement": false,
+          "name": "meta_image_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "compositePrimaryKeys": {},
+      "indexes": {
+        "homepage_meta_meta_image_idx": {
+          "name": "homepage_meta_meta_image_idx",
+          "columns": ["meta_image_id"],
+          "isUnique": false
+        },
+        "homepage_image_banner_idx": {
+          "name": "homepage_image_banner_idx",
+          "columns": ["image_banner_id"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "homepage_meta_image_id_media_id_fk": {
+          "name": "homepage_meta_image_id_media_id_fk",
+          "tableFrom": "homepage",
+          "tableTo": "media",
+          "columnsFrom": ["meta_image_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "homepage_image_banner_id_media_id_fk": {
+          "name": "homepage_image_banner_id_media_id_fk",
+          "tableFrom": "homepage",
+          "tableTo": "media",
+          "columnsFrom": ["image_banner_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "_posts_v_version_tags": {
+      "name": "_posts_v_version_tags",
+      "columns": {
+        "_order": {
+          "autoincrement": false,
+          "name": "_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "_parent_id": {
+          "autoincrement": false,
+          "name": "_parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id": {
+          "autoincrement": false,
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "tag": {
+          "autoincrement": false,
+          "name": "tag",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "_uuid": {
+          "autoincrement": false,
+          "name": "_uuid",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "compositePrimaryKeys": {},
+      "indexes": {
+        "_posts_v_version_tags_parent_id_idx": {
+          "name": "_posts_v_version_tags_parent_id_idx",
+          "columns": ["_parent_id"],
+          "isUnique": false
+        },
+        "_posts_v_version_tags_order_idx": {
+          "name": "_posts_v_version_tags_order_idx",
+          "columns": ["_order"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "_posts_v_version_tags__parent_id__posts_v_id_fk": {
+          "name": "_posts_v_version_tags__parent_id__posts_v_id_fk",
+          "tableFrom": "_posts_v_version_tags",
+          "tableTo": "_posts_v",
+          "columnsFrom": ["_parent_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "_posts_v": {
+      "name": "_posts_v",
+      "columns": {
+        "id": {
+          "autoincrement": false,
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "parent_id": {
+          "autoincrement": false,
+          "name": "parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_title": {
+          "autoincrement": false,
+          "name": "version_title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_slug": {
+          "autoincrement": false,
+          "name": "version_slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_excerpt": {
+          "autoincrement": false,
+          "name": "version_excerpt",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_content": {
+          "autoincrement": false,
+          "name": "version_content",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_cover_image_id": {
+          "autoincrement": false,
+          "name": "version_cover_image_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_author_id": {
+          "autoincrement": false,
+          "name": "version_author_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_category_id": {
+          "autoincrement": false,
+          "name": "version_category_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_updated_at": {
+          "autoincrement": false,
+          "name": "version_updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_created_at": {
+          "autoincrement": false,
+          "name": "version_created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version__status": {
+          "default": "'draft'",
+          "autoincrement": false,
+          "name": "version__status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
+          "autoincrement": false,
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
+          "autoincrement": false,
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "latest": {
+          "autoincrement": false,
+          "name": "latest",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "autosave": {
+          "autoincrement": false,
+          "name": "autosave",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_meta_title": {
+          "autoincrement": false,
+          "name": "version_meta_title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_meta_description": {
+          "autoincrement": false,
+          "name": "version_meta_description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_meta_image_id": {
+          "autoincrement": false,
+          "name": "version_meta_image_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "compositePrimaryKeys": {},
+      "indexes": {
+        "_posts_v_version_meta_version_meta_image_idx": {
+          "name": "_posts_v_version_meta_version_meta_image_idx",
+          "columns": ["version_meta_image_id"],
+          "isUnique": false
+        },
+        "_posts_v_autosave_idx": {
+          "name": "_posts_v_autosave_idx",
+          "columns": ["autosave"],
+          "isUnique": false
+        },
+        "_posts_v_latest_idx": {
+          "name": "_posts_v_latest_idx",
+          "columns": ["latest"],
+          "isUnique": false
+        },
+        "_posts_v_updated_at_idx": {
+          "name": "_posts_v_updated_at_idx",
+          "columns": ["updated_at"],
+          "isUnique": false
+        },
+        "_posts_v_created_at_idx": {
+          "name": "_posts_v_created_at_idx",
+          "columns": ["created_at"],
+          "isUnique": false
+        },
+        "_posts_v_version_version__status_idx": {
+          "name": "_posts_v_version_version__status_idx",
+          "columns": ["version__status"],
+          "isUnique": false
+        },
+        "_posts_v_version_version_created_at_idx": {
+          "name": "_posts_v_version_version_created_at_idx",
+          "columns": ["version_created_at"],
+          "isUnique": false
+        },
+        "_posts_v_version_version_updated_at_idx": {
+          "name": "_posts_v_version_version_updated_at_idx",
+          "columns": ["version_updated_at"],
+          "isUnique": false
+        },
+        "_posts_v_version_version_category_idx": {
+          "name": "_posts_v_version_version_category_idx",
+          "columns": ["version_category_id"],
+          "isUnique": false
+        },
+        "_posts_v_version_version_author_idx": {
+          "name": "_posts_v_version_version_author_idx",
+          "columns": ["version_author_id"],
+          "isUnique": false
+        },
+        "_posts_v_version_version_cover_image_idx": {
+          "name": "_posts_v_version_version_cover_image_idx",
+          "columns": ["version_cover_image_id"],
+          "isUnique": false
+        },
+        "_posts_v_version_version_slug_idx": {
+          "name": "_posts_v_version_version_slug_idx",
+          "columns": ["version_slug"],
+          "isUnique": false
+        },
+        "_posts_v_parent_idx": {
+          "name": "_posts_v_parent_idx",
+          "columns": ["parent_id"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "_posts_v_version_category_id_categories_id_fk": {
+          "name": "_posts_v_version_category_id_categories_id_fk",
+          "tableFrom": "_posts_v",
+          "tableTo": "categories",
+          "columnsFrom": ["version_category_id"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "_posts_v_version_author_id_users_id_fk": {
+          "name": "_posts_v_version_author_id_users_id_fk",
+          "tableFrom": "_posts_v",
+          "tableTo": "users",
+          "columnsFrom": ["version_author_id"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "_posts_v_version_cover_image_id_media_id_fk": {
+          "name": "_posts_v_version_cover_image_id_media_id_fk",
+          "tableFrom": "_posts_v",
+          "tableTo": "media",
+          "columnsFrom": ["version_cover_image_id"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "_posts_v_parent_id_posts_id_fk": {
+          "name": "_posts_v_parent_id_posts_id_fk",
+          "tableFrom": "_posts_v",
+          "tableTo": "posts",
+          "columnsFrom": ["parent_id"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "_posts_v_version_meta_image_id_media_id_fk": {
+          "name": "_posts_v_version_meta_image_id_media_id_fk",
+          "tableFrom": "_posts_v",
+          "tableTo": "media",
+          "columnsFrom": ["version_meta_image_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "posts": {
+      "name": "posts",
+      "columns": {
+        "id": {
+          "autoincrement": false,
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "title": {
+          "autoincrement": false,
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "slug": {
+          "autoincrement": false,
+          "name": "slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "excerpt": {
+          "autoincrement": false,
+          "name": "excerpt",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "content": {
+          "autoincrement": false,
+          "name": "content",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cover_image_id": {
+          "autoincrement": false,
+          "name": "cover_image_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "author_id": {
+          "autoincrement": false,
+          "name": "author_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "category_id": {
+          "autoincrement": false,
+          "name": "category_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
+          "autoincrement": false,
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
+          "autoincrement": false,
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "_status": {
+          "default": "'draft'",
+          "autoincrement": false,
+          "name": "_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "meta_title": {
+          "autoincrement": false,
+          "name": "meta_title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "meta_description": {
+          "autoincrement": false,
+          "name": "meta_description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "meta_image_id": {
+          "autoincrement": false,
+          "name": "meta_image_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "compositePrimaryKeys": {},
+      "indexes": {
+        "posts_meta_meta_image_idx": {
+          "name": "posts_meta_meta_image_idx",
+          "columns": ["meta_image_id"],
+          "isUnique": false
+        },
+        "posts__status_idx": {
+          "name": "posts__status_idx",
+          "columns": ["_status"],
+          "isUnique": false
+        },
+        "posts_created_at_idx": {
+          "name": "posts_created_at_idx",
+          "columns": ["created_at"],
+          "isUnique": false
+        },
+        "posts_updated_at_idx": {
+          "name": "posts_updated_at_idx",
+          "columns": ["updated_at"],
+          "isUnique": false
+        },
+        "posts_category_idx": {
+          "name": "posts_category_idx",
+          "columns": ["category_id"],
+          "isUnique": false
+        },
+        "posts_author_idx": {
+          "name": "posts_author_idx",
+          "columns": ["author_id"],
+          "isUnique": false
+        },
+        "posts_cover_image_idx": {
+          "name": "posts_cover_image_idx",
+          "columns": ["cover_image_id"],
+          "isUnique": false
+        },
+        "posts_slug_idx": {
+          "name": "posts_slug_idx",
+          "columns": ["slug"],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "posts_category_id_categories_id_fk": {
+          "name": "posts_category_id_categories_id_fk",
+          "tableFrom": "posts",
+          "tableTo": "categories",
+          "columnsFrom": ["category_id"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "posts_author_id_users_id_fk": {
+          "name": "posts_author_id_users_id_fk",
+          "tableFrom": "posts",
+          "tableTo": "users",
+          "columnsFrom": ["author_id"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "posts_cover_image_id_media_id_fk": {
+          "name": "posts_cover_image_id_media_id_fk",
+          "tableFrom": "posts",
+          "tableTo": "media",
+          "columnsFrom": ["cover_image_id"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "posts_meta_image_id_media_id_fk": {
+          "name": "posts_meta_image_id_media_id_fk",
+          "tableFrom": "posts",
+          "tableTo": "media",
+          "columnsFrom": ["meta_image_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "categories": {
+      "name": "categories",
+      "columns": {
+        "id": {
+          "autoincrement": false,
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "name": {
+          "autoincrement": false,
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "slug": {
+          "autoincrement": false,
+          "name": "slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "description": {
+          "autoincrement": false,
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "image_id": {
+          "autoincrement": false,
+          "name": "image_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
+          "autoincrement": false,
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
+          "autoincrement": false,
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_by_id": {
+          "autoincrement": false,
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "compositePrimaryKeys": {},
+      "indexes": {
+        "categories_created_by_idx": {
+          "name": "categories_created_by_idx",
+          "columns": ["created_by_id"],
+          "isUnique": false
+        },
+        "categories_created_at_idx": {
+          "name": "categories_created_at_idx",
+          "columns": ["created_at"],
+          "isUnique": false
+        },
+        "categories_updated_at_idx": {
+          "name": "categories_updated_at_idx",
+          "columns": ["updated_at"],
+          "isUnique": false
+        },
+        "categories_image_idx": {
+          "name": "categories_image_idx",
+          "columns": ["image_id"],
+          "isUnique": false
+        },
+        "categories_slug_idx": {
+          "name": "categories_slug_idx",
+          "columns": ["slug"],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "categories_image_id_media_id_fk": {
+          "name": "categories_image_id_media_id_fk",
+          "tableFrom": "categories",
+          "tableTo": "media",
+          "columnsFrom": ["image_id"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "categories_created_by_id_users_id_fk": {
+          "name": "categories_created_by_id_users_id_fk",
+          "tableFrom": "categories",
+          "tableTo": "users",
+          "columnsFrom": ["created_by_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "books": {
+      "name": "books",
+      "columns": {
+        "id": {
+          "autoincrement": false,
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "title": {
+          "autoincrement": false,
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "author": {
+          "autoincrement": false,
+          "name": "author",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "slug": {
+          "autoincrement": false,
+          "name": "slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cover_id": {
+          "autoincrement": false,
+          "name": "cover_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "origin": {
+          "default": "'manual'",
+          "autoincrement": false,
+          "name": "origin",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_type": {
+          "default": "'manual'",
+          "autoincrement": false,
+          "name": "source_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_id": {
+          "autoincrement": false,
+          "name": "source_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source_hash": {
+          "autoincrement": false,
+          "name": "source_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source_version": {
+          "autoincrement": false,
+          "name": "source_version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sync_status": {
+          "default": "'clean'",
+          "autoincrement": false,
+          "name": "sync_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "import_batch_id": {
+          "autoincrement": false,
+          "name": "import_batch_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "import_status": {
+          "default": "'idle'",
+          "autoincrement": false,
+          "name": "import_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "import_total_chapters": {
+          "autoincrement": false,
+          "name": "import_total_chapters",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "import_completed_chapters": {
+          "autoincrement": false,
+          "name": "import_completed_chapters",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "import_started_at": {
+          "autoincrement": false,
+          "name": "import_started_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "import_finished_at": {
+          "autoincrement": false,
+          "name": "import_finished_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "import_failed_at": {
+          "autoincrement": false,
+          "name": "import_failed_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_imported_at": {
+          "autoincrement": false,
+          "name": "last_imported_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "import_error_summary": {
+          "autoincrement": false,
+          "name": "import_error_summary",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_id": {
+          "autoincrement": false,
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
+          "autoincrement": false,
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
+          "autoincrement": false,
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "_status": {
+          "default": "'draft'",
+          "autoincrement": false,
+          "name": "_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "description": {
+          "autoincrement": false,
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "language": {
+          "autoincrement": false,
+          "name": "language",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "publisher": {
+          "autoincrement": false,
+          "name": "publisher",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "publication_date": {
+          "autoincrement": false,
+          "name": "publication_date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "isbn": {
+          "autoincrement": false,
+          "name": "isbn",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "chapter_count": {
+          "autoincrement": false,
+          "name": "chapter_count",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "total_word_count": {
+          "autoincrement": false,
+          "name": "total_word_count",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "epub_version": {
+          "autoincrement": false,
+          "name": "epub_version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "visibility": {
+          "default": "'public'",
+          "autoincrement": false,
+          "name": "visibility",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "compositePrimaryKeys": {},
+      "indexes": {
+        "books_isbn_idx": {
+          "name": "books_isbn_idx",
+          "columns": ["isbn"],
+          "isUnique": false
+        },
+        "books__status_idx": {
+          "name": "books__status_idx",
+          "columns": ["_status"],
+          "isUnique": false
+        },
+        "books_created_at_idx": {
+          "name": "books_created_at_idx",
+          "columns": ["created_at"],
+          "isUnique": false
+        },
+        "books_updated_at_idx": {
+          "name": "books_updated_at_idx",
+          "columns": ["updated_at"],
+          "isUnique": false
+        },
+        "books_import_batch_id_idx": {
+          "name": "books_import_batch_id_idx",
+          "columns": ["import_batch_id"],
+          "isUnique": false
+        },
+        "books_source_hash_idx": {
+          "name": "books_source_hash_idx",
+          "columns": ["source_hash"],
+          "isUnique": false
+        },
+        "books_source_id_idx": {
+          "name": "books_source_id_idx",
+          "columns": ["source_id"],
+          "isUnique": false
+        },
+        "books_created_by_idx": {
+          "name": "books_created_by_idx",
+          "columns": ["created_by_id"],
+          "isUnique": false
+        },
+        "books_cover_idx": {
+          "name": "books_cover_idx",
+          "columns": ["cover_id"],
+          "isUnique": false
+        },
+        "books_slug_idx": {
+          "name": "books_slug_idx",
+          "columns": ["slug"],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "books_created_by_id_users_id_fk": {
+          "name": "books_created_by_id_users_id_fk",
+          "tableFrom": "books",
+          "tableTo": "users",
+          "columnsFrom": ["created_by_id"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "books_cover_id_media_id_fk": {
+          "name": "books_cover_id_media_id_fk",
+          "tableFrom": "books",
+          "tableTo": "media",
+          "columnsFrom": ["cover_id"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "_books_v": {
+      "name": "_books_v",
+      "columns": {
+        "id": {
+          "autoincrement": false,
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "parent_id": {
+          "autoincrement": false,
+          "name": "parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_title": {
+          "autoincrement": false,
+          "name": "version_title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_author": {
+          "autoincrement": false,
+          "name": "version_author",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_slug": {
+          "autoincrement": false,
+          "name": "version_slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_cover_id": {
+          "autoincrement": false,
+          "name": "version_cover_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_origin": {
+          "autoincrement": false,
+          "name": "version_origin",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_source_type": {
+          "autoincrement": false,
+          "name": "version_source_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_source_id": {
+          "autoincrement": false,
+          "name": "version_source_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_source_hash": {
+          "autoincrement": false,
+          "name": "version_source_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_source_version": {
+          "autoincrement": false,
+          "name": "version_source_version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_sync_status": {
+          "autoincrement": false,
+          "name": "version_sync_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_import_batch_id": {
+          "autoincrement": false,
+          "name": "version_import_batch_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_import_status": {
+          "autoincrement": false,
+          "name": "version_import_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_import_total_chapters": {
+          "autoincrement": false,
+          "name": "version_import_total_chapters",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_import_completed_chapters": {
+          "autoincrement": false,
+          "name": "version_import_completed_chapters",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_import_started_at": {
+          "autoincrement": false,
+          "name": "version_import_started_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_import_finished_at": {
+          "autoincrement": false,
+          "name": "version_import_finished_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_import_failed_at": {
+          "autoincrement": false,
+          "name": "version_import_failed_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_last_imported_at": {
+          "autoincrement": false,
+          "name": "version_last_imported_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_import_error_summary": {
+          "autoincrement": false,
+          "name": "version_import_error_summary",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_created_by_id": {
+          "autoincrement": false,
+          "name": "version_created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_updated_at": {
+          "autoincrement": false,
+          "name": "version_updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_created_at": {
+          "autoincrement": false,
+          "name": "version_created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version__status": {
+          "default": "'draft'",
+          "autoincrement": false,
+          "name": "version__status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
+          "autoincrement": false,
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
+          "autoincrement": false,
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "latest": {
+          "autoincrement": false,
+          "name": "latest",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "autosave": {
+          "autoincrement": false,
+          "name": "autosave",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_description": {
+          "autoincrement": false,
+          "name": "version_description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_language": {
+          "autoincrement": false,
+          "name": "version_language",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_publisher": {
+          "autoincrement": false,
+          "name": "version_publisher",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_publication_date": {
+          "autoincrement": false,
+          "name": "version_publication_date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_isbn": {
+          "autoincrement": false,
+          "name": "version_isbn",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_chapter_count": {
+          "autoincrement": false,
+          "name": "version_chapter_count",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_total_word_count": {
+          "autoincrement": false,
+          "name": "version_total_word_count",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_epub_version": {
+          "autoincrement": false,
+          "name": "version_epub_version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_visibility": {
+          "default": "'public'",
+          "autoincrement": false,
+          "name": "version_visibility",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "compositePrimaryKeys": {},
+      "indexes": {
+        "_books_v_version_version_isbn_idx": {
+          "name": "_books_v_version_version_isbn_idx",
+          "columns": ["version_isbn"],
+          "isUnique": false
+        },
+        "_books_v_autosave_idx": {
+          "name": "_books_v_autosave_idx",
+          "columns": ["autosave"],
+          "isUnique": false
+        },
+        "_books_v_latest_idx": {
+          "name": "_books_v_latest_idx",
+          "columns": ["latest"],
+          "isUnique": false
+        },
+        "_books_v_updated_at_idx": {
+          "name": "_books_v_updated_at_idx",
+          "columns": ["updated_at"],
+          "isUnique": false
+        },
+        "_books_v_created_at_idx": {
+          "name": "_books_v_created_at_idx",
+          "columns": ["created_at"],
+          "isUnique": false
+        },
+        "_books_v_version_version__status_idx": {
+          "name": "_books_v_version_version__status_idx",
+          "columns": ["version__status"],
+          "isUnique": false
+        },
+        "_books_v_version_version_created_at_idx": {
+          "name": "_books_v_version_version_created_at_idx",
+          "columns": ["version_created_at"],
+          "isUnique": false
+        },
+        "_books_v_version_version_updated_at_idx": {
+          "name": "_books_v_version_version_updated_at_idx",
+          "columns": ["version_updated_at"],
+          "isUnique": false
+        },
+        "_books_v_version_version_import_batch_id_idx": {
+          "name": "_books_v_version_version_import_batch_id_idx",
+          "columns": ["version_import_batch_id"],
+          "isUnique": false
+        },
+        "_books_v_version_version_source_id_idx": {
+          "name": "_books_v_version_version_source_id_idx",
+          "columns": ["version_source_id"],
+          "isUnique": false
+        },
+        "_books_v_version_version_created_by_idx": {
+          "name": "_books_v_version_version_created_by_idx",
+          "columns": ["version_created_by_id"],
+          "isUnique": false
+        },
+        "_books_v_version_version_cover_idx": {
+          "name": "_books_v_version_version_cover_idx",
+          "columns": ["version_cover_id"],
+          "isUnique": false
+        },
+        "_books_v_version_version_slug_idx": {
+          "name": "_books_v_version_version_slug_idx",
+          "columns": ["version_slug"],
+          "isUnique": false
+        },
+        "_books_v_parent_idx": {
+          "name": "_books_v_parent_idx",
+          "columns": ["parent_id"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "_books_v_version_created_by_id_users_id_fk": {
+          "name": "_books_v_version_created_by_id_users_id_fk",
+          "tableFrom": "_books_v",
+          "tableTo": "users",
+          "columnsFrom": ["version_created_by_id"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "_books_v_version_cover_id_media_id_fk": {
+          "name": "_books_v_version_cover_id_media_id_fk",
+          "tableFrom": "_books_v",
+          "tableTo": "media",
+          "columnsFrom": ["version_cover_id"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "_books_v_parent_id_books_id_fk": {
+          "name": "_books_v_parent_id_books_id_fk",
+          "tableFrom": "_books_v",
+          "tableTo": "books",
+          "columnsFrom": ["parent_id"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "chapters": {
+      "name": "chapters",
+      "columns": {
+        "id": {
+          "autoincrement": false,
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "title": {
+          "autoincrement": false,
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "book_id": {
+          "autoincrement": false,
+          "name": "book_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "order": {
+          "autoincrement": false,
+          "name": "order",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "slug": {
+          "autoincrement": false,
+          "name": "slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "chapter_source_key": {
+          "autoincrement": false,
+          "name": "chapter_source_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "chapter_source_hash": {
+          "autoincrement": false,
+          "name": "chapter_source_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "import_batch_id": {
+          "autoincrement": false,
+          "name": "import_batch_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "manual_edited_at": {
+          "autoincrement": false,
+          "name": "manual_edited_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "content": {
+          "autoincrement": false,
+          "name": "content",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_id": {
+          "autoincrement": false,
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
+          "autoincrement": false,
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
+          "autoincrement": false,
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "_status": {
+          "default": "'draft'",
+          "autoincrement": false,
+          "name": "_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "chapter_word_count": {
+          "autoincrement": false,
+          "name": "chapter_word_count",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "password": {
+          "autoincrement": false,
+          "name": "password",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "has_password": {
+          "default": false,
+          "autoincrement": false,
+          "name": "has_password",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "compositePrimaryKeys": {},
+      "indexes": {
+        "chapters_book_order_unique_idx": {
+          "name": "chapters_book_order_unique_idx",
+          "columns": ["book_id", "order"],
+          "isUnique": true
+        },
+        "chapters__status_idx": {
+          "name": "chapters__status_idx",
+          "columns": ["_status"],
+          "isUnique": false
+        },
+        "chapters_created_at_idx": {
+          "name": "chapters_created_at_idx",
+          "columns": ["created_at"],
+          "isUnique": false
+        },
+        "chapters_updated_at_idx": {
+          "name": "chapters_updated_at_idx",
+          "columns": ["updated_at"],
+          "isUnique": false
+        },
+        "chapters_created_by_idx": {
+          "name": "chapters_created_by_idx",
+          "columns": ["created_by_id"],
+          "isUnique": false
+        },
+        "chapters_manual_edited_at_idx": {
+          "name": "chapters_manual_edited_at_idx",
+          "columns": ["manual_edited_at"],
+          "isUnique": false
+        },
+        "chapters_import_batch_id_idx": {
+          "name": "chapters_import_batch_id_idx",
+          "columns": ["import_batch_id"],
+          "isUnique": false
+        },
+        "chapters_chapter_source_hash_idx": {
+          "name": "chapters_chapter_source_hash_idx",
+          "columns": ["chapter_source_hash"],
+          "isUnique": false
+        },
+        "chapters_chapter_source_key_idx": {
+          "name": "chapters_chapter_source_key_idx",
+          "columns": ["chapter_source_key"],
+          "isUnique": false
+        },
+        "chapters_slug_idx": {
+          "name": "chapters_slug_idx",
+          "columns": ["slug"],
+          "isUnique": false
+        },
+        "chapters_order_idx": {
+          "name": "chapters_order_idx",
+          "columns": ["order"],
+          "isUnique": false
+        },
+        "chapters_book_idx": {
+          "name": "chapters_book_idx",
+          "columns": ["book_id"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "chapters_created_by_id_users_id_fk": {
+          "name": "chapters_created_by_id_users_id_fk",
+          "tableFrom": "chapters",
+          "tableTo": "users",
+          "columnsFrom": ["created_by_id"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "chapters_book_id_books_id_fk": {
+          "name": "chapters_book_id_books_id_fk",
+          "tableFrom": "chapters",
+          "tableTo": "books",
+          "columnsFrom": ["book_id"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "_chapters_v": {
+      "name": "_chapters_v",
+      "columns": {
+        "id": {
+          "autoincrement": false,
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "parent_id": {
+          "autoincrement": false,
+          "name": "parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_title": {
+          "autoincrement": false,
+          "name": "version_title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_book_id": {
+          "autoincrement": false,
+          "name": "version_book_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_order": {
+          "autoincrement": false,
+          "name": "version_order",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_slug": {
+          "autoincrement": false,
+          "name": "version_slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_chapter_source_key": {
+          "autoincrement": false,
+          "name": "version_chapter_source_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_chapter_source_hash": {
+          "autoincrement": false,
+          "name": "version_chapter_source_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_import_batch_id": {
+          "autoincrement": false,
+          "name": "version_import_batch_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_manual_edited_at": {
+          "autoincrement": false,
+          "name": "version_manual_edited_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_content": {
+          "autoincrement": false,
+          "name": "version_content",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_created_by_id": {
+          "autoincrement": false,
+          "name": "version_created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_updated_at": {
+          "autoincrement": false,
+          "name": "version_updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_created_at": {
+          "autoincrement": false,
+          "name": "version_created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version__status": {
+          "default": "'draft'",
+          "autoincrement": false,
+          "name": "version__status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
+          "autoincrement": false,
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
+          "autoincrement": false,
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "latest": {
+          "autoincrement": false,
+          "name": "latest",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "autosave": {
+          "autoincrement": false,
+          "name": "autosave",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_chapter_word_count": {
+          "autoincrement": false,
+          "name": "version_chapter_word_count",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_password": {
+          "autoincrement": false,
+          "name": "version_password",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_has_password": {
+          "default": false,
+          "autoincrement": false,
+          "name": "version_has_password",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "compositePrimaryKeys": {},
+      "indexes": {
+        "_chapters_v_autosave_idx": {
+          "name": "_chapters_v_autosave_idx",
+          "columns": ["autosave"],
+          "isUnique": false
+        },
+        "_chapters_v_latest_idx": {
+          "name": "_chapters_v_latest_idx",
+          "columns": ["latest"],
+          "isUnique": false
+        },
+        "_chapters_v_updated_at_idx": {
+          "name": "_chapters_v_updated_at_idx",
+          "columns": ["updated_at"],
+          "isUnique": false
+        },
+        "_chapters_v_created_at_idx": {
+          "name": "_chapters_v_created_at_idx",
+          "columns": ["created_at"],
+          "isUnique": false
+        },
+        "_chapters_v_version_version__status_idx": {
+          "name": "_chapters_v_version_version__status_idx",
+          "columns": ["version__status"],
+          "isUnique": false
+        },
+        "_chapters_v_version_version_created_at_idx": {
+          "name": "_chapters_v_version_version_created_at_idx",
+          "columns": ["version_created_at"],
+          "isUnique": false
+        },
+        "_chapters_v_version_version_updated_at_idx": {
+          "name": "_chapters_v_version_version_updated_at_idx",
+          "columns": ["version_updated_at"],
+          "isUnique": false
+        },
+        "_chapters_v_version_version_created_by_idx": {
+          "name": "_chapters_v_version_version_created_by_idx",
+          "columns": ["version_created_by_id"],
+          "isUnique": false
+        },
+        "_chapters_v_version_version_manual_edited_at_idx": {
+          "name": "_chapters_v_version_version_manual_edited_at_idx",
+          "columns": ["version_manual_edited_at"],
+          "isUnique": false
+        },
+        "_chapters_v_version_version_import_batch_id_idx": {
+          "name": "_chapters_v_version_version_import_batch_id_idx",
+          "columns": ["version_import_batch_id"],
+          "isUnique": false
+        },
+        "_chapters_v_version_version_chapter_source_hash_idx": {
+          "name": "_chapters_v_version_version_chapter_source_hash_idx",
+          "columns": ["version_chapter_source_hash"],
+          "isUnique": false
+        },
+        "_chapters_v_version_version_chapter_source_key_idx": {
+          "name": "_chapters_v_version_version_chapter_source_key_idx",
+          "columns": ["version_chapter_source_key"],
+          "isUnique": false
+        },
+        "_chapters_v_version_version_slug_idx": {
+          "name": "_chapters_v_version_version_slug_idx",
+          "columns": ["version_slug"],
+          "isUnique": false
+        },
+        "_chapters_v_version_version_order_idx": {
+          "name": "_chapters_v_version_version_order_idx",
+          "columns": ["version_order"],
+          "isUnique": false
+        },
+        "_chapters_v_version_version_book_idx": {
+          "name": "_chapters_v_version_version_book_idx",
+          "columns": ["version_book_id"],
+          "isUnique": false
+        },
+        "_chapters_v_parent_idx": {
+          "name": "_chapters_v_parent_idx",
+          "columns": ["parent_id"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "_chapters_v_version_created_by_id_users_id_fk": {
+          "name": "_chapters_v_version_created_by_id_users_id_fk",
+          "tableFrom": "_chapters_v",
+          "tableTo": "users",
+          "columnsFrom": ["version_created_by_id"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "_chapters_v_version_book_id_books_id_fk": {
+          "name": "_chapters_v_version_book_id_books_id_fk",
+          "tableFrom": "_chapters_v",
+          "tableTo": "books",
+          "columnsFrom": ["version_book_id"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "_chapters_v_parent_id_chapters_id_fk": {
+          "name": "_chapters_v_parent_id_chapters_id_fk",
+          "tableFrom": "_chapters_v",
+          "tableTo": "chapters",
+          "columnsFrom": ["parent_id"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "books_subjects": {
+      "name": "books_subjects",
+      "columns": {
+        "_order": {
+          "autoincrement": false,
+          "name": "_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "_parent_id": {
+          "autoincrement": false,
+          "name": "_parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id": {
+          "autoincrement": false,
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "subject": {
+          "autoincrement": false,
+          "name": "subject",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "compositePrimaryKeys": {},
+      "indexes": {
+        "books_subjects_parent_id_idx": {
+          "name": "books_subjects_parent_id_idx",
+          "columns": ["_parent_id"],
+          "isUnique": false
+        },
+        "books_subjects_order_idx": {
+          "name": "books_subjects_order_idx",
+          "columns": ["_order"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "books_subjects__parent_id_books_id_fk": {
+          "name": "books_subjects__parent_id_books_id_fk",
+          "tableFrom": "books_subjects",
+          "tableTo": "books",
+          "columnsFrom": ["_parent_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "_books_v_version_subjects": {
+      "name": "_books_v_version_subjects",
+      "columns": {
+        "_order": {
+          "autoincrement": false,
+          "name": "_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "_parent_id": {
+          "autoincrement": false,
+          "name": "_parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id": {
+          "autoincrement": false,
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "subject": {
+          "autoincrement": false,
+          "name": "subject",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "_uuid": {
+          "autoincrement": false,
+          "name": "_uuid",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "compositePrimaryKeys": {},
+      "indexes": {
+        "_books_v_version_subjects_parent_id_idx": {
+          "name": "_books_v_version_subjects_parent_id_idx",
+          "columns": ["_parent_id"],
+          "isUnique": false
+        },
+        "_books_v_version_subjects_order_idx": {
+          "name": "_books_v_version_subjects_order_idx",
+          "columns": ["_order"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "_books_v_version_subjects__parent_id__books_v_id_fk": {
+          "name": "_books_v_version_subjects__parent_id__books_v_id_fk",
+          "tableFrom": "_books_v_version_subjects",
+          "tableTo": "_books_v",
+          "columnsFrom": ["_parent_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "books_import_failure_log": {
+      "name": "books_import_failure_log",
+      "columns": {
+        "_order": {
+          "autoincrement": false,
+          "name": "_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "_parent_id": {
+          "autoincrement": false,
+          "name": "_parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id": {
+          "autoincrement": false,
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "chapter_index": {
+          "autoincrement": false,
+          "name": "chapter_index",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "chapter_title": {
+          "autoincrement": false,
+          "name": "chapter_title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "error": {
+          "autoincrement": false,
+          "name": "error",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "timestamp": {
+          "autoincrement": false,
+          "name": "timestamp",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "compositePrimaryKeys": {},
+      "indexes": {
+        "books_import_failure_log_parent_id_idx": {
+          "name": "books_import_failure_log_parent_id_idx",
+          "columns": ["_parent_id"],
+          "isUnique": false
+        },
+        "books_import_failure_log_order_idx": {
+          "name": "books_import_failure_log_order_idx",
+          "columns": ["_order"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "books_import_failure_log__parent_id_books_id_fk": {
+          "name": "books_import_failure_log__parent_id_books_id_fk",
+          "tableFrom": "books_import_failure_log",
+          "tableTo": "books",
+          "columnsFrom": ["_parent_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "_books_v_version_import_failure_log": {
+      "name": "_books_v_version_import_failure_log",
+      "columns": {
+        "_order": {
+          "autoincrement": false,
+          "name": "_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "_parent_id": {
+          "autoincrement": false,
+          "name": "_parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id": {
+          "autoincrement": false,
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "chapter_index": {
+          "autoincrement": false,
+          "name": "chapter_index",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "chapter_title": {
+          "autoincrement": false,
+          "name": "chapter_title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "error": {
+          "autoincrement": false,
+          "name": "error",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "timestamp": {
+          "autoincrement": false,
+          "name": "timestamp",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "_uuid": {
+          "autoincrement": false,
+          "name": "_uuid",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "compositePrimaryKeys": {},
+      "indexes": {
+        "_books_v_version_import_failure_log_parent_id_idx": {
+          "name": "_books_v_version_import_failure_log_parent_id_idx",
+          "columns": ["_parent_id"],
+          "isUnique": false
+        },
+        "_books_v_version_import_failure_log_order_idx": {
+          "name": "_books_v_version_import_failure_log_order_idx",
+          "columns": ["_order"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "_books_v_version_import_failure_log__parent_id__books_v_id_fk": {
+          "name": "_books_v_version_import_failure_log__parent_id__books_v_id_fk",
+          "tableFrom": "_books_v_version_import_failure_log",
+          "tableTo": "_books_v",
+          "columnsFrom": ["_parent_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "grant_mirror": {
+      "name": "grant_mirror",
+      "columns": {
+        "id": {
+          "autoincrement": false,
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "auther_tuple_id": {
+          "autoincrement": false,
+          "name": "auther_tuple_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "payload_user_id_id": {
+          "autoincrement": false,
+          "name": "payload_user_id_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "entity_type": {
+          "autoincrement": false,
+          "name": "entity_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "entity_id": {
+          "autoincrement": false,
+          "name": "entity_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "relation": {
+          "autoincrement": false,
+          "name": "relation",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_subject_type": {
+          "autoincrement": false,
+          "name": "source_subject_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "requires_live_check": {
+          "default": false,
+          "autoincrement": false,
+          "name": "requires_live_check",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sync_status": {
+          "default": "'active'",
+          "autoincrement": false,
+          "name": "sync_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "synced_at": {
+          "autoincrement": false,
+          "name": "synced_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
+          "autoincrement": false,
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
+          "autoincrement": false,
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "compositePrimaryKeys": {},
+      "indexes": {
+        "syncStatus_syncedAt_idx": {
+          "name": "syncStatus_syncedAt_idx",
+          "columns": ["sync_status", "synced_at"],
+          "isUnique": false
+        },
+        "sourceSubjectType_payloadUserId_idx": {
+          "name": "sourceSubjectType_payloadUserId_idx",
+          "columns": ["source_subject_type", "payload_user_id_id"],
+          "isUnique": false
+        },
+        "payloadUserId_entityType_syncStatus_idx": {
+          "name": "payloadUserId_entityType_syncStatus_idx",
+          "columns": ["payload_user_id_id", "entity_type", "sync_status"],
+          "isUnique": false
+        },
+        "grant_mirror_created_at_idx": {
+          "name": "grant_mirror_created_at_idx",
+          "columns": ["created_at"],
+          "isUnique": false
+        },
+        "grant_mirror_updated_at_idx": {
+          "name": "grant_mirror_updated_at_idx",
+          "columns": ["updated_at"],
+          "isUnique": false
+        },
+        "grant_mirror_payload_user_id_idx": {
+          "name": "grant_mirror_payload_user_id_idx",
+          "columns": ["payload_user_id_id"],
+          "isUnique": false
+        },
+        "grant_mirror_auther_tuple_id_idx": {
+          "name": "grant_mirror_auther_tuple_id_idx",
+          "columns": ["auther_tuple_id"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "grant_mirror_payload_user_id_id_users_id_fk": {
+          "name": "grant_mirror_payload_user_id_id_users_id_fk",
+          "tableFrom": "grant_mirror",
+          "tableTo": "users",
+          "columnsFrom": ["payload_user_id_id"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "deferred_grants": {
+      "name": "deferred_grants",
+      "columns": {
+        "id": {
+          "autoincrement": false,
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "better_auth_user_id": {
+          "autoincrement": false,
+          "name": "better_auth_user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tuple_id": {
+          "autoincrement": false,
+          "name": "tuple_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "entity_type": {
+          "autoincrement": false,
+          "name": "entity_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "entity_id": {
+          "autoincrement": false,
+          "name": "entity_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "relation": {
+          "autoincrement": false,
+          "name": "relation",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_subject_type": {
+          "autoincrement": false,
+          "name": "source_subject_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "has_condition": {
+          "default": false,
+          "autoincrement": false,
+          "name": "has_condition",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "default": "'pending'",
+          "autoincrement": false,
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "processed_at": {
+          "autoincrement": false,
+          "name": "processed_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
+          "autoincrement": false,
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))",
+          "autoincrement": false,
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "type": {
+          "default": "'grant'",
+          "autoincrement": false,
+          "name": "type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "compositePrimaryKeys": {},
+      "indexes": {
+        "deferred_grants_type_idx": {
+          "name": "deferred_grants_type_idx",
+          "columns": ["type"],
+          "isUnique": false
+        },
+        "deferred_grants_created_at_idx": {
+          "name": "deferred_grants_created_at_idx",
+          "columns": ["created_at"],
+          "isUnique": false
+        },
+        "deferred_grants_updated_at_idx": {
+          "name": "deferred_grants_updated_at_idx",
+          "columns": ["updated_at"],
+          "isUnique": false
+        },
+        "deferred_grants_status_idx": {
+          "name": "deferred_grants_status_idx",
+          "columns": ["status"],
+          "isUnique": false
+        },
+        "deferred_grants_tuple_id_idx": {
+          "name": "deferred_grants_tuple_id_idx",
+          "columns": ["tuple_id"],
+          "isUnique": false
+        },
+        "deferred_grants_better_auth_user_id_idx": {
+          "name": "deferred_grants_better_auth_user_id_idx",
+          "columns": ["better_auth_user_id"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    }
+  },
+  "views": {},
+  "enums": {},
+  "_meta": {
+    "schemas": {},
+    "tables": {},
+    "columns": {}
+  }
+}

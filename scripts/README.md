@@ -4,6 +4,34 @@ This directory contains utility scripts for managing the PayloadCMS project.
 
 ## Available Scripts
 
+### `drizzle-introspect.sh`
+
+Rebuilds the local SQLite database from Payload migrations, then introspects the resulting schema into a Drizzle output directory.
+
+**Usage:**
+```bash
+pnpm drizzle:introspect
+```
+
+**Options:**
+- `--db FILE`: SQLite file to migrate and introspect, defaults to `./.payload/data.sqlite`
+- `--out DIR`: Output directory for the generated Drizzle files, defaults to `./shared/db/generated`
+- `--fresh`: Drop the SQLite database and re-run all migrations from scratch, this is the default
+- `--migrate`: Apply only pending migrations against the current database
+- `--no-format`: Skip Prettier formatting of the generated output
+
+**Example:**
+```bash
+bash scripts/drizzle-introspect.sh --db .payload/data.sqlite --out ./shared/db/generated
+```
+
+The script runs the same sequence used for local schema inspection:
+1. Apply Payload migrations to the selected SQLite database
+2. Run `drizzle-kit pull` against that database
+3. Format the generated files with Prettier
+
+---
+
 ### `promote-user.ts`
 
 Promotes a user to admin role by directly updating the database.

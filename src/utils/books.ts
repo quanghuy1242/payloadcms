@@ -10,24 +10,25 @@ import { ownerAccess } from './access-shared'
 import { normalizeEntityId } from './identifiers'
 import { requestJSONWithRetry } from './http'
 import { toPositiveInteger } from './numbers'
+import {
+  BOOK_IMPORT_STATUSES,
+  BOOK_ORIGINS,
+  BOOK_SOURCE_TYPES,
+  BOOK_SYNC_STATUSES,
+  type BookImportStatus,
+  type BookOrigin,
+  type BookSourceType,
+  type BookSyncStatus,
+} from '../../shared/books/constants'
 
-/** All valid book origin values, representing how a book was created. */
-export const BOOK_ORIGINS = ['manual', 'epub-imported', 'synced'] as const
-/** All valid book source type values, representing the data source for a book's content. */
-export const BOOK_SOURCE_TYPES = ['manual', 'epub-upload', 'meap-feed', 'external-sync'] as const
-/** All valid import status values for a book's EPUB import lifecycle. */
-export const BOOK_IMPORT_STATUSES = ['idle', 'importing', 'ready', 'failed', 'canceled'] as const
-/** All valid sync status values describing whether a book's remote content is in sync. */
-export const BOOK_SYNC_STATUSES = ['clean', 'pending', 'conflicted', 'diverged'] as const
+export {
+  BOOK_IMPORT_STATUSES,
+  BOOK_ORIGINS,
+  BOOK_SOURCE_TYPES,
+  BOOK_SYNC_STATUSES,
+}
 
-/** A book origin — one of the values in {@link BOOK_ORIGINS}. */
-export type BookOrigin = (typeof BOOK_ORIGINS)[number]
-/** A book source type — one of the values in {@link BOOK_SOURCE_TYPES}. */
-export type BookSourceType = (typeof BOOK_SOURCE_TYPES)[number]
-/** An import status — one of the values in {@link BOOK_IMPORT_STATUSES}. */
-export type BookImportStatus = (typeof BOOK_IMPORT_STATUSES)[number]
-/** A sync status — one of the values in {@link BOOK_SYNC_STATUSES}. */
-export type BookSyncStatus = (typeof BOOK_SYNC_STATUSES)[number]
+export type { BookImportStatus, BookOrigin, BookSourceType, BookSyncStatus }
 
 /** Custom event name dispatched when a book's chapter list changes. */
 export const BOOK_CHAPTERS_UPDATED_EVENT = 'payload:book-chapters-updated' as const
