@@ -29,7 +29,9 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-          cache-dependency-path: honoyoga/pnpm-lock.yaml
+          cache-dependency-path: |
+            pnpm-lock.yaml
+            honoyoga/pnpm-lock.yaml
 
       - name: Validate required secrets
         shell: bash
@@ -46,6 +48,9 @@ jobs:
               exit 1
             fi
           done
+
+      - name: Install repository dependencies
+        run: pnpm install --frozen-lockfile
 
       - name: Install worker dependencies
         run: pnpm --dir honoyoga install --frozen-lockfile
