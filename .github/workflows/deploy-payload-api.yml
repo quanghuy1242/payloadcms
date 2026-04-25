@@ -82,4 +82,4 @@ jobs:
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        run: pnpm --dir honoyoga exec wrangler deploy --config wrangler.jsonc --yes --secrets-file .ci-secrets.json
+        run: pnpm --dir honoyoga exec wrangler deploy --config wrangler.jsonc --secrets-file .ci-secrets.json
