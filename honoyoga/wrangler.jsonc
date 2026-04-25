@@ -2,6 +2,9 @@
   "name": "payload-api",
   "main": "src/index.ts",
   "compatibility_date": "2026-04-25",
+  "alias": {
+    "graphql": "../node_modules/graphql/index.js"
+  },
   "secrets": {
     "required": ["AUTH_BASE_URL", "TURSO_DATABASE_URL", "TURSO_AUTH_TOKEN"],
   },
