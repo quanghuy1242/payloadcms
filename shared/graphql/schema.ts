@@ -61,6 +61,46 @@ const capitalize = (value: string) => {
   return value[0].toUpperCase() + value.slice(1)
 }
 
+const validGraphQLNamePattern = /^[_A-Za-z][_0-9A-Za-z]*$/
+
+// Keep the stored string as the runtime value, but expose a GraphQL-safe name.
+const toGraphQLEnumValueName = (value: string) => {
+  if (validGraphQLNamePattern.test(value) && !value.startsWith('__')) {
+    return value
+  }
+
+  const normalized = value
+    .trim()
+    .normalize('NFKD')
+    .replace(/[^_0-9A-Za-z]+/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_+|_+$/g, '')
+
+  if (normalized.length === 0) {
+    return 'VALUE'
+  }
+
+  const name = /^[0-9]/.test(normalized) ? `_${normalized}` : normalized
+
+  return name.startsWith('__') ? `_${name}` : name
+}
+
+const buildGraphQLEnumValues = (values: readonly string[]) => {
+  const enumValues: Record<string, { value: string }> = {}
+  const usedNames = new Map<string, number>()
+
+  for (const value of values) {
+    const baseName = toGraphQLEnumValueName(value)
+    const usageCount = usedNames.get(baseName) ?? 0
+    const name = usageCount === 0 ? baseName : `${baseName}_${usageCount + 1}`
+
+    usedNames.set(baseName, usageCount + 1)
+    enumValues[name] = { value }
+  }
+
+  return enumValues
+}
+
 const getEnumType = (typeName: string, values: readonly string[]) => {
   const cacheKey = `${typeName}:${values.join('|')}`
   const cached = enumTypeCache.get(cacheKey)
@@ -71,7 +111,7 @@ const getEnumType = (typeName: string, values: readonly string[]) => {
 
   const enumType = new GraphQLEnumType({
     name: typeName,
-    values: Object.fromEntries(values.map((value) => [value, { value }])),
+    values: buildGraphQLEnumValues(values),
   })
 
   enumTypeCache.set(cacheKey, enumType)
