@@ -71,9 +71,9 @@ describe('Gated content API routes', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     const getResponse = await getBookAccess(new Request('https://example.test/api/books/42/access'), {
-      params: {
+      params: Promise.resolve({
         id: '42',
-      },
+      }),
     })
 
     expect(getResponse.status).toBe(200)
@@ -113,9 +113,9 @@ describe('Gated content API routes', () => {
         method: 'POST',
       }),
       {
-        params: {
+        params: Promise.resolve({
           id: '42',
-        },
+        }),
       },
     )
 
@@ -168,9 +168,9 @@ describe('Gated content API routes', () => {
         method: 'POST',
       }),
       {
-        params: {
+        params: Promise.resolve({
           id: '7',
-        },
+        }),
       },
     )
 
@@ -188,9 +188,9 @@ describe('Gated content API routes', () => {
         method: 'POST',
       }),
       {
-        params: {
+        params: Promise.resolve({
           id: '7',
-        },
+        }),
       },
     )
 
@@ -212,9 +212,9 @@ describe('Gated content API routes', () => {
           method: 'POST',
         }),
         {
-          params: {
+          params: Promise.resolve({
             id: '7',
-          },
+          }),
         },
       )
 

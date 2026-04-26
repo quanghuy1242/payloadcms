@@ -1,5 +1,10 @@
 import type { Payload } from 'payload'
 
+import {
+  normalizeBetterAuthRoles,
+  pickPreferredBetterAuthRole,
+} from '../../../shared/auth/tokens'
+
 import type { User } from '../../payload-types'
 import type { BetterAuthTokenPayload } from './tokens'
 
@@ -10,37 +15,6 @@ const isNonNullString = (value: unknown): value is string => typeof value === 's
 type UpsertBetterAuthUserArgs = {
   payload: Payload
   token: BetterAuthTokenPayload
-}
-
-const normalizeBetterAuthRole = (value: BetterAuthTokenPayload['roles']): string[] => {
-  if (Array.isArray(value)) {
-    return value.map((role) => role.trim()).filter((role) => role.length > 0)
-  }
-
-  if (typeof value === 'string' && value.trim().length > 0) {
-    return value
-      .split(',')
-      .map((role) => role.trim())
-      .filter((role) => role.length > 0)
-  }
-
-  return []
-}
-
-const pickPreferredRole = (roles: string[]): User['role'] | null => {
-  if (roles.length === 0) {
-    return null
-  }
-
-  if (roles.some((role) => role === 'admin')) {
-    return 'admin'
-  }
-
-  if (roles.some((role) => role === 'user')) {
-    return 'user'
-  }
-
-  return null
 }
 
 const updateUserIfNecessary = async ({
@@ -91,7 +65,7 @@ export const upsertBetterAuthUser = async ({
   const tokenEmail = isNonNullString(token.email) ? token.email.trim().toLowerCase() : null
   const tokenName = isNonNullString(token.name) ? token.name.trim() : null
 
-  const rolesFromToken = pickPreferredRole(normalizeBetterAuthRole(token.roles))
+  const rolesFromToken = pickPreferredBetterAuthRole(normalizeBetterAuthRoles(token.roles))
 
   if (existingUser) {
     const updates: Partial<User> = {}
