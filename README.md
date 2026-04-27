@@ -120,6 +120,10 @@ R2_ACCESS_KEY_ID=your-key-id
 R2_SECRET_ACCESS_KEY=your-secret
 R2_PUBLIC_BASE_URL=https://cdn.example.com
 
+# Optional best-effort Cloudflare cache purge
+CLOUDFLARE_CACHE_ZONE_ID=your-cloudflare-zone-id
+CLOUDFLARE_CACHE_API_TOKEN=your-cloudflare-api-token
+
 # Auth service (Better Auth + Auther endpoints)
 AUTH_BASE_URL=https://auth.example.com
 AUTHER_API_KEY=your-auther-internal-api-key

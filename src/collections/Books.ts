@@ -14,6 +14,8 @@ import {
   BOOK_SYNC_STATUSES,
   bookDeleteAccess,
   enforceBookHasNoChaptersBeforeDelete,
+  booksCachePurgeAfterChangeHook,
+  booksCachePurgeAfterDeleteHook,
 } from '../utils/books'
 import { enforceOwnershipHook } from '../utils/ownership'
 import { createRandomizedSlugHook, validateImmutableSlug } from '../utils/slug'
@@ -81,8 +83,9 @@ export const Books: CollectionConfig = {
       createRandomizedSlugHook('title', { localeField: 'language', defaultLocale: 'en' }),
     ],
     beforeChange: [applyBookImportLifecycleHook],
+    afterChange: [booksCachePurgeAfterChangeHook],
     beforeDelete: [enforceBookHasNoChaptersBeforeDelete],
-    afterDelete: [booksAfterDeleteGrantMirrorHook],
+    afterDelete: [booksAfterDeleteGrantMirrorHook, booksCachePurgeAfterDeleteHook],
   },
   fields: [
     {

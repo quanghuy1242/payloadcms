@@ -8,6 +8,9 @@ const createUrlSchema = () =>
 
 const r2PublicBaseUrlSchema = createUrlSchema()
 
+const cloudflareCacheZoneIdSchema = z.string().trim().min(1)
+const cloudflareCacheApiTokenSchema = z.string().trim().min(1)
+
 const autherBaseUrlSchema = createUrlSchema()
 
 const autherApiKeySchema = z.string().trim().min(1)
@@ -18,6 +21,8 @@ const qstashTokenSchema = z.string().trim().min(1)
 const qstashSigningKeySchema = z.string().trim().min(1)
 
 let cachedR2PublicBaseUrl: string | null | undefined
+let cachedCloudflareCacheZoneId: string | null | undefined
+let cachedCloudflareCacheApiToken: string | null | undefined
 let cachedAutherBaseUrl: string | undefined
 let cachedAutherApiKey: string | undefined
 let cachedAutherWebhookSecret: string | undefined
@@ -44,6 +49,46 @@ export const getR2PublicBaseUrl = (): string | null => {
   cachedR2PublicBaseUrl = r2PublicBaseUrlSchema.parse(value)
 
   return cachedR2PublicBaseUrl
+}
+
+export const getCloudflareCacheZoneId = (): string | null => {
+  if (cachedCloudflareCacheZoneId !== undefined) {
+    return cachedCloudflareCacheZoneId
+  }
+
+  const value = process.env.CLOUDFLARE_CACHE_ZONE_ID
+
+  if (!value) {
+    cachedCloudflareCacheZoneId = null
+
+    return cachedCloudflareCacheZoneId
+  }
+
+  const parsedValue = cloudflareCacheZoneIdSchema.safeParse(value)
+
+  cachedCloudflareCacheZoneId = parsedValue.success ? parsedValue.data : null
+
+  return cachedCloudflareCacheZoneId
+}
+
+export const getCloudflareCacheApiToken = (): string | null => {
+  if (cachedCloudflareCacheApiToken !== undefined) {
+    return cachedCloudflareCacheApiToken
+  }
+
+  const value = process.env.CLOUDFLARE_CACHE_API_TOKEN
+
+  if (!value) {
+    cachedCloudflareCacheApiToken = null
+
+    return cachedCloudflareCacheApiToken
+  }
+
+  const parsedValue = cloudflareCacheApiTokenSchema.safeParse(value)
+
+  cachedCloudflareCacheApiToken = parsedValue.success ? parsedValue.data : null
+
+  return cachedCloudflareCacheApiToken
 }
 
 export const getAutherBaseUrl = (): string => {

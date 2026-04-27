@@ -15,6 +15,8 @@ import {
 import {
   enforceChapterBookOwnershipHook,
   enforceUniqueChapterOrderHook,
+  chaptersCachePurgeAfterChangeHook,
+  chaptersCachePurgeAfterDeleteHook,
 } from '../utils/books'
 import { enforceOwnershipHook } from '../utils/ownership'
 import { createSlugHook } from '../utils/slug'
@@ -55,6 +57,8 @@ export const Chapters: CollectionConfig = {
   hooks: {
     beforeValidate: [enforceOwnershipHook('createdBy'), createSlugHook('title')],
     beforeChange: [syncChapterPasswordStateHook, enforceChapterBookOwnershipHook, enforceUniqueChapterOrderHook],
+    afterChange: [chaptersCachePurgeAfterChangeHook],
+    afterDelete: [chaptersCachePurgeAfterDeleteHook],
     afterRead: [applyChapterPasswordReadStateHook],
   },
   fields: [

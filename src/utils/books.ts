@@ -1,9 +1,13 @@
 import type {
   Access,
+  CollectionAfterChangeHook,
+  CollectionAfterDeleteHook,
   CollectionBeforeChangeHook,
   CollectionBeforeDeleteHook,
   PayloadRequest,
 } from 'payload'
+
+import { purgeCloudflareCacheTags } from '@/lib/cloudflareCache'
 
 import { ownerAccess } from './access-shared'
 import { normalizeEntityId } from './identifiers'
@@ -31,6 +35,15 @@ export type BookSyncStatus = (typeof BOOK_SYNC_STATUSES)[number]
 /** Custom event name dispatched when a book's chapter list changes. */
 export const BOOK_CHAPTERS_UPDATED_EVENT = 'payload:book-chapters-updated' as const
 
+export const BOOKS_LIST_CACHE_TAG = 'books:list' as const
+
+const BOOK_CACHE_TAG_PREFIX = 'book:'
+const BOOK_SLUG_CACHE_TAG_PREFIX = 'book:slug:'
+const CHAPTER_CACHE_TAG_PREFIX = 'chapter:'
+const CHAPTER_SLUG_CACHE_TAG_PREFIX = 'chapter:slug:'
+const CHAPTERS_BY_BOOK_CACHE_TAG_PREFIX = 'chapters:book:'
+const CHAPTER_PAGE_CACHE_TAG_PREFIX = 'chapter-page:book:'
+
 type BookRecord = {
   importErrorSummary?: string | null
   importFailedAt?: string | null
@@ -43,6 +56,131 @@ type BookRecord = {
 
 const nowISO = () => {
   return new Date().toISOString()
+}
+
+const normalizeCacheTagValue = (value: unknown): string | null => {
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) {
+      return null
+    }
+
+    const normalizedValue = String(Math.trunc(value)).trim()
+
+    return normalizedValue.length > 0 ? normalizedValue : null
+  }
+
+  if (typeof value !== 'string') {
+    return null
+  }
+
+  const trimmedValue = value.trim()
+
+  return trimmedValue.length > 0 ? trimmedValue : null
+}
+
+const buildScopedCacheTag = (prefix: string, value: unknown): string | null => {
+  const normalizedValue = normalizeCacheTagValue(value)
+
+  if (!normalizedValue) {
+    return null
+  }
+
+  return `${prefix}${normalizedValue}`
+}
+
+const buildScopedRouteCacheTag = (
+  prefix: string,
+  firstValue: unknown,
+  secondValue: unknown,
+): string | null => {
+  const normalizedFirstValue = normalizeCacheTagValue(firstValue)
+  const normalizedSecondValue = normalizeCacheTagValue(secondValue)
+
+  if (!normalizedFirstValue || !normalizedSecondValue) {
+    return null
+  }
+
+  return `${prefix}${normalizedFirstValue}:${normalizedSecondValue}`
+}
+
+export const normalizeCacheTags = (tags: Array<string | null | undefined>): string[] => {
+  return Array.from(
+    new Set(
+      tags
+        .map((tag) => (typeof tag === 'string' ? tag.trim() : ''))
+        .filter((tag) => tag.length > 0),
+    ),
+  )
+}
+
+export const buildBooksListCacheTags = (): string[] => {
+  return [BOOKS_LIST_CACHE_TAG]
+}
+
+export const buildBookCacheTags = (bookId: unknown): string[] => {
+  return normalizeCacheTags([buildScopedCacheTag(BOOK_CACHE_TAG_PREFIX, bookId)])
+}
+
+export const buildBookSlugCacheTags = (bookSlug: unknown): string[] => {
+  return normalizeCacheTags([buildScopedCacheTag(BOOK_SLUG_CACHE_TAG_PREFIX, bookSlug)])
+}
+
+export const buildBookDetailCacheTags = (bookId: unknown): string[] => {
+  return normalizeCacheTags([
+    buildScopedCacheTag(BOOK_CACHE_TAG_PREFIX, bookId),
+    buildScopedCacheTag(CHAPTERS_BY_BOOK_CACHE_TAG_PREFIX, bookId),
+  ])
+}
+
+export const buildChaptersByBookCacheTags = (bookId: unknown): string[] => {
+  return normalizeCacheTags([buildScopedCacheTag(CHAPTERS_BY_BOOK_CACHE_TAG_PREFIX, bookId)])
+}
+
+export const buildChapterPageCacheTags = (bookId: unknown, chapterId?: unknown): string[] => {
+  return normalizeCacheTags([
+    buildScopedCacheTag(BOOK_CACHE_TAG_PREFIX, bookId),
+    buildScopedCacheTag(CHAPTER_CACHE_TAG_PREFIX, chapterId),
+    buildScopedCacheTag(CHAPTERS_BY_BOOK_CACHE_TAG_PREFIX, bookId),
+  ])
+}
+
+export const buildChapterPageLookupCacheTags = (
+  bookId: unknown,
+  chapterSlug: unknown,
+): string[] => {
+  return normalizeCacheTags([
+    buildScopedRouteCacheTag(CHAPTER_PAGE_CACHE_TAG_PREFIX, bookId, chapterSlug),
+    buildScopedCacheTag(BOOK_CACHE_TAG_PREFIX, bookId),
+    buildScopedCacheTag(CHAPTER_SLUG_CACHE_TAG_PREFIX, chapterSlug),
+    buildScopedCacheTag(CHAPTERS_BY_BOOK_CACHE_TAG_PREFIX, bookId),
+  ])
+}
+
+export const buildChapterSlugCacheTags = (chapterSlug: unknown): string[] => {
+  return normalizeCacheTags([buildScopedCacheTag(CHAPTER_SLUG_CACHE_TAG_PREFIX, chapterSlug)])
+}
+
+export const buildBookPurgeTags = (bookId: unknown): string[] => {
+  return normalizeCacheTags([
+    ...buildBooksListCacheTags(),
+    ...buildBookDetailCacheTags(bookId),
+  ])
+}
+
+export const buildChapterPurgeTags = ({
+  bookId,
+  chapterId,
+  previousBookId,
+}: {
+  bookId: unknown
+  chapterId?: unknown
+  previousBookId?: unknown
+}): string[] => {
+  return normalizeCacheTags([
+    ...buildBooksListCacheTags(),
+    ...buildChapterPageCacheTags(bookId, chapterId),
+    ...(previousBookId != null ? buildBookDetailCacheTags(previousBookId) : []),
+  ])
 }
 
 /** Coerces an unknown value to a valid {@link BookImportStatus}, returning `null` if the value is not a recognised status. */
@@ -401,6 +539,130 @@ export const enforceUniqueChapterOrderHook: CollectionBeforeChangeHook = async (
   }
 
   return workingData
+}
+
+type CachePurgeRecord = {
+  id?: unknown
+  slug?: unknown
+}
+
+type ChapterCachePurgeRecord = CachePurgeRecord & {
+  book?: unknown
+}
+
+const getBookIdFromRecord = (record: CachePurgeRecord | null | undefined): string | number | null => {
+  return normalizeEntityId(record?.id)
+}
+
+const getChapterBookIdFromRecord = (
+  record: ChapterCachePurgeRecord | null | undefined,
+): string | number | null => {
+  return normalizeEntityId(record?.book)
+}
+
+export const booksCachePurgeAfterChangeHook: CollectionAfterChangeHook = async ({ doc }) => {
+  const record = doc as CachePurgeRecord | null | undefined
+  const bookId = getBookIdFromRecord(record)
+  const bookSlug = normalizeCacheTagValue(record?.slug)
+
+  if (bookId == null && bookSlug == null) {
+    return doc
+  }
+
+  void purgeCloudflareCacheTags(
+    normalizeCacheTags([
+      ...buildBookPurgeTags(bookId),
+      ...buildBookSlugCacheTags(bookSlug),
+    ]),
+    'books',
+  )
+
+  return doc
+}
+
+export const booksCachePurgeAfterDeleteHook: CollectionAfterDeleteHook = async ({ doc, id }) => {
+  const record = (doc as CachePurgeRecord | null | undefined) ?? { id }
+  const bookId = getBookIdFromRecord(record) ?? normalizeEntityId(id)
+  const bookSlug = normalizeCacheTagValue(record?.slug)
+
+  if (bookId == null && bookSlug == null) {
+    return doc
+  }
+
+  void purgeCloudflareCacheTags(
+    normalizeCacheTags([
+      ...buildBookPurgeTags(bookId),
+      ...buildBookSlugCacheTags(bookSlug),
+    ]),
+    'books',
+  )
+
+  return doc
+}
+
+export const chaptersCachePurgeAfterChangeHook: CollectionAfterChangeHook = async ({
+  doc,
+  previousDoc,
+}) => {
+  const nextRecord = doc as ChapterCachePurgeRecord | null | undefined
+  const previousRecord = previousDoc as ChapterCachePurgeRecord | null | undefined
+  const chapterId = normalizeEntityId(nextRecord?.id ?? previousRecord?.id)
+  const bookId = getChapterBookIdFromRecord(nextRecord) ?? getChapterBookIdFromRecord(previousRecord)
+  const previousBookId = getChapterBookIdFromRecord(previousRecord)
+  const chapterSlug = normalizeCacheTagValue(nextRecord?.slug)
+  const previousChapterSlug = normalizeCacheTagValue(previousRecord?.slug)
+
+  if (
+    chapterId == null &&
+    bookId == null &&
+    previousBookId == null &&
+    chapterSlug == null &&
+    previousChapterSlug == null
+  ) {
+    return doc
+  }
+
+  void purgeCloudflareCacheTags(
+    normalizeCacheTags([
+      ...buildChapterPurgeTags({
+        bookId,
+        chapterId,
+        previousBookId,
+      }),
+      ...buildChapterPageLookupCacheTags(bookId, chapterSlug),
+      ...buildChapterPageLookupCacheTags(previousBookId, previousChapterSlug),
+      ...buildChapterSlugCacheTags(chapterSlug),
+      ...buildChapterSlugCacheTags(previousChapterSlug),
+    ]),
+    'chapters',
+  )
+
+  return doc
+}
+
+export const chaptersCachePurgeAfterDeleteHook: CollectionAfterDeleteHook = async ({ doc, id }) => {
+  const record = doc as ChapterCachePurgeRecord | null | undefined
+  const chapterId = normalizeEntityId(record?.id ?? id)
+  const bookId = getChapterBookIdFromRecord(record)
+  const chapterSlug = normalizeCacheTagValue(record?.slug)
+
+  if (chapterId == null && bookId == null && chapterSlug == null) {
+    return doc
+  }
+
+  void purgeCloudflareCacheTags(
+    normalizeCacheTags([
+      ...buildChapterPurgeTags({
+        bookId,
+        chapterId,
+      }),
+      ...buildChapterPageLookupCacheTags(bookId, chapterSlug),
+      ...buildChapterSlugCacheTags(chapterSlug),
+    ]),
+    'chapters',
+  )
+
+  return doc
 }
 
 /**
