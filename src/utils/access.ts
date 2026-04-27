@@ -70,14 +70,14 @@ export const adminFieldAccess: FieldAccess = ({ req }) => {
   return isAdminUser(req.user)
 }
 
-export const chapterContentReadAccess: FieldAccess = async ({ doc, req }) => {
+export const chapterContentReadAccess: FieldAccess = async ({ doc, id, req }) => {
   if (authenticatedFieldAccess({ req })) {
     return true
   }
 
   return canReadChapterContentForRequest({
     chapter: doc as { createdBy?: unknown; hasPassword?: boolean | null; id?: unknown; password?: unknown; passwordVersion?: unknown } | null | undefined,
-    chapterId: (doc as { id?: unknown } | null | undefined)?.id,
+    chapterId: (doc as { id?: unknown } | null | undefined)?.id ?? id,
     headers: req.headers,
     req: req as never,
     user: req.user,

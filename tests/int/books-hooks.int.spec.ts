@@ -497,6 +497,57 @@ describe('Books hooks', () => {
     }
   })
 
+  it('uses the field access id argument when the chapter doc does not include an id', async () => {
+    const previousSecret = process.env.PAYLOAD_SECRET
+    process.env.PAYLOAD_SECRET = 'test-secret'
+
+    try {
+      const proof = createChapterPasswordProof({
+        chapterId: 42,
+        passwordVersion: 3,
+        secret: 'test-secret',
+      })
+
+      const findOne = vi.fn().mockResolvedValue({
+        id: 42,
+        createdBy: 88,
+        hasPassword: true,
+        passwordVersion: 3,
+      })
+
+      await expect(
+        chapterContentReadAccess({
+          doc: {
+            content: 'secret chapter text',
+            createdBy: 88,
+            hasPassword: true,
+          } as never,
+          id: 42,
+          req: {
+            headers: new Headers({
+              'x-chapter-password-proof': proof.proof,
+            }),
+            payload: {
+              db: {
+                findOne,
+              },
+            },
+            user: {
+              id: 77,
+              role: 'user',
+            },
+          } as never,
+        }),
+      ).resolves.toBe(true)
+    } finally {
+      if (previousSecret === undefined) {
+        delete process.env.PAYLOAD_SECRET
+      } else {
+        process.env.PAYLOAD_SECRET = previousSecret
+      }
+    }
+  })
+
   it('allows proof-based access to chapter content and revokes stale proofs', () => {
     const previousSecret = process.env.PAYLOAD_SECRET
     process.env.PAYLOAD_SECRET = 'test-secret'
