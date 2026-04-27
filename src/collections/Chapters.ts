@@ -32,6 +32,11 @@ export const Chapters: CollectionConfig = {
     useAsTitle: 'title',
     defaultColumns: ['title', 'book', 'order', '_status', 'updatedAt'],
     components: {
+      edit: {
+        beforeDocumentControls: [
+          '/components/admin/chapters/ChapterEditAccessNotice',
+        ],
+      },
       views: {
         list: {
           Component: '/components/admin/chapters/ChaptersListView',
@@ -128,11 +133,6 @@ export const Chapters: CollectionConfig = {
       type: 'richText',
       required: true,
       editor: createChapterLexicalEditor(),
-      admin: {
-        components: {
-          Field: '@/components/admin/chapters/ChapterContentField',
-        },
-      },
       access: {
         read: chapterContentReadAccess,
       },

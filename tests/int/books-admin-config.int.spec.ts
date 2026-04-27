@@ -19,11 +19,11 @@ describe('Book admin config', () => {
 
     expect(Books.access?.read).toBe(publicBooksReadAccess)
     expect(Chapters.access?.read).toBe(chaptersReadAccess)
+    expect(Chapters.admin?.components?.edit?.beforeDocumentControls).toEqual([
+      '/components/admin/chapters/ChapterEditAccessNotice',
+    ])
 
     expect(Books.fields.some((field) => 'name' in field && field.name === 'visibility')).toBe(true)
-    expect(
-      Chapters.fields.find((field) => 'name' in field && field.name === 'content')?.admin?.components?.Field,
-    ).toBe('@/components/admin/chapters/ChapterContentField')
     expect(
       Chapters.fields.find((field) => 'name' in field && field.name === 'password')?.admin?.components?.Field,
     ).toBe('@/components/admin/chapters/ChapterPasswordField')
