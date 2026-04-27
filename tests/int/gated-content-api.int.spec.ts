@@ -4,9 +4,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 const getPayloadMock = vi.hoisted(() => vi.fn())
 const headersMock = vi.hoisted(() => vi.fn(async () => new Headers()))
 
-vi.mock('payload', () => ({
-  getPayload: getPayloadMock,
-}))
+vi.mock('payload', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('payload')>()
+
+  return {
+    ...actual,
+    getPayload: getPayloadMock,
+  }
+})
 
 vi.mock('next/headers', () => ({
   headers: headersMock,
@@ -40,12 +45,17 @@ describe('Gated content API routes', () => {
           role: 'admin',
         },
       }),
+      db: {
+        findOne: vi.fn().mockResolvedValue({
+          id: 7,
+          hasPassword: true,
+          password: 'open-sesame',
+          passwordVersion: 3,
+        }),
+      },
       find: vi.fn().mockResolvedValue({
         docs: [],
         hasNextPage: false,
-      }),
-      findByID: vi.fn().mockResolvedValue({
-        password: 'open-sesame',
       }),
     })
   })
@@ -199,7 +209,7 @@ describe('Gated content API routes', () => {
       }),
     )
 
-    const findByID = vi.fn().mockResolvedValue({
+    const findOne = vi.fn().mockResolvedValue({
       id: 7,
       hasPassword: true,
       password: chapterPasswordHash,
@@ -215,7 +225,9 @@ describe('Gated content API routes', () => {
       {
         req: {
           payload: {
-            findByID,
+            db: {
+              findOne,
+            },
           },
         },
       },
@@ -235,12 +247,15 @@ describe('Gated content API routes', () => {
       proof: result.proof,
       secret: process.env.PAYLOAD_SECRET,
     })).toBe(false)
-    expect(findByID).toHaveBeenCalledWith(
+    expect(findOne).toHaveBeenCalledWith(
       expect.objectContaining({
         collection: 'chapters',
-        depth: 0,
-        id: '7',
-        overrideAccess: true,
+        req: expect.any(Object),
+        where: {
+          id: {
+            equals: '7',
+          },
+        },
       }),
     )
   })
@@ -275,20 +290,6 @@ describe('Gated content API routes', () => {
   })
 
   it('rejects invalid chapter passwords and missing chapters', async () => {
-    getPayloadMock.mockResolvedValueOnce({
-      auth: vi.fn().mockResolvedValue({
-        user: {
-          role: 'admin',
-        },
-      }),
-      findByID: vi.fn().mockResolvedValue({
-        id: 7,
-        hasPassword: true,
-        password: 'hashed-password',
-        passwordVersion: 3,
-      }),
-    })
-
     await expect(
       unlockChapterPasswordResolver(
         undefined,
@@ -299,17 +300,19 @@ describe('Gated content API routes', () => {
         {
           req: {
             payload: {
-              findByID: vi.fn().mockResolvedValue({
-                id: 7,
-                hasPassword: true,
-                password: 'hashed-password',
-                passwordVersion: 3,
-              }),
+              db: {
+                findOne: vi.fn().mockResolvedValue({
+                  id: 7,
+                  hasPassword: true,
+                  password: 'hashed-password',
+                  passwordVersion: 3,
+                }),
+              },
             },
           },
         },
       ),
-    ).rejects.toThrow('Wrong password')
+    ).rejects.toThrow('Password invalid.')
 
     await expect(
       unlockChapterPasswordResolver(
@@ -321,11 +324,13 @@ describe('Gated content API routes', () => {
         {
           req: {
             payload: {
-              findByID: vi.fn().mockRejectedValue(new Error('not found')),
+              db: {
+                findOne: vi.fn().mockRejectedValue(new Error('not found')),
+              },
             },
           },
         },
       ),
-    ).rejects.toThrow('Not found')
+    ).rejects.toThrow('Not Found')
   })
 })

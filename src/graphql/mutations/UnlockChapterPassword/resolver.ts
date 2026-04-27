@@ -1,4 +1,5 @@
 import type { Payload } from 'payload'
+import { APIError, NotFound } from 'payload'
 
 import {
   createChapterPasswordProof,
@@ -25,30 +26,40 @@ export const unlockChapterPasswordResolver = async (
 ): Promise<UnlockChapterPasswordResult> => {
   const payload: Payload = context.req.payload
 
-  const chapter = await payload
-    .findByID({
+  const chapter = await payload.db
+    .findOne({
       collection: 'chapters',
-      depth: 0,
-      id: args.chapterId,
-      overrideAccess: true,
+      req: context.req,
+      where: {
+        id: {
+          equals: args.chapterId,
+        },
+      },
+      select: {
+        createdBy: true,
+        hasPassword: true,
+        id: true,
+        password: true,
+        passwordVersion: true,
+      },
     })
     .catch(() => null)
 
   if (!chapter) {
-    throw new Error('Not found')
+    throw new NotFound()
   }
 
   const storedPassword = (chapter as { password?: string | null }).password ?? null
   const hasPassword = Boolean((chapter as { hasPassword?: boolean | null }).hasPassword ?? storedPassword)
 
   if (!hasPassword) {
-    throw new Error('Chapter is not password-protected')
+    throw new APIError('Chapter is not password-protected.', 400, null, true)
   }
 
   const passwordMatches = await verifyChapterPassword(args.password, storedPassword)
 
   if (!passwordMatches) {
-    throw new Error('Wrong password')
+    throw new APIError('Password invalid.', 400, null, true)
   }
 
   const currentVersion = normalizeChapterPasswordVersion((chapter as { passwordVersion?: unknown }).passwordVersion)
