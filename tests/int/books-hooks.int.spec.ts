@@ -586,4 +586,110 @@ describe('Books hooks', () => {
       }
     }
   })
+
+  it('accepts multiple chapter proofs in one header and matches the current chapter only', () => {
+    const previousSecret = process.env.PAYLOAD_SECRET
+    process.env.PAYLOAD_SECRET = 'test-secret'
+
+    try {
+      const chapter42Proof = createChapterPasswordProof({
+        chapterId: 42,
+        passwordVersion: 3,
+        secret: 'test-secret',
+      })
+      const chapter99Proof = createChapterPasswordProof({
+        chapterId: 99,
+        passwordVersion: 1,
+        secret: 'test-secret',
+      })
+
+      const headers = new Headers({
+        'x-chapter-password-proof': `${chapter99Proof.proof}, ${chapter42Proof.proof}`,
+      })
+
+      expect(
+        canReadChapterContent({
+          chapter: {
+            id: 42,
+            hasPassword: true,
+            passwordVersion: 3,
+          },
+          headers,
+        }),
+      ).toBe(true)
+
+      expect(
+        canReadChapterContent({
+          chapter: {
+            id: 99,
+            hasPassword: true,
+            passwordVersion: 1,
+          },
+          headers,
+        }),
+      ).toBe(true)
+
+      expect(
+        canReadChapterContent({
+          chapter: {
+            id: 77,
+            hasPassword: true,
+            passwordVersion: 2,
+          },
+          headers,
+        }),
+      ).toBe(false)
+    } finally {
+      if (previousSecret === undefined) {
+        delete process.env.PAYLOAD_SECRET
+      } else {
+        process.env.PAYLOAD_SECRET = previousSecret
+      }
+    }
+  })
+
+  it('accepts chapter proofs from plain-object request headers', () => {
+    const previousSecret = process.env.PAYLOAD_SECRET
+    process.env.PAYLOAD_SECRET = 'test-secret'
+
+    try {
+      const proof = createChapterPasswordProof({
+        chapterId: 42,
+        passwordVersion: 3,
+        secret: 'test-secret',
+      })
+
+      expect(
+        canReadChapterContent({
+          chapter: {
+            id: 42,
+            hasPassword: true,
+            passwordVersion: 3,
+          },
+          headers: {
+            'x-chapter-password-proof': proof.proof,
+          },
+        }),
+      ).toBe(true)
+
+      expect(
+        canReadChapterContent({
+          chapter: {
+            id: 42,
+            hasPassword: true,
+            passwordVersion: 3,
+          },
+          headers: {
+            cookie: `chapter-password-proof=${encodeURIComponent(proof.proof)}`,
+          },
+        }),
+      ).toBe(true)
+    } finally {
+      if (previousSecret === undefined) {
+        delete process.env.PAYLOAD_SECRET
+      } else {
+        process.env.PAYLOAD_SECRET = previousSecret
+      }
+    }
+  })
 })

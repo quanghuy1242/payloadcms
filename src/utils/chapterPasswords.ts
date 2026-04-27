@@ -17,6 +17,10 @@ type ChapterAccessUser = {
   role?: string | null
 }
 
+type HeaderValue = string | string[] | undefined
+type HeaderMap = Record<string, HeaderValue>
+type HeaderSource = Headers | HeaderMap | null | undefined
+
 type ChapterPasswordDocument = {
   createdBy?: unknown
   hasPassword?: boolean | null
@@ -26,7 +30,7 @@ type ChapterPasswordDocument = {
 }
 
 type ChapterPasswordLookupRequest = {
-  headers?: Headers | null
+  headers?: HeaderSource
   payload?: {
     db?: {
       findOne?: (args: {
@@ -86,6 +90,37 @@ const getCookieValue = (cookieHeader: string, cookieName: string): string | null
   }
 
   return null
+}
+
+const readHeaderValue = (headers: HeaderSource, headerName: string): string | null => {
+  if (!headers) {
+    return null
+  }
+
+  if (typeof (headers as Headers).get === 'function') {
+    return (headers as Headers).get(headerName)
+  }
+
+  const normalizedHeaderName = headerName.toLowerCase()
+  const record = headers as HeaderMap
+  const value = record[headerName] ?? record[normalizedHeaderName]
+
+  if (Array.isArray(value)) {
+    return value.join(', ')
+  }
+
+  return typeof value === 'string' ? value : null
+}
+
+const splitChapterPasswordProofValue = (value: string | null | undefined): string[] => {
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    return []
+  }
+
+  return value
+    .split(',')
+    .map((segment) => segment.trim())
+    .filter((segment) => segment.length > 0)
 }
 
 const parseStoredHash = (storedPassword: string) => {
@@ -247,20 +282,27 @@ export const verifyChapterPasswordProof = ({
   return true
 }
 
-export const getChapterPasswordProofFromHeaders = (headers?: Headers | null): string | null => {
-  if (!headers || typeof headers.get !== 'function') {
-    return null
+export const getChapterPasswordProofFromHeaders = (headers?: HeaderSource): string | null => {
+  return getChapterPasswordProofsFromHeaders(headers)[0] ?? null
+}
+
+export const getChapterPasswordProofsFromHeaders = (headers?: HeaderSource): string[] => {
+  if (!headers) {
+    return []
   }
 
-  const headerValue = headers.get(CHAPTER_PASSWORD_PROOF_HEADER)?.trim() || headers.get('chapter-password-proof')?.trim()
+  const headerValues = [
+    ...splitChapterPasswordProofValue(readHeaderValue(headers, CHAPTER_PASSWORD_PROOF_HEADER)),
+    ...splitChapterPasswordProofValue(readHeaderValue(headers, 'chapter-password-proof')),
+  ]
 
-  if (headerValue) {
-    return headerValue
+  if (headerValues.length > 0) {
+    return headerValues
   }
 
-  const cookieValue = getCookieValue(headers.get('cookie') ?? '', CHAPTER_PASSWORD_PROOF_COOKIE)
+  const cookieValue = getCookieValue(readHeaderValue(headers, 'cookie') ?? '', CHAPTER_PASSWORD_PROOF_COOKIE)
 
-  return cookieValue?.trim() || null
+  return splitChapterPasswordProofValue(cookieValue)
 }
 
 export const canReadChapterContent = ({
@@ -271,7 +313,7 @@ export const canReadChapterContent = ({
 }: {
   chapter: ChapterPasswordDocument | null | undefined
   chapterId?: unknown
-  headers?: Headers | null
+  headers?: HeaderSource
   user?: ChapterAccessUser | null
 }): boolean => {
   if (!chapter) {
@@ -295,17 +337,21 @@ export const canReadChapterContent = ({
     return true
   }
 
-  const proof = getChapterPasswordProofFromHeaders(headers)
+  const proofs = getChapterPasswordProofsFromHeaders(headers)
 
-  if (!proof) {
+  if (proofs.length === 0) {
     return false
   }
 
-  return verifyChapterPasswordProof({
-    chapterId: normalizeEntityId(chapterId ?? chapter.id),
-    passwordVersion: chapter.passwordVersion,
-    proof,
-  })
+  const normalizedChapterId = normalizeEntityId(chapterId ?? chapter.id)
+
+  return proofs.some((proof) =>
+    verifyChapterPasswordProof({
+      chapterId: normalizedChapterId,
+      passwordVersion: chapter.passwordVersion,
+      proof,
+    }),
+  )
 }
 
 const fetchChapterPasswordMetadata = async ({
@@ -353,7 +399,7 @@ export const canReadChapterContentForRequest = async ({
 }: {
   chapter: ChapterPasswordDocument | null | undefined
   chapterId?: unknown
-  headers?: Headers | null
+  headers?: HeaderSource
   req?: ChapterPasswordLookupRequest | null
   user?: ChapterAccessUser | null
 }): Promise<boolean> => {
@@ -378,9 +424,9 @@ export const canReadChapterContentForRequest = async ({
     return true
   }
 
-  const proof = getChapterPasswordProofFromHeaders(headers)
+  const proofs = getChapterPasswordProofsFromHeaders(headers)
 
-  if (!proof) {
+  if (proofs.length === 0) {
     return false
   }
 
@@ -392,11 +438,16 @@ export const canReadChapterContentForRequest = async ({
         })
       : chapter
 
-  return verifyChapterPasswordProof({
-    chapterId: normalizeEntityId(chapterId ?? resolvedChapter?.id ?? chapter.id),
-    passwordVersion: resolvedChapter?.passwordVersion ?? chapter.passwordVersion,
-    proof,
-  })
+  const normalizedChapterId = normalizeEntityId(chapterId ?? resolvedChapter?.id ?? chapter.id)
+  const normalizedPasswordVersion = resolvedChapter?.passwordVersion ?? chapter.passwordVersion
+
+  return proofs.some((proof) =>
+    verifyChapterPasswordProof({
+      chapterId: normalizedChapterId,
+      passwordVersion: normalizedPasswordVersion,
+      proof,
+    }),
+  )
 }
 
 export const nextChapterPasswordVersion = (value: unknown): number => {
