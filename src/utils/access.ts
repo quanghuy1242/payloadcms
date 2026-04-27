@@ -75,30 +75,6 @@ export const chapterContentReadAccess: FieldAccess = async ({ doc, id, req }) =>
     return true
   }
 
-  req.payload.logger.warn(
-    `[chapter-password-debug] field-access ${JSON.stringify({
-      accessDocId: normalizeEntityId((doc as { id?: unknown } | null | undefined)?.id),
-      accessId: normalizeEntityId(id),
-      contentHasKey: Boolean(doc && typeof doc === 'object' && 'content' in (doc as Record<string, unknown>)),
-      contentIsNull:
-        doc && typeof doc === 'object' && 'content' in (doc as Record<string, unknown>)
-          ? (doc as Record<string, unknown>).content === null
-          : null,
-      contentIsUndefined:
-        doc && typeof doc === 'object' && 'content' in (doc as Record<string, unknown>)
-          ? (doc as Record<string, unknown>).content === undefined
-          : null,
-      contentType:
-        doc && typeof doc === 'object' && 'content' in (doc as Record<string, unknown>)
-          ? typeof (doc as Record<string, unknown>).content
-          : null,
-      docKeys: doc && typeof doc === 'object' ? Object.keys(doc as Record<string, unknown>).slice(0, 20) : null,
-      hasHeaders: Boolean(req.headers),
-      headerShape: req.headers ? (typeof req.headers.get === 'function' ? 'Headers' : 'Object') : 'none',
-      userId: normalizeEntityId(req.user?.id),
-    })}`,
-  )
-
   return canReadChapterContentForRequest({
     chapter: doc as { createdBy?: unknown; hasPassword?: boolean | null; id?: unknown; password?: unknown; passwordVersion?: unknown } | null | undefined,
     chapterId: (doc as { id?: unknown } | null | undefined)?.id ?? id,
