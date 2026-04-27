@@ -17,6 +17,7 @@ import { extractTokenFromHeaders } from '@/lib/betterAuth/tokens'
 import { drainDeferredGrantsForUser } from '@/utils/deferredGrants'
 import { checkPermissionBatch } from '@/utils/grantMirror'
 
+import { canReadChapterContent } from './chapterPasswords'
 import { normalizeEntityId } from './identifiers'
 import { toNullableString } from './strings'
 
@@ -69,6 +70,15 @@ export const adminFieldAccess: FieldAccess = ({ req }) => {
   return isAdminUser(req.user)
 }
 
+export const chapterContentReadAccess: FieldAccess = ({ doc, req }) => {
+  return canReadChapterContent({
+    chapter: doc as { createdBy?: unknown; hasPassword?: boolean | null; id?: unknown; password?: unknown; passwordVersion?: unknown } | null | undefined,
+    chapterId: (doc as { id?: unknown } | null | undefined)?.id,
+    headers: req.headers,
+    user: req.user,
+  })
+}
+
 type UserHookData = {
   betterAuthUserId?: unknown
   email?: unknown
@@ -93,8 +103,10 @@ export const booksAfterDeleteGrantMirrorHook: CollectionAfterDeleteHook = async 
     // Always re-fetch page 1: as rows are revoked they fall out of the
     // `not_equals: 'revoked'` filter, so offset-based pagination would
     // skip rows in the middle of a large batch.
-    const batch = await req.payload
-      .find({
+    let batch: { docs: MirrorDoc[] } | null = null
+
+    try {
+      batch = await req.payload.find({
         collection: 'grant-mirror',
         where: {
           and: [
@@ -108,7 +120,9 @@ export const booksAfterDeleteGrantMirrorHook: CollectionAfterDeleteHook = async 
         depth: 0,
         overrideAccess: true,
       })
-      .catch(() => null)
+    } catch {
+      batch = null
+    }
 
     if (!batch || batch.docs.length === 0) {
       break

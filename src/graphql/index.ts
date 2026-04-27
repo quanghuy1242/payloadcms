@@ -1,6 +1,4 @@
 import { queries } from './queries'
+import { mutations } from './mutations'
 
-export { queries }
-
-// Export for mutations when needed
-// export { mutations } from './mutations'
+export { queries, mutations }

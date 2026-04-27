@@ -14,6 +14,7 @@ describe('Book admin config', () => {
       '/components/admin/books/DeleteBookButton',
       '/components/admin/books/ChapterListButton',
       '/components/admin/books/BookAccessPanel',
+      '/components/admin/books/ReconcileGrantsButton',
     ])
 
     expect(Books.access?.read).toBe(publicBooksReadAccess)

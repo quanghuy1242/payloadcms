@@ -25,10 +25,11 @@
    - [A.12 next-blog — Chapter Page](#a12-next-blog--chapter-page)
    - [A.13 next-blog — Locked State Components](#a13-next-blog--locked-state-components)
 3. [Feature B: Chapter Password Lock](#feature-b-chapter-password-lock)
-   - [B.1 payloadcms — Data Model](#b1-payloadcms--data-model)
-   - [B.2 payloadcms — Unlock and Validate Endpoints](#b2-payloadcms--unlock-and-validate-endpoints)
-   - [B.3 next-blog — Password Gate UI](#b3-next-blog--password-gate-ui)
-   - [B.4 next-blog — Token Storage and Validation](#b4-next-blog--token-storage-and-validation)
+  - [B.1 payloadcms — Password Hash Storage](#b1-payloadcms--password-hash-storage)
+  - [B.2 payloadcms — GraphQL Unlock and Content Gate](#b2-payloadcms--graphql-unlock-and-content-gate)
+  - [B.3 payloadcms — Admin UI for Set / Change / Clear](#b3-payloadcms--admin-ui-for-set--change--clear)
+  - [B.4 next-blog — Password Gate Flow](#b4-next-blog--password-gate-flow)
+  - [B.5 edge cases and invariants](#b5-edge-cases-and-invariants)
 4. [Environment Variables](#4-environment-variables)
 5. [Deployment Order](#5-deployment-order)
 6. [Checklists per Repo](#6-checklists-per-repo)
@@ -895,388 +896,55 @@ NEXT_PUBLIC_AUTHER_SIGN_IN_URL=https://auth.quanghuy.dev/sign-in
 
 ---
 
-### B.1 payloadcms — Data Model
+### B.1 payloadcms — Password Hash Storage
 
-**File:** `src/collections/Chapters.ts`
+**Goal:** never store a chapter password in plaintext.
 
-A WordPress-style feature: an optional plaintext password on a chapter. Anyone who knows the password can read it — no account required. The raw password is **never** exposed in API responses; a `hasPassword` boolean signals the blog to show a gate.
+- Keep the editor-facing value as a password input, but persist only a slow one-way hash in the database.
+- Add `hasPassword` as a derived boolean, and add a version marker such as `passwordVersion` or `passwordUpdatedAt` so password changes can revoke old unlock proofs.
+- A `beforeChange` hook should hash new input before save, preserve the existing hash when the field is omitted, and remove the hash when the editor explicitly clears the password.
+- An `afterRead` hook should expose `hasPassword` only and never return the stored hash.
+- This needs a migration and regenerated types.
 
-**Add `password` field** (access-restricted so it never appears in read responses):
+### B.2 payloadcms — GraphQL Unlock and Content Gate
 
-```ts
-// src/collections/Chapters.ts — inside fields array
-{
-  name: 'password',
-  type: 'text',
-  admin: {
-    position: 'sidebar',
-    description: 'Optional. If set, readers must enter this password to view the chapter.',
-  },
-  access: {
-    read: () => false,  // never return raw password in any API response
-    create: ({ req }) => isAdminUser(req.user),
-    update: ({ req }) => isAdminUser(req.user),
-  },
-},
-```
+**Goal:** use GraphQL for unlocking, but protect chapter content itself so list pages do not require one password per chapter.
 
-**Add `hasPassword` virtual field** so the type system and GraphQL include it:
-
-```ts
-{
-  name: 'hasPassword',
-  type: 'checkbox',
-  defaultValue: false,
-  admin: {
-    readOnly: true,
-    position: 'sidebar',
-    description: 'Auto-set. True when a password has been configured.',
-  },
-},
-```
-
-**Add `afterRead` hook** to populate `hasPassword` and strip the raw password:
-
-```ts
-// src/collections/Chapters.ts — hooks section
-hooks: {
-  afterRead: [
-    ({ doc }) => ({
-      ...doc,
-      hasPassword: Boolean(doc.password),
-      password: undefined,  // belt-and-suspenders: strip even though field access blocks it
-    }),
-  ],
-  // ...existing hooks
-},
-```
-
-**Why `hasPassword` as a real field instead of only the hook:** GraphQL introspection reflects the field definitions, not hook outputs. Without the `hasPassword` field declaration, the GraphQL query `Chapters { hasPassword }` would fail schema validation. The `afterRead` hook sets the runtime value; the field declaration provides the schema shape.
-
-**Migration:** Two new columns (`password` nullable text, `has_password` boolean with default false). Run `pnpm payload migrate:create` and commit both files.
+- Replace the HTTP unlock/validate route idea with a GraphQL mutation such as `unlockChapterPassword`.
+- The mutation should accept `chapterId` and `password`, verify the password against the stored hash server-side, and return a short-lived unlock proof.
+- Do not gate the whole chapter collection on password. Chapter lists and detail metadata should still be readable without unlocking every chapter.
+- Gate the `content` field itself. If the request does not carry a valid unlock proof for that chapter, return `null` or omit the field.
+- If the generated GraphQL access layer cannot express that cleanly, add a thin custom query/resolver wrapper, but keep the actual gate logic in shared access helpers.
+- Include a password version or last-updated timestamp in the proof so changing or removing the password invalidates old unlocks.
 
 ---
 
-### B.2 payloadcms — Unlock and Validate Endpoints
+### B.3 payloadcms — Admin UI for Set / Change / Clear
 
-These are plain Next.js App Router routes (not inside the `(payload)` route group). They call the Payload local API internally.
+**Goal:** give editors an explicit way to manage the chapter password.
 
-**File:** `src/app/api/chapters/[id]/unlock/route.ts`
+- Add a custom admin control or field widget for password management.
+- It should support set, change, and clear, and it should never display the hash back to the user.
+- A plain default field only works if it can reliably distinguish untouched, replaced, and removed values; verify that before relying on it.
+- Prefer an explicit custom component if the default edit form might accidentally wipe the password on save.
 
-```ts
-import { createHmac } from 'crypto'
-import { getPayload } from 'payload'
-import configPromise from '@payload-config'
+### B.4 next-blog — Password Gate Flow
 
-export async function POST(
-  req: Request,
-  { params }: { params: { id: string } }
-) {
-  let body: { password?: string }
-  try {
-    body = await req.json()
-  } catch {
-    return Response.json({ error: 'Invalid JSON' }, { status: 400 })
-  }
+**Goal:** the blog should not ask for a password on every chapter in a list.
 
-  if (!body.password) {
-    return Response.json({ error: 'password is required' }, { status: 400 })
-  }
+- Chapter list pages should request metadata only and show the lock state from `hasPassword`.
+- Chapter detail pages should request `content`; if `content` is missing and `hasPassword` is true, render the password gate.
+- On submit, call the GraphQL unlock mutation and store the unlock proof briefly.
+- On later requests, send the proof back so the same chapter stays unlocked for that session.
+- Prefer a signed cookie over sessionStorage if the deployment can support it; otherwise keep the proof short-lived and chapter-scoped.
 
-  const payload = await getPayload({ config: configPromise })
+### B.5 edge cases and invariants
 
-  // overrideAccess: true — fetch the raw password regardless of field-level access rule
-  const chapter = await payload.findByID({
-    collection: 'chapters',
-    id: params.id,
-    overrideAccess: true,
-    depth: 0,
-  })
-
-  if (!chapter) {
-    return Response.json({ error: 'Not found' }, { status: 404 })
-  }
-
-  // Time-constant string comparison to prevent timing attacks
-  const storedPassword: string | null | undefined = (chapter as { password?: string }).password
-  if (!storedPassword) {
-    return Response.json({ error: 'Chapter is not password-protected' }, { status: 400 })
-  }
-
-  // Use timingSafeEqual via Buffer comparison
-  const inputBuf = Buffer.from(body.password, 'utf8')
-  const storedBuf = Buffer.from(storedPassword, 'utf8')
-  const match =
-    inputBuf.length === storedBuf.length &&
-    inputBuf.every((b, i) => b === storedBuf[i])
-
-  if (!match) {
-    return Response.json({ error: 'Wrong password' }, { status: 401 })
-  }
-
-  // Issue a short-lived HMAC token
-  // Format: "<chapterId>:<expiry>:<hmac-signature>"
-  const expiry = Date.now() + 60 * 60 * 1000  // 1 hour
-  const secret = process.env.PAYLOAD_SECRET
-  if (!secret) throw new Error('PAYLOAD_SECRET is not set')
-  const msg = `${params.id}:${expiry}`
-  const sig = createHmac('sha256', secret).update(msg).digest('base64url')
-  const token = `${msg}:${sig}`
-
-  return Response.json({ token })
-}
-```
-
-**File:** `src/app/api/chapters/[id]/unlock/validate/route.ts`
-
-```ts
-import { createHmac, timingSafeEqual } from 'crypto'
-
-export async function POST(
-  req: Request,
-  { params }: { params: { id: string } }
-) {
-  let body: { token?: string }
-  try {
-    body = await req.json()
-  } catch {
-    return Response.json({ valid: false }, { status: 400 })
-  }
-
-  if (!body.token) {
-    return Response.json({ valid: false })
-  }
-
-  const parts = body.token.split(':')
-  if (parts.length !== 3) {
-    return Response.json({ valid: false })
-  }
-  const [chapterId, expiryStr, sig] = parts
-  const expiry = parseInt(expiryStr, 10)
-
-  // Reject if chapter ID doesn't match or token is expired
-  if (chapterId !== params.id || isNaN(expiry) || Date.now() > expiry) {
-    return Response.json({ valid: false })
-  }
-
-  const secret = process.env.PAYLOAD_SECRET
-  if (!secret) return Response.json({ valid: false }, { status: 500 })
-
-  const msg = `${chapterId}:${expiryStr}`
-  const expectedSig = createHmac('sha256', secret).update(msg).digest('base64url')
-
-  // Constant-time comparison
-  const sigBuf = Buffer.from(sig, 'base64url')
-  const expectedBuf = Buffer.from(expectedSig, 'base64url')
-  const valid =
-    sigBuf.length === expectedBuf.length &&
-    timingSafeEqual(sigBuf, expectedBuf)
-
-  return Response.json({ valid })
-}
-```
-
-**Security notes:**
-- `PAYLOAD_SECRET` is already required by Payload and is present in all envs. No new env var needed.
-- Timing-safe comparison prevents password oracle attacks.
-- Tokens are bound to the specific chapter ID — a token for chapter 5 cannot unlock chapter 6.
-- 1-hour expiry limits the blast radius of a leaked token.
-- The raw password is never returned and is only read server-side with `overrideAccess: true`.
-
----
-
-### B.3 next-blog — Password Gate UI
-
-**How the feature works in the blog:**
-
-1. `getServerSideProps` fetches the chapter normally. If `chapter.hasPassword === true`, pass `locked: true` as a prop.
-2. The chapter page component renders a `<ChapterPasswordGate>` component instead of `<ChapterContent>` when `locked` is true.
-3. On form submit, the gate component calls a blog API proxy route which calls the Payload `unlock` endpoint.
-4. On success, the token is stored in `sessionStorage` and `locked` state is set to `false` (client-side re-render showing content).
-5. On subsequent visits, the gate component checks `sessionStorage` first and calls the Payload `validate` endpoint. If valid, skips the password form entirely.
-
-**Update `pages/books/[slug]/chapters/[chapterSlug].tsx`:**
-
-Add `locked: boolean` to `ChapterPageProps`. In the component:
-
-```tsx
-export default function ChapterPage({ book, chapter, chapters, homepage, locked: initialLocked }) {
-  const [locked, setLocked] = useState(initialLocked)
-
-  // On mount, try to restore access from sessionStorage
-  useEffect(() => {
-    if (!initialLocked) return
-    const stored = sessionStorage.getItem(`chapter-token-${chapter.id}`)
-    if (!stored) return
-    fetch(`/api/chapters/${chapter.id}/validate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token: stored }),
-    })
-      .then((r) => r.json())
-      .then((d) => { if (d.valid) setLocked(false) })
-      .catch(() => {/* stay locked */})
-  }, [chapter.id, initialLocked])
-
-  // ...existing state and logic...
-
-  return (
-    <Layout ...>
-      ...
-      {locked ? (
-        <ChapterPasswordGate
-          chapterId={chapter.id}
-          onUnlocked={() => setLocked(false)}
-        />
-      ) : (
-        <ChapterContent content={chapter.content} />
-      )}
-      ...
-    </Layout>
-  )
-}
-```
-
-In `getServerSideProps`, add `locked` prop:
-
-```ts
-return {
-  props: {
-    book,
-    chapter: chapterData.chapter,
-    chapters: chapterData.chapters,
-    homepage,
-    locked: chapterData.chapter.hasPassword === true,
-  },
-}
-```
-
-**New file:** `components/pages/books/chapter-password-gate.tsx`
-
-```tsx
-import React, { useState } from 'react'
-
-interface ChapterPasswordGateProps {
-  chapterId: number
-  onUnlocked: () => void
-}
-
-export function ChapterPasswordGate({ chapterId, onUnlocked }: ChapterPasswordGateProps) {
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setError(null)
-    setLoading(true)
-
-    try {
-      const res = await fetch(`/api/chapters/${chapterId}/unlock`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password }),
-      })
-      if (!res.ok) {
-        const data = (await res.json()) as { error?: string }
-        setError(data.error ?? 'Incorrect password')
-        return
-      }
-      const { token } = (await res.json()) as { token: string }
-      sessionStorage.setItem(`chapter-token-${chapterId}`, token)
-      onUnlocked()
-    } catch {
-      setError('Something went wrong. Please try again.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  return (
-    <div className="mx-auto max-w-sm rounded border border-gray-200 p-6">
-      <p className="mb-4 text-sm text-gray-700">
-        This chapter is protected. Enter the password to continue reading.
-      </p>
-      <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="Password"
-          required
-          className="rounded border border-gray-300 px-3 py-2 text-sm"
-        />
-        {error && <p className="text-xs text-red-600">{error}</p>}
-        <button
-          type="submit"
-          disabled={loading}
-          className="rounded bg-blue px-4 py-2 text-sm text-white disabled:opacity-50"
-        >
-          {loading ? 'Checking…' : 'Unlock chapter'}
-        </button>
-      </form>
-    </div>
-  )
-}
-```
-
----
-
-### B.4 next-blog — Token Storage and Validation
-
-**Blog API proxy routes** — these are thin pass-throughs so the browser never calls Payload directly (avoids CORS issues, hides the Payload URL from the client).
-
-**`pages/api/chapters/[id]/unlock.ts`:**
-
-```ts
-import type { NextApiRequest, NextApiResponse } from 'next'
-
-const PAYLOAD_BASE = process.env.PAYLOAD_CMS_URL ?? ''
-
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== 'POST') {
-    res.setHeader('Allow', 'POST')
-    return res.status(405).json({ error: 'Method Not Allowed' })
-  }
-
-  const { id } = req.query
-  const response = await fetch(`${PAYLOAD_BASE}/api/chapters/${id}/unlock`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(req.body),
-  })
-
-  const data = await response.json()
-  res.status(response.status).json(data)
-}
-```
-
-**`pages/api/chapters/[id]/validate.ts`:**
-
-```ts
-import type { NextApiRequest, NextApiResponse } from 'next'
-
-const PAYLOAD_BASE = process.env.PAYLOAD_CMS_URL ?? ''
-
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== 'POST') {
-    res.setHeader('Allow', 'POST')
-    return res.status(405).json({ error: 'Method Not Allowed' })
-  }
-
-  const { id } = req.query
-  const response = await fetch(`${PAYLOAD_BASE}/api/chapters/${id}/unlock/validate`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(req.body),
-  })
-
-  const data = await response.json()
-  res.status(response.status).json(data)
-}
-```
-
-**`sessionStorage` key convention:** `chapter-token-${chapterId}` (numeric ID as string). Tokens expire after 1 hour server-side; the client validates on mount and silently drops invalid/expired tokens.
+- Changing or clearing a password must invalidate prior unlock proofs.
+- Any preview, excerpt, or alternate chapter resolver must use the same content gate.
+- The server-side gate must protect GraphQL selection sets too; the frontend query shape alone is not enough.
+- Do not accidentally wipe the password when unrelated chapter fields are edited.
+- Do not introduce per-chapter prompts in chapter list views.
 
 ---
 
@@ -1313,10 +981,10 @@ INTERNAL_API_KEY: z.string().min(32),
 To avoid downtime or broken states, deploy in this order:
 
 1. **auther** — register `client_<PAYLOAD_CLIENT_ID>:book` entity type in auth model + deploy new `src/app/api/internal/clients/[clientId]/grants/` routes + `INTERNAL_API_KEY` secret
-2. **payloadcms** — deploy `visibility` field + token-aware read access + proxy route + `BookAccessPanel` component + `AUTHER_BASE_URL`/`AUTHER_API_KEY`/`PAYLOAD_CLIENT_ID` env vars; run migration
-3. **next-blog** — deploy token-forwarding fetches + locked state UI + auth env vars; run the updated book-list and book-detail flows against Payload
+2. **payloadcms** — deploy `visibility` field + token-aware read access + chapter password hash storage + GraphQL unlock mutation + admin password control + `AUTHER_BASE_URL`/`AUTHER_API_KEY`/`PAYLOAD_CLIENT_ID` env vars; run migration
+3. **next-blog** — deploy token-forwarding fetches + locked state UI + chapter password gate flow + auth env vars; run the updated book-list and book-detail flows against Payload
 
-**Why this order:** The Auther check-permission endpoint must be ready before payloadcms or next-blog tries to call it. The Payload migration must run before the blog goes live with gating logic.
+**Why this order:** The Auther check-permission endpoint must be ready before payloadcms or next-blog tries to call it. The Payload migration must run before the blog goes live with any gating logic.
 
 ---
 
@@ -1337,10 +1005,10 @@ To avoid downtime or broken states, deploy in this order:
 - [ ] `pnpm test:int`
 
 **Feature B:**
-- [ ] Add `password` and `hasPassword` fields to `src/collections/Chapters.ts`
-- [ ] Add `afterRead` hook to `Chapters` to populate `hasPassword` and strip `password`
-- [ ] Create `src/app/api/chapters/[id]/unlock/route.ts`
-- [ ] Create `src/app/api/chapters/[id]/unlock/validate/route.ts`
+- [ ] Add hashed password storage, `hasPassword`, and a version marker to `src/collections/Chapters.ts`
+- [ ] Add `beforeChange` / `afterRead` hooks to hash new passwords and hide the stored hash
+- [ ] Add a GraphQL unlock mutation and a content-gating helper for chapter reads
+- [ ] Add a custom admin password control or field widget for set / change / clear
 - [ ] `pnpm payload migrate:create` — commit both `.ts` and `.json`
 - [ ] `pnpm generate:types`
 - [ ] `pnpm tsc --noEmit`
@@ -1372,8 +1040,7 @@ To avoid downtime or broken states, deploy in this order:
 - [ ] Add `hasPassword?: boolean` to `Chapter` interface in `types/cms.ts`
 - [ ] Add `hasPassword` to `CHAPTER_FIELDS` in `common/apis/chapters.ts`
 - [ ] Create `components/pages/books/chapter-password-gate.tsx`
-- [ ] Update `pages/books/[slug]/chapters/[chapterSlug].tsx` component (locked state + sessionStorage restore)
+- [ ] Update `pages/books/[slug]/chapters/[chapterSlug].tsx` component (locked state + proof restore)
+- [ ] Update chapter fetches to use the GraphQL unlock proof instead of HTTP proxy routes
 - [ ] Update `getServerSideProps` to pass `locked: chapter.hasPassword === true`
-- [ ] Create `pages/api/chapters/[id]/unlock.ts` (proxy)
-- [ ] Create `pages/api/chapters/[id]/validate.ts` (proxy)
 - [ ] Add `PAYLOAD_CMS_URL` to `.env.local` and Vercel

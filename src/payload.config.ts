@@ -19,7 +19,7 @@ import { generateSeoDescription, generateSeoImage, generateSeoTitle } from './li
 import { createR2BucketFromEnv } from './lib/r2Bucket'
 import { Homepage } from './globals/Homepage'
 import { resolveTursoConnection } from './lib/turso'
-import { queries } from './graphql'
+import { mutations, queries } from './graphql'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -117,6 +117,7 @@ export default buildConfig({
   plugins: [...storagePlugins, seo],
   graphQL: {
     disableIntrospectionInProduction: false,
+    mutations,
     queries,
   },
 })

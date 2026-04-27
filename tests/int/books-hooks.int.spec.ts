@@ -3,6 +3,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Chapters } from '@/collections/Chapters'
 import { booksAfterDeleteGrantMirrorHook } from '@/utils/access'
 import {
+  canReadChapterContent,
+  createChapterPasswordProof,
+  verifyChapterPasswordProof,
+  verifyChapterPassword,
+} from '@/utils/chapterPasswords'
+import {
   applyBookImportLifecycleHook,
   bookDeleteAccess,
   countBookChapters,
@@ -264,7 +270,7 @@ describe('Books hooks', () => {
       },
     } as never)
 
-    expect(find).toHaveBeenCalledTimes(2)
+    expect(find).toHaveBeenCalledTimes(3)
     expect(update).toHaveBeenCalledTimes(3)
     expect(update.mock.calls[0]?.[0]).toMatchObject({
       collection: 'grant-mirror',
@@ -297,14 +303,14 @@ describe('Books hooks', () => {
     )
   })
 
-  it('syncs chapter password state before saving and after reading', () => {
+  it('hashes chapter passwords, preserves values when omitted, and hides internals on read', async () => {
     const beforeChangeHook = Chapters.hooks?.beforeChange?.[0]
     const afterReadHook = Chapters.hooks?.afterRead?.[0]
 
     expect(beforeChangeHook).toEqual(expect.any(Function))
     expect(afterReadHook).toEqual(expect.any(Function))
 
-    const createResult = beforeChangeHook?.({
+    const createResult = (await beforeChangeHook?.({
       collection: undefined as never,
       data: {
         password: 'reader-secret',
@@ -312,11 +318,15 @@ describe('Books hooks', () => {
       context: undefined as never,
       operation: 'create',
       req: {} as never,
-    }) as Record<string, unknown>
+    })) as Record<string, unknown>
 
     expect(createResult.hasPassword).toBe(true)
+    expect(typeof createResult.password).toBe('string')
+    expect(createResult.password).not.toBe('reader-secret')
+    expect(createResult.passwordVersion).toBe(1)
+    expect(await verifyChapterPassword('reader-secret', String(createResult.password))).toBe(true)
 
-    const updateResult = beforeChangeHook?.({
+    const updateResult = (await beforeChangeHook?.({
       collection: undefined as never,
       data: {
         title: 'Updated chapter title',
@@ -324,12 +334,32 @@ describe('Books hooks', () => {
       context: undefined as never,
       originalDoc: {
         hasPassword: true,
+        passwordVersion: 7,
       },
       operation: 'update',
       req: {} as never,
-    }) as Record<string, unknown>
+    })) as Record<string, unknown>
 
     expect(updateResult.hasPassword).toBe(true)
+    expect(updateResult.passwordVersion).toBe(7)
+
+    const clearedResult = (await beforeChangeHook?.({
+      collection: undefined as never,
+      data: {
+        password: '',
+      },
+      context: undefined as never,
+      originalDoc: {
+        hasPassword: true,
+        passwordVersion: 7,
+      },
+      operation: 'update',
+      req: {} as never,
+    })) as Record<string, unknown>
+
+    expect(clearedResult.hasPassword).toBe(false)
+    expect(clearedResult.password).toBeNull()
+    expect(clearedResult.passwordVersion).toBe(8)
 
     const readResult = afterReadHook?.({
       collection: undefined as never,
@@ -337,11 +367,103 @@ describe('Books hooks', () => {
       doc: {
         hasPassword: true,
         password: 'reader-secret',
+        passwordVersion: 7,
       },
       req: {} as never,
     }) as Record<string, unknown>
 
     expect(readResult.hasPassword).toBe(true)
     expect(readResult.password).toBeUndefined()
+    expect(readResult.passwordVersion).toBeUndefined()
+  })
+
+  it('allows proof-based access to chapter content and revokes stale proofs', () => {
+    const previousSecret = process.env.PAYLOAD_SECRET
+    process.env.PAYLOAD_SECRET = 'test-secret'
+
+    try {
+      const proof = createChapterPasswordProof({
+        chapterId: 42,
+        passwordVersion: 3,
+        secret: 'test-secret',
+      })
+
+      expect(
+        canReadChapterContent({
+          chapter: {
+            id: 42,
+            hasPassword: true,
+            passwordVersion: 3,
+          },
+          headers: new Headers({
+            'x-chapter-password-proof': proof.proof,
+          }),
+        }),
+      ).toBe(true)
+
+      expect(
+        canReadChapterContent({
+          chapter: {
+            id: 42,
+            hasPassword: true,
+            passwordVersion: 4,
+          },
+          headers: new Headers({
+            'x-chapter-password-proof': proof.proof,
+          }),
+        }),
+      ).toBe(false)
+
+      expect(
+        canReadChapterContent({
+          chapter: {
+            hasPassword: false,
+          },
+        }),
+      ).toBe(true)
+
+      expect(
+        canReadChapterContent({
+          chapter: {
+            createdBy: 77,
+            hasPassword: true,
+            passwordVersion: 3,
+          },
+          user: {
+            id: 77,
+            role: 'user',
+          },
+        }),
+      ).toBe(true)
+
+      expect(
+        canReadChapterContent({
+          chapter: {
+            hasPassword: true,
+            passwordVersion: 3,
+          },
+          user: {
+            id: 1,
+            role: 'admin',
+          },
+        }),
+      ).toBe(true)
+
+      expect(
+        verifyChapterPasswordProof({
+          chapterId: 42,
+          passwordVersion: 3,
+          proof: proof.proof,
+          secret: 'test-secret',
+          now: Date.now() + 60 * 60 * 1000 + 1,
+        }),
+      ).toBe(false)
+    } finally {
+      if (previousSecret === undefined) {
+        delete process.env.PAYLOAD_SECRET
+      } else {
+        process.env.PAYLOAD_SECRET = previousSecret
+      }
+    }
   })
 })

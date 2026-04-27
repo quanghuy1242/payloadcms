@@ -1,8 +1,8 @@
 import type { CollectionConfig } from 'payload'
 
 import {
-  adminAccess,
   adminFieldAccess,
+  chapterContentReadAccess,
   authenticatedAccess,
   chaptersReadAccess,
   ownerAccess,
@@ -10,9 +10,11 @@ import {
 import { createChapterLexicalEditor } from '../utils/chapterRichText'
 import {
   applyChapterPasswordReadStateHook,
+  syncChapterPasswordStateHook,
+} from '../utils/chapterPasswordHooks'
+import {
   enforceChapterBookOwnershipHook,
   enforceUniqueChapterOrderHook,
-  syncChapterPasswordStateHook,
 } from '../utils/books'
 import { enforceOwnershipHook } from '../utils/ownership'
 import { createSlugHook } from '../utils/slug'
@@ -126,6 +128,9 @@ export const Chapters: CollectionConfig = {
       type: 'richText',
       required: true,
       editor: createChapterLexicalEditor(),
+      access: {
+        read: chapterContentReadAccess,
+      },
     },
     {
       name: 'password',
@@ -133,6 +138,9 @@ export const Chapters: CollectionConfig = {
       admin: {
         position: 'sidebar',
         description: 'Optional. If set, readers must enter this password to view the chapter.',
+        components: {
+          Field: '@/components/admin/chapters/ChapterPasswordField',
+        },
       },
       access: {
         read: () => false,
@@ -148,6 +156,19 @@ export const Chapters: CollectionConfig = {
         readOnly: true,
         position: 'sidebar',
         description: 'Auto-set. True when a password has been configured.',
+      },
+    },
+    {
+      name: 'passwordVersion',
+      type: 'number',
+      defaultValue: 0,
+      admin: {
+        position: 'sidebar',
+        readOnly: true,
+        description: 'Auto-incremented whenever the password changes.',
+      },
+      access: {
+        read: () => false,
       },
     },
     {

@@ -319,6 +319,10 @@ export interface Chapter {
    * Auto-set. True when a password has been configured.
    */
   hasPassword?: boolean | null;
+  /**
+   * Auto-incremented whenever the password changes.
+   */
+  passwordVersion?: number | null;
   createdBy: number | User;
   updatedAt: string;
   createdAt: string;
@@ -651,6 +655,7 @@ export interface ChaptersSelect<T extends boolean = true> {
   content?: T;
   password?: T;
   hasPassword?: T;
+  passwordVersion?: T;
   createdBy?: T;
   updatedAt?: T;
   createdAt?: T;

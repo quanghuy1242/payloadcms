@@ -16,6 +16,8 @@ const urlSchema = z
     return normalized
   })
 
+const isNextBuild = process.env.NEXT_PHASE === 'phase-production-build'
+
 let cachedAuthBaseUrl: string | undefined
 
 export const getAuthBaseUrl = (): string => {
@@ -26,6 +28,12 @@ export const getAuthBaseUrl = (): string => {
   const envValue = process.env.AUTH_BASE_URL
 
   if (!envValue) {
+    if (isNextBuild) {
+      cachedAuthBaseUrl = 'http://localhost:3000'
+
+      return cachedAuthBaseUrl
+    }
+
     throw new Error('AUTH_BASE_URL must be configured to use Better Auth integration.')
   }
 
@@ -44,6 +52,12 @@ export const getPayloadClientId = (): string => {
   const envValue = process.env.PAYLOAD_CLIENT_ID
 
   if (!envValue) {
+    if (isNextBuild) {
+      cachedClientId = 'build-client-id'
+
+      return cachedClientId
+    }
+
     throw new Error('PAYLOAD_CLIENT_ID must be configured to use Better Auth integration.')
   }
 
@@ -66,6 +80,12 @@ export const getPayloadClientSecret = (): string => {
   const envValue = process.env.PAYLOAD_CLIENT_SECRET
 
   if (!envValue) {
+    if (isNextBuild) {
+      cachedClientSecret = 'build-client-secret'
+
+      return cachedClientSecret
+    }
+
     throw new Error('PAYLOAD_CLIENT_SECRET must be configured to use Better Auth integration.')
   }
 

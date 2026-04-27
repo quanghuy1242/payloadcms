@@ -49,6 +49,7 @@ const chapterUiMocks = vi.hoisted(() => ({
   useDocumentInfo: vi.fn(),
   useDocumentDrawer: vi.fn(),
   useListDrawer: vi.fn(),
+  useModal: vi.fn(),
 }))
 
 vi.mock('next/navigation', () => {
@@ -87,10 +88,13 @@ vi.mock('@payloadcms/ui', async () => {
 
   return {
     Button: MockButton,
+    Drawer: ({ children }: { children?: ReactNode }): ReactElement =>
+      createElement('div', { 'data-testid': 'payload-drawer' }, children),
     useConfig: chapterUiMocks.useConfig,
     useDocumentDrawer: chapterUiMocks.useDocumentDrawer,
     useDocumentInfo: chapterUiMocks.useDocumentInfo,
     useListDrawer: chapterUiMocks.useListDrawer,
+    useModal: chapterUiMocks.useModal,
   }
 })
 
@@ -163,6 +167,9 @@ beforeEach(() => {
       },
     },
   })
+  chapterUiMocks.useModal.mockReturnValue({
+    openModal: vi.fn(),
+  })
   installListDrawerMock()
 })
 
@@ -177,6 +184,7 @@ afterEach(() => {
   chapterUiMocks.openDrawer.mockReset()
   chapterUiMocks.routerPush.mockReset()
   chapterUiMocks.useConfig.mockReset()
+  chapterUiMocks.useModal.mockReset()
   chapterUiMocks.lastButtonProps = undefined
   chapterUiMocks.lastUseListDrawerArgs = undefined
   vi.restoreAllMocks()
