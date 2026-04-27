@@ -384,7 +384,7 @@ describe('Books hooks', () => {
     expect(readResult.password).toBeUndefined()
     expect(readResult.passwordVersion).toBeUndefined()
 
-    const rejectedResult = await afterReadHook?.({
+    const sanitizedResult = await afterReadHook?.({
       collection: undefined as never,
       context: undefined as never,
       doc: {
@@ -402,7 +402,9 @@ describe('Books hooks', () => {
       } as never,
     }) as Record<string, unknown>
 
-    expect(rejectedResult.content).toBeUndefined()
+    expect(sanitizedResult.content).toBe('locked chapter text')
+    expect(sanitizedResult.password).toBeUndefined()
+    expect(sanitizedResult.passwordVersion).toBeUndefined()
   })
 
   it('uses raw chapter metadata to honor proof-based access when the version is hidden from the sanitized doc', async () => {
@@ -443,11 +445,11 @@ describe('Books hooks', () => {
               db: {
                 findOne,
               },
+              logger: {
+                warn: vi.fn(),
+              },
             },
-            user: {
-              id: 77,
-              role: 'user',
-            },
+            user: null,
           } as never,
         }),
       ).resolves.toBe(true)
@@ -469,11 +471,11 @@ describe('Books hooks', () => {
             db: {
               findOne,
             },
+            logger: {
+              warn: vi.fn(),
+            },
           },
-          user: {
-            id: 77,
-            role: 'user',
-          },
+          user: null,
         } as never,
       })) as Record<string, unknown>
 

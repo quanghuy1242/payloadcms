@@ -1,7 +1,6 @@
 import type { CollectionAfterReadHook, CollectionBeforeChangeHook } from 'payload'
 
 import {
-  canReadChapterContentForRequest,
   hashChapterPassword,
   nextChapterPasswordVersion,
   normalizeChapterPasswordVersion,
@@ -68,38 +67,21 @@ export const syncChapterPasswordStateHook: CollectionBeforeChangeHook = async ({
 
 /**
  * Payload `afterRead` hook that hides the raw chapter password and derives `hasPassword` from storage.
+ *
+ * Do not re-apply chapter content access here. The `content` field already has a dedicated
+ * field-level read access function, and a second gate in `afterRead` can strip content from
+ * requests that Payload has already authorized at the field layer.
  */
-export const applyChapterPasswordReadStateHook: CollectionAfterReadHook = async ({ doc, req }) => {
+export const applyChapterPasswordReadStateHook: CollectionAfterReadHook = async ({ doc }) => {
   if (doc == null || typeof doc !== 'object') {
     return doc
   }
 
   const chapter = doc as ChapterPasswordRecord
-  const canReadContent = await canReadChapterContentForRequest({
-    chapter,
-    chapterId: chapter.id,
-    headers: req?.headers,
-    req: req as never,
-    user: req?.user,
-  })
-
-  req?.payload?.logger?.warn(
-    `[chapter-password-debug] after-read ${JSON.stringify({
-      canReadContent,
-      chapterId: chapter.id ?? null,
-      contentHasKey: 'content' in chapter,
-      contentIsNull: 'content' in chapter ? chapter.content === null : null,
-      contentIsUndefined: 'content' in chapter ? chapter.content === undefined : null,
-      contentType: 'content' in chapter ? typeof chapter.content : null,
-      hasPassword: Boolean(chapter.hasPassword ?? chapter.password),
-      userId: req?.user?.id ?? null,
-    })}`,
-  )
 
   return {
     ...chapter,
     hasPassword: Boolean(chapter.hasPassword ?? chapter.password),
-    content: canReadContent ? chapter.content : undefined,
     password: undefined,
     passwordVersion: undefined,
   }
