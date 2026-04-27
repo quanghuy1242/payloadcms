@@ -32,6 +32,9 @@ type ChapterPasswordDocument = {
 type ChapterPasswordLookupRequest = {
   headers?: HeaderSource
   payload?: {
+    logger?: {
+      warn?: (message: string) => void
+    } | null
     db?: {
       findOne?: (args: {
         collection: string
@@ -52,6 +55,22 @@ type ChapterPasswordProofPayload = {
   chapterId: string
   expiresAt: number
   passwordVersion: number
+}
+
+const logChapterPasswordDebug = (
+  req: ChapterPasswordLookupRequest | null | undefined,
+  event: string,
+  details: Record<string, unknown>,
+): void => {
+  const logger = req?.payload?.logger
+  const serialized = JSON.stringify(details)
+
+  if (typeof logger?.warn === 'function') {
+    logger.warn(`[chapter-password-debug] ${event} ${serialized}`)
+    return
+  }
+
+  console.warn(`[chapter-password-debug] ${event} ${serialized}`)
 }
 
 const normalizePasswordVersion = (value: unknown): number => {
@@ -404,16 +423,29 @@ export const canReadChapterContentForRequest = async ({
   user?: ChapterAccessUser | null
 }): Promise<boolean> => {
   if (!chapter) {
+    logChapterPasswordDebug(req, 'read-request:no-chapter', {
+      chapterId: normalizeEntityId(chapterId),
+      hasHeaders: Boolean(headers),
+      userId: normalizeEntityId(user?.id),
+    })
     return false
   }
 
   const isProtected = Boolean(chapter.hasPassword ?? chapter.password)
 
   if (!isProtected) {
+    logChapterPasswordDebug(req, 'read-request:not-protected', {
+      chapterId: normalizeEntityId(chapterId ?? chapter.id),
+      chapterDocId: normalizeEntityId(chapter.id),
+    })
     return true
   }
 
   if (user?.role === 'admin') {
+    logChapterPasswordDebug(req, 'read-request:admin-bypass', {
+      chapterId: normalizeEntityId(chapterId ?? chapter.id),
+      userId: normalizeEntityId(user?.id),
+    })
     return true
   }
 
@@ -421,12 +453,28 @@ export const canReadChapterContentForRequest = async ({
   const userId = normalizeEntityId(user?.id)
 
   if (chapterOwnerId != null && userId != null && String(chapterOwnerId) === String(userId)) {
+    logChapterPasswordDebug(req, 'read-request:owner-bypass', {
+      chapterId: normalizeEntityId(chapterId ?? chapter.id),
+      userId,
+    })
     return true
   }
 
   const proofs = getChapterPasswordProofsFromHeaders(headers)
 
   if (proofs.length === 0) {
+    logChapterPasswordDebug(req, 'read-request:no-proof', {
+      chapterId: normalizeEntityId(chapterId ?? chapter.id),
+      chapterDocId: normalizeEntityId(chapter.id),
+      chapterOwnerId,
+      hasCookieHeader: Boolean(readHeaderValue(headers, 'cookie')),
+      headerKeys:
+        headers && typeof (headers as Headers).get !== 'function' ? Object.keys(headers as HeaderMap).slice(0, 20) : null,
+      hasPrimaryHeader: Boolean(readHeaderValue(headers, CHAPTER_PASSWORD_PROOF_HEADER)),
+      hasFallbackHeader: Boolean(readHeaderValue(headers, 'chapter-password-proof')),
+      headerShape: headers ? (typeof (headers as Headers).get === 'function' ? 'Headers' : 'Object') : 'none',
+      userId,
+    })
     return false
   }
 
@@ -441,13 +489,28 @@ export const canReadChapterContentForRequest = async ({
   const normalizedChapterId = normalizeEntityId(chapterId ?? resolvedChapter?.id ?? chapter.id)
   const normalizedPasswordVersion = resolvedChapter?.passwordVersion ?? chapter.passwordVersion
 
-  return proofs.some((proof) =>
+  const verificationMatched = proofs.some((proof) =>
     verifyChapterPasswordProof({
       chapterId: normalizedChapterId,
       passwordVersion: normalizedPasswordVersion,
       proof,
     }),
   )
+
+  logChapterPasswordDebug(req, 'read-request:verified', {
+    chapterDocId: normalizeEntityId(chapter.id),
+    chapterId: normalizedChapterId,
+    chapterOwnerId,
+    chapterPasswordVersion: normalizePasswordVersion(chapter.passwordVersion),
+    fetchedPasswordVersion:
+      resolvedChapter?.passwordVersion == null ? null : normalizePasswordVersion(resolvedChapter.passwordVersion),
+    fetchedResolvedId: normalizeEntityId(resolvedChapter?.id),
+    proofCount: proofs.length,
+    result: verificationMatched,
+    userId,
+  })
+
+  return verificationMatched
 }
 
 export const nextChapterPasswordVersion = (value: unknown): number => {

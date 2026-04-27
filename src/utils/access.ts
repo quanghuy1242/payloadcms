@@ -75,6 +75,17 @@ export const chapterContentReadAccess: FieldAccess = async ({ doc, id, req }) =>
     return true
   }
 
+  req.payload.logger.warn(
+    `[chapter-password-debug] field-access ${JSON.stringify({
+      accessDocId: normalizeEntityId((doc as { id?: unknown } | null | undefined)?.id),
+      accessId: normalizeEntityId(id),
+      docKeys: doc && typeof doc === 'object' ? Object.keys(doc as Record<string, unknown>).slice(0, 20) : null,
+      hasHeaders: Boolean(req.headers),
+      headerShape: req.headers ? (typeof req.headers.get === 'function' ? 'Headers' : 'Object') : 'none',
+      userId: normalizeEntityId(req.user?.id),
+    })}`,
+  )
+
   return canReadChapterContentForRequest({
     chapter: doc as { createdBy?: unknown; hasPassword?: boolean | null; id?: unknown; password?: unknown; passwordVersion?: unknown } | null | undefined,
     chapterId: (doc as { id?: unknown } | null | undefined)?.id ?? id,
