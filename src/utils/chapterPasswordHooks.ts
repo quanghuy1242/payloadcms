@@ -1,7 +1,7 @@
 import type { CollectionAfterReadHook, CollectionBeforeChangeHook } from 'payload'
 
 import {
-  canReadChapterContent,
+  canReadChapterContentForRequest,
   hashChapterPassword,
   nextChapterPasswordVersion,
   normalizeChapterPasswordVersion,
@@ -69,16 +69,17 @@ export const syncChapterPasswordStateHook: CollectionBeforeChangeHook = async ({
 /**
  * Payload `afterRead` hook that hides the raw chapter password and derives `hasPassword` from storage.
  */
-export const applyChapterPasswordReadStateHook: CollectionAfterReadHook = ({ doc, req }) => {
+export const applyChapterPasswordReadStateHook: CollectionAfterReadHook = async ({ doc, req }) => {
   if (doc == null || typeof doc !== 'object') {
     return doc
   }
 
   const chapter = doc as ChapterPasswordRecord
-  const canReadContent = canReadChapterContent({
+  const canReadContent = await canReadChapterContentForRequest({
     chapter,
     chapterId: chapter.id,
     headers: req?.headers,
+    req: req as never,
     user: req?.user,
   })
 

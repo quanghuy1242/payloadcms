@@ -17,7 +17,7 @@ import { extractTokenFromHeaders } from '@/lib/betterAuth/tokens'
 import { drainDeferredGrantsForUser } from '@/utils/deferredGrants'
 import { checkPermissionBatch } from '@/utils/grantMirror'
 
-import { canReadChapterContent } from './chapterPasswords'
+import { canReadChapterContentForRequest } from './chapterPasswords'
 import { normalizeEntityId } from './identifiers'
 import { toNullableString } from './strings'
 
@@ -70,15 +70,16 @@ export const adminFieldAccess: FieldAccess = ({ req }) => {
   return isAdminUser(req.user)
 }
 
-export const chapterContentReadAccess: FieldAccess = ({ doc, req }) => {
+export const chapterContentReadAccess: FieldAccess = async ({ doc, req }) => {
   if (authenticatedFieldAccess({ req })) {
     return true
   }
 
-  return canReadChapterContent({
+  return canReadChapterContentForRequest({
     chapter: doc as { createdBy?: unknown; hasPassword?: boolean | null; id?: unknown; password?: unknown; passwordVersion?: unknown } | null | undefined,
     chapterId: (doc as { id?: unknown } | null | undefined)?.id,
     headers: req.headers,
+    req: req as never,
     user: req.user,
   })
 }

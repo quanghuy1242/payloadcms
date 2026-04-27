@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { Chapters } from '@/collections/Chapters'
-import { booksAfterDeleteGrantMirrorHook } from '@/utils/access'
+import { booksAfterDeleteGrantMirrorHook, chapterContentReadAccess } from '@/utils/access'
 import {
   canReadChapterContent,
   createChapterPasswordProof,
@@ -361,7 +361,7 @@ describe('Books hooks', () => {
     expect(clearedResult.password).toBeNull()
     expect(clearedResult.passwordVersion).toBe(8)
 
-    const readResult = afterReadHook?.({
+    const readResult = await afterReadHook?.({
       collection: undefined as never,
       context: undefined as never,
       doc: {
@@ -384,7 +384,7 @@ describe('Books hooks', () => {
     expect(readResult.password).toBeUndefined()
     expect(readResult.passwordVersion).toBeUndefined()
 
-    const rejectedResult = afterReadHook?.({
+    const rejectedResult = await afterReadHook?.({
       collection: undefined as never,
       context: undefined as never,
       doc: {
@@ -403,6 +403,98 @@ describe('Books hooks', () => {
     }) as Record<string, unknown>
 
     expect(rejectedResult.content).toBeUndefined()
+  })
+
+  it('uses raw chapter metadata to honor proof-based access when the version is hidden from the sanitized doc', async () => {
+    const afterReadHook = Chapters.hooks?.afterRead?.[0]
+
+    expect(afterReadHook).toEqual(expect.any(Function))
+
+    const previousSecret = process.env.PAYLOAD_SECRET
+    process.env.PAYLOAD_SECRET = 'test-secret'
+
+    try {
+      const proof = createChapterPasswordProof({
+        chapterId: 42,
+        passwordVersion: 3,
+        secret: 'test-secret',
+      })
+
+      const findOne = vi.fn().mockResolvedValue({
+        id: 42,
+        createdBy: 88,
+        hasPassword: true,
+        passwordVersion: 3,
+      })
+
+      await expect(
+        chapterContentReadAccess({
+          doc: {
+            content: 'secret chapter text',
+            createdBy: 88,
+            hasPassword: true,
+            id: 42,
+          } as never,
+          req: {
+            headers: new Headers({
+              'x-chapter-password-proof': proof.proof,
+            }),
+            payload: {
+              db: {
+                findOne,
+              },
+            },
+            user: {
+              id: 77,
+              role: 'user',
+            },
+          } as never,
+        }),
+      ).resolves.toBe(true)
+
+      const readResult = (await afterReadHook?.({
+        collection: undefined as never,
+        context: undefined as never,
+        doc: {
+          content: 'secret chapter text',
+          createdBy: 88,
+          hasPassword: true,
+          id: 42,
+        },
+        req: {
+          headers: new Headers({
+            'x-chapter-password-proof': proof.proof,
+          }),
+          payload: {
+            db: {
+              findOne,
+            },
+          },
+          user: {
+            id: 77,
+            role: 'user',
+          },
+        } as never,
+      })) as Record<string, unknown>
+
+      expect(readResult.content).toBe('secret chapter text')
+      expect(findOne).toHaveBeenCalledWith(
+        expect.objectContaining({
+          collection: 'chapters',
+          where: {
+            id: {
+              equals: 42,
+            },
+          },
+        }),
+      )
+    } finally {
+      if (previousSecret === undefined) {
+        delete process.env.PAYLOAD_SECRET
+      } else {
+        process.env.PAYLOAD_SECRET = previousSecret
+      }
+    }
   })
 
   it('allows proof-based access to chapter content and revokes stale proofs', () => {

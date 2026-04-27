@@ -25,6 +25,25 @@ type ChapterPasswordDocument = {
   passwordVersion?: unknown
 }
 
+type ChapterPasswordLookupRequest = {
+  headers?: Headers | null
+  payload?: {
+    db?: {
+      findOne?: (args: {
+        collection: string
+        req: ChapterPasswordLookupRequest
+        select?: Record<string, boolean>
+        where: {
+          id: {
+            equals: unknown
+          }
+        }
+      }) => Promise<ChapterPasswordDocument | null>
+    } | null
+  } | null
+  user?: ChapterAccessUser | null
+}
+
 type ChapterPasswordProofPayload = {
   chapterId: string
   expiresAt: number
@@ -285,6 +304,97 @@ export const canReadChapterContent = ({
   return verifyChapterPasswordProof({
     chapterId: normalizeEntityId(chapterId ?? chapter.id),
     passwordVersion: chapter.passwordVersion,
+    proof,
+  })
+}
+
+const fetchChapterPasswordMetadata = async ({
+  chapterId,
+  req,
+}: {
+  chapterId: unknown
+  req?: ChapterPasswordLookupRequest | null
+}): Promise<ChapterPasswordDocument | null> => {
+  const normalizedChapterId = normalizeEntityId(chapterId)
+
+  if (normalizedChapterId == null) {
+    return null
+  }
+
+  const findOne = req?.payload?.db?.findOne
+
+  if (!findOne) {
+    return null
+  }
+
+  return findOne({
+    collection: 'chapters',
+    req: req ?? {},
+    select: {
+      createdBy: true,
+      hasPassword: true,
+      id: true,
+      passwordVersion: true,
+    },
+    where: {
+      id: {
+        equals: normalizedChapterId,
+      },
+    },
+  }).catch(() => null)
+}
+
+export const canReadChapterContentForRequest = async ({
+  chapter,
+  chapterId,
+  headers,
+  req,
+  user,
+}: {
+  chapter: ChapterPasswordDocument | null | undefined
+  chapterId?: unknown
+  headers?: Headers | null
+  req?: ChapterPasswordLookupRequest | null
+  user?: ChapterAccessUser | null
+}): Promise<boolean> => {
+  if (!chapter) {
+    return false
+  }
+
+  const isProtected = Boolean(chapter.hasPassword ?? chapter.password)
+
+  if (!isProtected) {
+    return true
+  }
+
+  if (user?.role === 'admin') {
+    return true
+  }
+
+  const chapterOwnerId = normalizeEntityId(chapter.createdBy)
+  const userId = normalizeEntityId(user?.id)
+
+  if (chapterOwnerId != null && userId != null && String(chapterOwnerId) === String(userId)) {
+    return true
+  }
+
+  const proof = getChapterPasswordProofFromHeaders(headers)
+
+  if (!proof) {
+    return false
+  }
+
+  const resolvedChapter =
+    chapter.passwordVersion == null || chapterOwnerId == null
+      ? await fetchChapterPasswordMetadata({
+          chapterId: chapterId ?? chapter.id,
+          req,
+        })
+      : chapter
+
+  return verifyChapterPasswordProof({
+    chapterId: normalizeEntityId(chapterId ?? resolvedChapter?.id ?? chapter.id),
+    passwordVersion: resolvedChapter?.passwordVersion ?? chapter.passwordVersion,
     proof,
   })
 }
