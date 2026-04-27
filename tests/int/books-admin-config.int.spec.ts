@@ -21,6 +21,12 @@ describe('Book admin config', () => {
     expect(Chapters.access?.read).toBe(chaptersReadAccess)
 
     expect(Books.fields.some((field) => 'name' in field && field.name === 'visibility')).toBe(true)
+    expect(
+      Chapters.fields.find((field) => 'name' in field && field.name === 'content')?.admin?.components?.Field,
+    ).toBe('@/components/admin/chapters/ChapterContentField')
+    expect(
+      Chapters.fields.find((field) => 'name' in field && field.name === 'password')?.admin?.components?.Field,
+    ).toBe('@/components/admin/chapters/ChapterPasswordField')
     expect(Chapters.fields.some((field) => 'name' in field && field.name === 'password')).toBe(true)
     expect(Chapters.fields.some((field) => 'name' in field && field.name === 'hasPassword')).toBe(true)
   })

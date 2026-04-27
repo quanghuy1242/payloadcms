@@ -1,7 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
 import {
-  adminFieldAccess,
+  authenticatedFieldAccess,
   chapterContentReadAccess,
   authenticatedAccess,
   chaptersReadAccess,
@@ -128,6 +128,11 @@ export const Chapters: CollectionConfig = {
       type: 'richText',
       required: true,
       editor: createChapterLexicalEditor(),
+      admin: {
+        components: {
+          Field: '@/components/admin/chapters/ChapterContentField',
+        },
+      },
       access: {
         read: chapterContentReadAccess,
       },
@@ -143,9 +148,9 @@ export const Chapters: CollectionConfig = {
         },
       },
       access: {
-        read: () => false,
-        create: adminFieldAccess,
-        update: adminFieldAccess,
+        read: authenticatedFieldAccess,
+        create: authenticatedFieldAccess,
+        update: authenticatedFieldAccess,
       },
     },
     {

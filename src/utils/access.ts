@@ -71,6 +71,10 @@ export const adminFieldAccess: FieldAccess = ({ req }) => {
 }
 
 export const chapterContentReadAccess: FieldAccess = ({ doc, req }) => {
+  if (authenticatedFieldAccess({ req })) {
+    return true
+  }
+
   return canReadChapterContent({
     chapter: doc as { createdBy?: unknown; hasPassword?: boolean | null; id?: unknown; password?: unknown; passwordVersion?: unknown } | null | undefined,
     chapterId: (doc as { id?: unknown } | null | undefined)?.id,

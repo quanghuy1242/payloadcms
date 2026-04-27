@@ -365,16 +365,44 @@ describe('Books hooks', () => {
       collection: undefined as never,
       context: undefined as never,
       doc: {
+        content: 'secret chapter text',
+        createdBy: 77,
         hasPassword: true,
         password: 'reader-secret',
         passwordVersion: 7,
       },
-      req: {} as never,
+      req: {
+        user: {
+          id: 77,
+          role: 'user',
+        },
+      } as never,
     }) as Record<string, unknown>
 
     expect(readResult.hasPassword).toBe(true)
+    expect(readResult.content).toBe('secret chapter text')
     expect(readResult.password).toBeUndefined()
     expect(readResult.passwordVersion).toBeUndefined()
+
+    const rejectedResult = afterReadHook?.({
+      collection: undefined as never,
+      context: undefined as never,
+      doc: {
+        content: 'locked chapter text',
+        createdBy: 88,
+        hasPassword: true,
+        password: 'reader-secret',
+        passwordVersion: 7,
+      },
+      req: {
+        user: {
+          id: 77,
+          role: 'user',
+        },
+      } as never,
+    }) as Record<string, unknown>
+
+    expect(rejectedResult.content).toBeUndefined()
   })
 
   it('allows proof-based access to chapter content and revokes stale proofs', () => {
