@@ -83,6 +83,19 @@ export const applyChapterPasswordReadStateHook: CollectionAfterReadHook = async 
     user: req?.user,
   })
 
+  req?.payload?.logger?.warn(
+    `[chapter-password-debug] after-read ${JSON.stringify({
+      canReadContent,
+      chapterId: chapter.id ?? null,
+      contentHasKey: 'content' in chapter,
+      contentIsNull: 'content' in chapter ? chapter.content === null : null,
+      contentIsUndefined: 'content' in chapter ? chapter.content === undefined : null,
+      contentType: 'content' in chapter ? typeof chapter.content : null,
+      hasPassword: Boolean(chapter.hasPassword ?? chapter.password),
+      userId: req?.user?.id ?? null,
+    })}`,
+  )
+
   return {
     ...chapter,
     hasPassword: Boolean(chapter.hasPassword ?? chapter.password),
