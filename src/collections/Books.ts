@@ -63,6 +63,7 @@ export const Books: CollectionConfig = {
           '/components/admin/books/ChapterListButton',
           '/components/admin/books/BookAccessPanel',
           '/components/admin/books/ReconcileGrantsButton',
+          '/components/admin/PreviewOnBlogButton',
         ],
       },
     },

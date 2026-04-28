@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { Books } from '@/collections/Books'
 import { Chapters } from '@/collections/Chapters'
+import { Posts } from '@/collections/Posts'
 import { chaptersReadAccess, publicBooksReadAccess } from '@/utils/access'
 
 describe('Book admin config', () => {
@@ -9,12 +10,13 @@ describe('Book admin config', () => {
     expect(Chapters.admin?.hidden).toBe(true)
   })
 
-  it('wires the chapter list and delete controls into the edit header', () => {
+  it('wires the chapter list, delete, and preview controls into the edit header', () => {
     expect(Books.admin?.components?.edit?.beforeDocumentControls).toEqual([
       '/components/admin/books/DeleteBookButton',
       '/components/admin/books/ChapterListButton',
       '/components/admin/books/BookAccessPanel',
       '/components/admin/books/ReconcileGrantsButton',
+      '/components/admin/PreviewOnBlogButton',
     ])
 
     expect(Books.access?.read).toBe(publicBooksReadAccess)
@@ -29,5 +31,11 @@ describe('Book admin config', () => {
     ).toBe('@/components/admin/chapters/ChapterPasswordField')
     expect(Chapters.fields.some((field) => 'name' in field && field.name === 'password')).toBe(true)
     expect(Chapters.fields.some((field) => 'name' in field && field.name === 'hasPassword')).toBe(true)
+  })
+
+  it('wires the preview button into the Posts edit header', () => {
+    expect(Posts.admin?.components?.edit?.beforeDocumentControls).toEqual([
+      '/components/admin/PreviewOnBlogButton',
+    ])
   })
 })

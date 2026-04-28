@@ -32,6 +32,11 @@ export const Posts: CollectionConfig = {
     defaultColumns: ['title', 'category', 'author', '_status', 'updatedAt'],
     description:
       'Drafts are private until you publish. Publishing will lock in the current content for readers.',
+    components: {
+      edit: {
+        beforeDocumentControls: ['/components/admin/PreviewOnBlogButton'],
+      },
+    },
   },
   versions: {
     drafts: {
