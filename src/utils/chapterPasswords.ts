@@ -282,11 +282,7 @@ export const verifyChapterPasswordProof = ({
   return true
 }
 
-export const getChapterPasswordProofFromHeaders = (headers?: HeaderSource): string | null => {
-  return getChapterPasswordProofsFromHeaders(headers)[0] ?? null
-}
-
-export const getChapterPasswordProofsFromHeaders = (headers?: HeaderSource): string[] => {
+const getChapterPasswordProofsFromHeaders = (headers?: HeaderSource): string[] => {
   if (!headers) {
     return []
   }
@@ -296,13 +292,14 @@ export const getChapterPasswordProofsFromHeaders = (headers?: HeaderSource): str
     ...splitChapterPasswordProofValue(readHeaderValue(headers, 'chapter-password-proof')),
   ]
 
-  if (headerValues.length > 0) {
-    return headerValues
-  }
-
   const cookieValue = getCookieValue(readHeaderValue(headers, 'cookie') ?? '', CHAPTER_PASSWORD_PROOF_COOKIE)
 
-  return splitChapterPasswordProofValue(cookieValue)
+  return Array.from(
+    new Set([
+      ...headerValues,
+      ...splitChapterPasswordProofValue(cookieValue),
+    ]),
+  )
 }
 
 export const canReadChapterContent = ({
