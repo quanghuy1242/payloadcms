@@ -75,6 +75,8 @@ export interface Config {
     categories: Category;
     'grant-mirror': GrantMirror;
     'deferred-grants': DeferredGrant;
+    'reading-progress': ReadingProgress;
+    bookmarks: Bookmark;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
     'payload-migrations': PayloadMigration;
@@ -89,6 +91,8 @@ export interface Config {
     categories: CategoriesSelect<false> | CategoriesSelect<true>;
     'grant-mirror': GrantMirrorSelect<false> | GrantMirrorSelect<true>;
     'deferred-grants': DeferredGrantsSelect<false> | DeferredGrantsSelect<true>;
+    'reading-progress': ReadingProgressSelect<false> | ReadingProgressSelect<true>;
+    bookmarks: BookmarksSelect<false> | BookmarksSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
     'payload-migrations': PayloadMigrationsSelect<false> | PayloadMigrationsSelect<true>;
@@ -468,6 +472,33 @@ export interface DeferredGrant {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "reading-progress".
+ */
+export interface ReadingProgress {
+  id: number;
+  user: number | User;
+  book: number | Book;
+  chapter: number | Chapter;
+  progress?: number | null;
+  completedAt?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "bookmarks".
+ */
+export interface Bookmark {
+  id: number;
+  user: number | User;
+  contentType: 'chapter' | 'book';
+  chapter?: (number | null) | Chapter;
+  book?: (number | null) | Book;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-locked-documents".
  */
 export interface PayloadLockedDocument {
@@ -504,6 +535,14 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'deferred-grants';
         value: number | DeferredGrant;
+      } | null)
+    | ({
+        relationTo: 'reading-progress';
+        value: number | ReadingProgress;
+      } | null)
+    | ({
+        relationTo: 'bookmarks';
+        value: number | Bookmark;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -735,6 +774,31 @@ export interface DeferredGrantsSelect<T extends boolean = true> {
   status?: T;
   processedAt?: T;
   type?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "reading-progress_select".
+ */
+export interface ReadingProgressSelect<T extends boolean = true> {
+  user?: T;
+  book?: T;
+  chapter?: T;
+  progress?: T;
+  completedAt?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "bookmarks_select".
+ */
+export interface BookmarksSelect<T extends boolean = true> {
+  user?: T;
+  contentType?: T;
+  chapter?: T;
+  book?: T;
   updatedAt?: T;
   createdAt?: T;
 }

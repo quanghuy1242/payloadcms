@@ -103,8 +103,8 @@ importers:
         specifier: ^3.3.5
         version: 3.3.5
       '@payloadcms/graphql':
-        specifier: ^3.84.1
-        version: 3.84.1(graphql@16.13.2)(payload@3.60.0(bufferutil@4.0.9)(graphql@16.13.2)(typescript@5.7.3)(utf-8-validate@6.0.5))(typescript@5.7.3)
+        specifier: 3.60.0
+        version: 3.60.0(graphql@16.13.2)(payload@3.60.0(bufferutil@4.0.9)(graphql@16.13.2)(typescript@5.7.3)(utf-8-validate@6.0.5))(typescript@5.7.3)
       '@playwright/test':
         specifier: 1.54.1
         version: 1.54.1
@@ -1552,13 +1552,6 @@ packages:
     peerDependencies:
       graphql: ^16.8.1
       payload: 3.60.0
-
-  '@payloadcms/graphql@3.84.1':
-    resolution: {integrity: sha512-pVJdgihEEexpK+kANSozAMf3PQfd6p51/G3cK+rkPzSjghf7X+cQQ8NFOmAMDTpijM5YaowQYTuEje3KaLVXuQ==}
-    hasBin: true
-    peerDependencies:
-      graphql: ^16.8.1
-      payload: 3.84.1
 
   '@payloadcms/next@3.60.0':
     resolution: {integrity: sha512-nAYThy2vNeqfdYZtiyMDHhU1znti23FRGXcO/NHdJjAW02CS35RS/XWPd93ZaIQbhfLt/Tus1SowWyu13I8w8Q==}
@@ -6715,17 +6708,6 @@ snapshots:
       pluralize: 8.0.0
       ts-essentials: 10.0.3(typescript@5.7.3)
       tsx: 4.20.6
-    transitivePeerDependencies:
-      - typescript
-
-  '@payloadcms/graphql@3.84.1(graphql@16.13.2)(payload@3.60.0(bufferutil@4.0.9)(graphql@16.13.2)(typescript@5.7.3)(utf-8-validate@6.0.5))(typescript@5.7.3)':
-    dependencies:
-      graphql: 16.13.2
-      graphql-scalars: 1.22.2(graphql@16.13.2)
-      payload: 3.60.0(bufferutil@4.0.9)(graphql@16.13.2)(typescript@5.7.3)(utf-8-validate@6.0.5)
-      pluralize: 8.0.0
-      ts-essentials: 10.0.3(typescript@5.7.3)
-      tsx: 4.21.0
     transitivePeerDependencies:
       - typescript
 
