@@ -42,6 +42,7 @@
     "cross-env": "^7.0.3",
     "cross-fetch": "^4.1.0",
     "dotenv": "^17.4.2",
+    "epub-gen-memory": "^1.1.2",
     "epubjs": "^0.3.93",
     "graphql": "^16.13.2",
     "jose": "^6.2.2",

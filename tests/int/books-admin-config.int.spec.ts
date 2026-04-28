@@ -16,6 +16,7 @@ describe('Book admin config', () => {
       '/components/admin/books/ChapterListButton',
       '/components/admin/books/BookAccessPanel',
       '/components/admin/books/ReconcileGrantsButton',
+      '/components/admin/books/DownloadEpubButton',
       '/components/admin/PreviewOnBlogButton',
     ])
 
