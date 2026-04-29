@@ -46,6 +46,7 @@ export const generateEpubResolver = async (
     collection: 'books',
     id: bookId,
     overrideAccess: false,
+    req: context.req,
   })
 
   if (!book) {

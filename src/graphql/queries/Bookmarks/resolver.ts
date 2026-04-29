@@ -35,7 +35,7 @@ export const bookmarksResolver = async (
 
   const limit = Math.max(1, Math.min(args.limit ?? 50, 100))
   const page = Math.max(1, args.page ?? 1)
-  const hasContentFilter = args.contentType != null || args.contentId != null
+  const hasContentFilter = args.contentType != null && args.contentId != null
 
   const conditions: Array<{ [key: string]: { equals?: unknown } }> = [
     { user: { equals: userId } },

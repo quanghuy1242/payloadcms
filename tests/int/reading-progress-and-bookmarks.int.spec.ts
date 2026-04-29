@@ -595,6 +595,60 @@ describe('Bookmarks GraphQL query resolver', () => {
     )
   })
 
+  it('returns paginated bookmarks when only contentType is provided', async () => {
+    const findMock = vi.fn().mockResolvedValue({
+      docs: [{ id: 1 }, { id: 2 }],
+      totalDocs: 2,
+    })
+
+    const result = await bookmarksResolver(
+      undefined,
+      { contentType: 'chapter' },
+      {
+        req: {
+          payload: { find: findMock },
+          user: { id: 99, role: 'user' },
+        },
+      },
+    )
+
+    expect(result.docs).toHaveLength(2)
+    expect(findMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { and: [{ user: { equals: 99 } }] },
+        limit: 50,
+        page: 1,
+      }),
+    )
+  })
+
+  it('returns paginated bookmarks when only contentId is provided', async () => {
+    const findMock = vi.fn().mockResolvedValue({
+      docs: [{ id: 1 }],
+      totalDocs: 1,
+    })
+
+    const result = await bookmarksResolver(
+      undefined,
+      { contentId: '7' },
+      {
+        req: {
+          payload: { find: findMock },
+          user: { id: 99, role: 'user' },
+        },
+      },
+    )
+
+    expect(result.docs).toHaveLength(1)
+    expect(findMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { and: [{ user: { equals: 99 } }] },
+        limit: 50,
+        page: 1,
+      }),
+    )
+  })
+
   it('rejects invalid bookmark filters', async () => {
     await expect(
       bookmarksResolver(

@@ -1,5 +1,7 @@
 import { createHmac, timingSafeEqual } from 'crypto'
 
+import { resolvePublicSiteUrl } from '@/lib/env'
+
 const EXPIRY_MS = 15 * 60 * 1000
 
 type TokenPayload = {
@@ -73,19 +75,7 @@ export const getEpubExportBaseURL = (requestOrigin?: string): string => {
     return normalizedRequestOrigin
   }
 
-  const siteURL = process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/$/, '')
-
-  if (siteURL) {
-    return siteURL
-  }
-
-  const vercelURL = process.env.VERCEL_URL?.trim().replace(/^https?:\/\//, '').replace(/\/$/, '')
-
-  if (vercelURL) {
-    return `https://${vercelURL}`
-  }
-
-  return 'http://localhost:3000'
+  return resolvePublicSiteUrl()
 }
 
 export { EXPIRY_MS }

@@ -63,6 +63,10 @@ describe('generateEpubResolver', () => {
       collection: 'books',
       id: 42,
       overrideAccess: false,
+      req: expect.objectContaining({
+        payload,
+        user: { id: 99, role: 'user' },
+      }),
     })
     expect(result.filename).toBe('my-book.epub')
     expect(result.downloadUrl).toMatch(/^https:\/\/cms\.quanghuy\.dev\/api\/epub-download\//)

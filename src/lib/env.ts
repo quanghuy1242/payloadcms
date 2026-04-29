@@ -21,6 +21,7 @@ const qstashTokenSchema = z.string().trim().min(1)
 const qstashSigningKeySchema = z.string().trim().min(1)
 
 let cachedR2PublicBaseUrl: string | null | undefined
+let cachedPublicSiteUrl: string | null | undefined
 let cachedCloudflareCacheZoneId: string | null | undefined
 let cachedCloudflareCacheApiToken: string | null | undefined
 let cachedAutherBaseUrl: string | undefined
@@ -49,6 +50,24 @@ export const getR2PublicBaseUrl = (): string | null => {
   cachedR2PublicBaseUrl = r2PublicBaseUrlSchema.parse(value)
 
   return cachedR2PublicBaseUrl
+}
+
+export const getPublicSiteUrl = (): string | null => {
+  if (cachedPublicSiteUrl !== undefined) {
+    return cachedPublicSiteUrl
+  }
+
+  const value = process.env.NEXT_PUBLIC_SITE_URL
+
+  if (!value) {
+    cachedPublicSiteUrl = null
+
+    return cachedPublicSiteUrl
+  }
+
+  cachedPublicSiteUrl = createUrlSchema().parse(value)
+
+  return cachedPublicSiteUrl
 }
 
 export const getCloudflareCacheZoneId = (): string | null => {
@@ -238,4 +257,24 @@ export const resolveQueueTargetBaseUrl = (): string => {
   cachedQueueTargetBaseUrl = 'http://localhost:3000'
 
   return cachedQueueTargetBaseUrl
+}
+
+export const resolvePublicSiteUrl = (): string => {
+  const explicitSiteUrl = getPublicSiteUrl()
+
+  if (explicitSiteUrl) {
+    return explicitSiteUrl
+  }
+
+  const vercelUrl = process.env.VERCEL_URL
+
+  if (vercelUrl) {
+    const normalizedVercelUrl = /^https?:\/\//i.test(vercelUrl)
+      ? vercelUrl
+      : `https://${vercelUrl}`
+
+    return createUrlSchema().parse(normalizedVercelUrl)
+  }
+
+  return 'http://localhost:3000'
 }
