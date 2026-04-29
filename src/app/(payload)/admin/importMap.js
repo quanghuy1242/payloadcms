@@ -27,6 +27,7 @@ import { default as default_316a711d8b21591f8137727cba9d2f57 } from '../../../co
 import { default as default_020c0ac6da2d31e821d17aafb71e4e18 } from '../../../components/admin/books/ChapterListButton'
 import { default as default_e707a77512d2b83c914b857a7f60e737 } from '../../../components/admin/books/BookAccessPanel'
 import { default as default_dd653375e067dc24de864445865337ea } from '../../../components/admin/books/ReconcileGrantsButton'
+import { default as default_1cc6562fa8000e727ef6821e9c0373d8 } from '../../../components/admin/books/DownloadEpubButton'
 import { default as default_74b909c70c1f47f2c1d5b051b20b0e5a } from '../../../components/admin/PreviewOnBlogButton'
 import { default as default_9bfbdc9e46ef128724bf1d0c1a0576db } from '../../../components/admin/books/BooksListView'
 import { TableFeatureClient as TableFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
@@ -83,6 +84,7 @@ export const importMap = {
   "/components/admin/books/ChapterListButton#default": default_020c0ac6da2d31e821d17aafb71e4e18,
   "/components/admin/books/BookAccessPanel#default": default_e707a77512d2b83c914b857a7f60e737,
   "/components/admin/books/ReconcileGrantsButton#default": default_dd653375e067dc24de864445865337ea,
+  "/components/admin/books/DownloadEpubButton#default": default_1cc6562fa8000e727ef6821e9c0373d8,
   "/components/admin/PreviewOnBlogButton#default": default_74b909c70c1f47f2c1d5b051b20b0e5a,
   "/components/admin/books/BooksListView#default": default_9bfbdc9e46ef128724bf1d0c1a0576db,
   "@payloadcms/richtext-lexical/client#TableFeatureClient": TableFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,

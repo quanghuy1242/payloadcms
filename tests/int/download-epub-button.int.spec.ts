@@ -69,6 +69,7 @@ afterEach(() => {
   downloadMocks.useDocumentInfo.mockReset()
   downloadMocks.lastButtonProps = undefined
   vi.restoreAllMocks()
+  delete process.env.NEXT_PUBLIC_CLIENT_EPUB_EXPORT
 })
 
 describe('DownloadEpubButton', () => {
@@ -145,5 +146,27 @@ describe('DownloadEpubButton', () => {
     await waitFor(() => {
       expect(window.alert).toHaveBeenCalledWith('Only the book owner can export EPUB')
     })
+  })
+
+  it('renders the client exporter when NEXT_PUBLIC_CLIENT_EPUB_EXPORT is enabled', async () => {
+    process.env.NEXT_PUBLIC_CLIENT_EPUB_EXPORT = 'true'
+    downloadMocks.useDocumentInfo.mockReturnValue({ id: 42 })
+
+    vi.doMock('@/components/admin/books/EpubExporter', () => ({
+      EpubExporter: () => createElement('div', { 'data-testid': 'epub-exporter' }, 'Mock Exporter'),
+    }))
+
+    vi.resetModules()
+    const { default: DownloadEpubButtonWithFlag } = await import(
+      '@/components/admin/books/DownloadEpubButton'
+    )
+
+    render(createElement(DownloadEpubButtonWithFlag))
+
+    // Legacy button should not appear
+    expect(screen.queryByTestId('download-epub-button')).toBeNull()
+
+    // EpubExporter UI should be present
+    expect(screen.getByTestId('epub-exporter')).toBeTruthy()
   })
 })

@@ -19,6 +19,8 @@ Fallback logic lives in `src/lib/turso.ts` and `src/lib/r2Bucket.ts`. Missing en
 
 1. **Never remove `// @ts-ignore` comments.** They guard Payload 3.x plugin type gaps — removing them breaks the build.
 2. **Never manually edit generated files.** Regenerate them with commands below. Generated: `src/payload-types.ts`, `src/app/(payload)/admin/importMap.js`, `src/app/(payload)/layout.tsx`.
+   - Run `pnpm generate:importmap` after **any** admin component path is added, removed, or renamed in a collection config (`admin.components` or `admin.components.views`).
+   - Run `pnpm generate:types` after collection schema, field, or global changes. Adding custom GraphQL queries/mutations does **not** change `payload-types.ts`.
 3. **Centralize all shared logic in `src/utils/`.** Before adding validation, parsing, access, or fetch logic, check if a utility already exists. Load the `utility-extraction-adviser` skill.
 4. **Always use the Context7 MCP** for library docs, config steps, and API references. Never guess at library-specific details from training data.
 5. **All environment variable reads must go through the env layer.** Server code must read env only via `src/lib/env.ts`; do not access `process.env` directly in server utilities, routes, GraphQL resolvers, or adapters. Client code must not import `src/lib/env.ts`; client-safe `NEXT_PUBLIC_*` reads must stay in client modules or move to a separate client-safe public env module.

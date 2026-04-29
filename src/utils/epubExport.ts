@@ -79,3 +79,17 @@ export const getEpubExportBaseURL = (requestOrigin?: string): string => {
 }
 
 export { EXPIRY_MS }
+
+/* Re-export client-safe helpers so existing imports do not break.
+ * Browser-bound code should prefer `src/utils/epubExportHelpers.ts`
+ * to avoid pulling in the Node `crypto` module.                 */
+export type { ExportChapterIndexEntry } from './epubExportHelpers'
+export {
+  buildExportFilename,
+  createChapterArchiveName,
+  createMediaArchiveName,
+  normalizeEpubPath,
+  resolveEpubHrefToArchivePath,
+  splitEpubHref,
+  spineHrefFromSourceKey,
+} from './epubExportHelpers'

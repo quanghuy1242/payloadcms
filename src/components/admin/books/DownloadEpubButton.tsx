@@ -3,7 +3,11 @@
 import { Button, useDocumentInfo } from '@payloadcms/ui'
 import React, { useCallback, useState } from 'react'
 
+import { EpubExporter } from '@/components/admin/books/EpubExporter'
 import { requestJSON } from '@/utils/http'
+
+const USE_CLIENT_EPUB_EXPORT =
+  process.env.NEXT_PUBLIC_CLIENT_EPUB_EXPORT === 'true'
 
 const DownloadEpubButton: React.FC = () => {
   const { id } = useDocumentInfo()
@@ -56,6 +60,10 @@ const DownloadEpubButton: React.FC = () => {
       setIsLoading(false)
     }
   }, [bookId, isLoading])
+
+  if (USE_CLIENT_EPUB_EXPORT && bookId != null) {
+    return <EpubExporter bookId={bookId} />
+  }
 
   return (
     <Button
