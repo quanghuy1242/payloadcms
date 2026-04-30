@@ -25,6 +25,21 @@ Fallback logic lives in `src/lib/turso.ts` and `src/lib/r2Bucket.ts`. Missing en
 4. **Always use the Context7 MCP** for library docs, config steps, and API references. Never guess at library-specific details from training data.
 5. **All environment variable reads must go through the env layer.** Server code must read env only via `src/lib/env.ts`; do not access `process.env` directly in server utilities, routes, GraphQL resolvers, or adapters. Client code must not import `src/lib/env.ts`; client-safe `NEXT_PUBLIC_*` reads must stay in client modules or move to a separate client-safe public env module.
 
+## Sub-Agent Review Protocol
+
+When using the `task` tool for code review, follow this protocol strictly.
+
+### Sub-agent role
+- **Review and feedback only.** Sub-agents must never write, edit, delete, or run code. They inspect files, reason about correctness, and return structured review comments.
+- Sub-agents do not have access to the plan document or the full conversation history. They evaluate only the files and context you give them.
+
+### Main-agent responsibility
+- **Always send work to 2-pass review** (first pass → address issues → second pass) before declaring a phase complete.
+- **Critically evaluate every sub-agent suggestion before acting.** Sub-agent feedback can be wrong, over-cautious, or misaligned with the plan. Do not blindly apply every recommendation.
+- **The plan document is the source of truth.** When a sub-agent suggestion contradicts the approved plan (e.g., `docs/client-side-epub-export-proposal.md`), the plan wins unless you independently verify that the plan itself is flawed.
+- If a sub-agent suggests removing a parameter, changing a contract, or altering architecture, cross-check against the plan before accepting. When in doubt, ask the user.
+- After fixing first-pass issues, always run a **second-pass review** with the same sub-agent type (or equivalent) to confirm the fixes are correct and no new issues were introduced.
+
 ## Repo Layout
 
 ```
