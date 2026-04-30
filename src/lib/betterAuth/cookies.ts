@@ -111,7 +111,7 @@ const clampCookieAge = (seconds: number): number => {
     return PKCE_COOKIE_MAX_AGE_SECONDS
   }
 
-  return Math.min(Math.floor(seconds), 24 * 60 * 60) // cap at 24 hours
+  return Math.min(Math.floor(seconds), 2 * 24 * 60 * 60) // cap at 2 days
 }
 
 export const getExpressTokenCookieOptions = (maxAgeSeconds: number) => ({

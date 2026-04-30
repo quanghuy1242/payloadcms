@@ -118,7 +118,7 @@ export async function GET(request: NextRequest) {
     return response
   }
 
-  const expiresInSeconds = tokenData?.expires_in ?? 24 * 60 * 60 // Default to 24 hours
+  const expiresInSeconds = tokenData?.expires_in ?? 2 * 24 * 60 * 60 // Default to 2 days
   const response = buildRedirectResponse(`${url.origin}/admin`)
 
   const cookieOptions = getNextTokenCookieOptions(expiresInSeconds)
