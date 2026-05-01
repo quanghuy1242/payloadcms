@@ -94,6 +94,26 @@ Instead:
 - enforce public-site visibility rules inside dedicated GraphQL resolvers
 - keep public-site browser access going through `next-blog/pages/api/comments.ts`
 
+## Non-Negotiables
+
+These are hard rules. A weaker implementation model is likely to drift here unless they are written explicitly.
+
+1. Do not expose public comment reads through generic Payload collection access.
+2. Do not let browser components call Payload GraphQL directly for comment reads or writes.
+3. Do not convert `../next-blog/pages/posts/[slug].tsx` from SSG to SSR just to support comments.
+4. Do not support reply-to-reply in Phase 2.
+5. Do not make comments rich text or HTML-rendered in Phase 2.
+6. Do not add any new Auther entity type for comments.
+7. Do not rely on `postsReadAccess` for anonymous post comment visibility. Handle published-post visibility explicitly in the comment resolver.
+8. Do not forget chapter password-proof forwarding in the blog API route.
+9. Do not skip the planned compound indexes.
+10. Do not manually edit generated files such as `src/payload-types.ts`.
+11. Do not add custom REST route handlers under `payloadcms/src/app/api/` for comment business logic. The comment business logic stays in Payload GraphQL.
+12. Do not use raw collection GraphQL return types for public comment payloads. Use custom public types.
+13. Do not expose rejected comments on the public site.
+14. Do not expose other users’ pending comments to authenticated readers.
+15. Do not allow admin users to post comments through the public-site flow in Phase 2 unless product explicitly changes the rule.
+
 ## Cross-Repo Responsibility Split
 
 ### `payloadcms`
@@ -533,6 +553,260 @@ Add:
 - `createComment`
 - `updateCommentStatus`
 
+## Exact File Checklist
+
+This section is intentionally mechanical. The goal is to reduce freedom for a weak implementer.
+
+### `payloadcms` exact file checklist
+
+#### 1. `src/collections/Comments.ts`
+
+Must do:
+
+- export `Comments: CollectionConfig`
+- set `slug: 'comments'`
+- set collection-level admin visibility on
+- define all planned fields
+- define field indexes
+- define compound `indexes`
+- import and use `adminAccess`
+- import and use hooks from `src/utils/comments.ts`
+
+Must not do:
+
+- inline large validation logic
+- inline access logic beyond imported helpers
+- expose browser-specific code
+
+#### 2. `src/utils/comments.ts`
+
+Must export at minimum:
+
+- `COMMENT_STATUSES`
+- `CommentStatus`
+- `normalizeCommentContent`
+- `assertExclusiveCommentTarget`
+- `assertCommentCreateRole`
+- `loadCommentTarget`
+- `assertCommentTargetReadable`
+- `assertParentCommentIsValid`
+- `commentsBeforeValidateHook`
+- `commentsBeforeChangeHook`
+- `mapCommentDocToPublicComment`
+
+Must do:
+
+- centralize content normalization
+- centralize target validation
+- centralize parent-comment validation
+- centralize public payload mapping
+
+Must not do:
+
+- import React or browser APIs
+- duplicate generic helpers already living in `strings.ts`, `identifiers.ts`, or `access.ts`
+
+#### 3. `src/payload.config.ts`
+
+Must do:
+
+- import `Comments`
+- append `Comments` to `collections`
+
+Must not do:
+
+- reorder unrelated collections without reason
+
+#### 4. `src/graphql/queries/Comments/index.ts`
+
+Must do:
+
+- define custom GraphQL object types for author, comment, and result
+- declare args `chapterId` and `postId`
+- bind to `commentsResolver`
+
+Must not do:
+
+- use `payload.collections['comments']?.graphQL?.type` as the public result type
+
+#### 5. `src/graphql/queries/Comments/resolver.ts`
+
+Must do:
+
+- validate exact-one target arg
+- load target readability
+- run one-query or two-query indexed strategy depending on viewer
+- map docs to public payload
+
+Must not do:
+
+- trust collection `read` access for public site behavior
+- return rejected comments
+
+#### 6. `src/graphql/mutations/CreateComment/index.ts`
+
+Must do:
+
+- define custom return type `{ comment }`
+- declare args `chapterId`, `postId`, `content`, `parentCommentId`
+- bind to `createCommentResolver`
+
+#### 7. `src/graphql/mutations/CreateComment/resolver.ts`
+
+Must do:
+
+- require auth
+- enforce `role === 'user'`
+- validate target readability
+- validate parent
+- normalize content
+- create pending comment
+- return mapped public payload
+
+Must not do:
+
+- create approved comments directly
+- use browser-layer assumptions
+
+#### 8. `src/graphql/mutations/UpdateCommentStatus/index.ts`
+
+Must do:
+
+- define custom return type `{ comment }`
+- declare args `commentId`, `status`
+- bind to `updateCommentStatusResolver`
+
+#### 9. `src/graphql/mutations/UpdateCommentStatus/resolver.ts`
+
+Must do:
+
+- require admin
+- restrict status input to `approved` or `rejected`
+- set `moderatedAt`
+- set `moderatedBy`
+
+#### 10. `src/graphql/queries/index.ts`
+
+Must do:
+
+- register `comments`
+
+#### 11. `src/graphql/mutations/index.ts`
+
+Must do:
+
+- register `createComment`
+- register `updateCommentStatus`
+
+#### 12. `tests/int/comments.int.spec.ts`
+
+Must cover:
+
+- collection config
+- hooks
+- comment query resolver
+- create mutation resolver
+- moderation mutation resolver
+
+### `next-blog` exact file checklist
+
+#### 13. `../next-blog/pages/api/comments.ts`
+
+Must do:
+
+- support only `GET` and `POST`
+- set `Allow` header for unsupported methods
+- set `Cache-Control: no-store`
+- forward Better Auth token
+- forward chapter password proof when present
+- call Payload GraphQL, not collection REST
+- map GraphQL errors to HTTP errors
+
+Must not do:
+
+- call Auther directly
+- trust client-submitted auth state flags
+
+#### 14. `../next-blog/common/apis/comments.ts`
+
+Must export:
+
+- `getComments`
+- `createComment`
+
+Must do:
+
+- talk only to `/api/comments`
+- keep request/response typing local
+
+#### 15. `../next-blog/types/cms.ts`
+
+Must add:
+
+- `CommentStatus`
+- `CommentAuthor`
+- `Comment`
+- optional `CommentsResult`
+
+#### 16. `../next-blog/components/shared/comments-section.tsx`
+
+Must do:
+
+- fetch on mount
+- render two-level thread
+- support top-level submit
+- support reply submit
+- show moderation-pending state
+- render content as plain text
+
+Must not do:
+
+- use `dangerouslySetInnerHTML`
+- read Better Auth token directly in the browser
+- assume comments are server-rendered
+
+#### 17. `../next-blog/pages/books/[slug]/chapters/[chapterSlug].tsx`
+
+Must do:
+
+- mount comments section with `chapterId`
+- keep existing SSR behavior unchanged
+
+Must not do:
+
+- move comment fetching into `getServerSideProps`
+
+#### 18. `../next-blog/pages/posts/[slug].tsx`
+
+Must do:
+
+- mount comments section with `postId`
+- keep existing SSG behavior
+
+Must not do:
+
+- convert page to SSR
+
+#### 19. `../next-blog/tests/api/comments.test.ts`
+
+Must cover:
+
+- GET behavior
+- POST behavior
+- token forwarding
+- password-proof forwarding
+- error mapping
+
+#### 20. `../next-blog/tests/components/comments-section.test.tsx`
+
+Must cover:
+
+- render grouping
+- hidden form state
+- submit success path
+- pending comment UI
+- reply UI
+
 ## `payloadcms` File-Level Work Breakdown
 
 ### Phase 1: schema and utilities
@@ -602,6 +876,24 @@ Important:
 
 - do not edit `src/payload-types.ts` manually
 - no `generate:importmap` run is needed unless a new admin component path is added
+
+### Phase 3.5: query-plan verification
+
+Files:
+
+- no permanent source files required
+- record findings in PR notes or implementation notes
+
+Tasks:
+
+1. Inspect the generated migration to confirm indexes exist.
+2. Run representative reads with `EXPLAIN QUERY PLAN`.
+3. Confirm indexed `SEARCH` plans for the hot paths.
+
+Acceptance criteria:
+
+- no broad table scan on primary read path
+- no accidental sort temp b-tree on primary read path when an index should satisfy order
 
 ## `next-blog` Plan
 
@@ -786,6 +1078,177 @@ Acceptance criteria:
 - reply create works
 - pending state is visible immediately after submit
 
+## API Contract Details
+
+### Payload GraphQL query contract
+
+Recommended query name:
+
+```graphql
+query Comments($chapterId: ID, $postId: ID) {
+  comments(chapterId: $chapterId, postId: $postId) {
+    docs {
+      id
+      content
+      status
+      createdAt
+      updatedAt
+      parentCommentId
+      chapterId
+      postId
+      isOwnPending
+      author {
+        id
+        fullName
+        avatar {
+          id
+          url
+          optimizedUrl
+          thumbnailURL
+          lowResUrl
+          alt
+        }
+      }
+    }
+    totalDocs
+    viewerCanComment
+  }
+}
+```
+
+### Payload GraphQL create mutation contract
+
+```graphql
+mutation CreateComment(
+  $chapterId: ID
+  $postId: ID
+  $content: String!
+  $parentCommentId: ID
+) {
+  createComment(
+    chapterId: $chapterId
+    postId: $postId
+    content: $content
+    parentCommentId: $parentCommentId
+  ) {
+    comment {
+      id
+      content
+      status
+      createdAt
+      updatedAt
+      parentCommentId
+      chapterId
+      postId
+      isOwnPending
+      author {
+        id
+        fullName
+        avatar {
+          id
+          url
+          optimizedUrl
+          thumbnailURL
+          lowResUrl
+          alt
+        }
+      }
+    }
+  }
+}
+```
+
+### Payload GraphQL moderation mutation contract
+
+```graphql
+mutation UpdateCommentStatus($commentId: ID!, $status: String!) {
+  updateCommentStatus(commentId: $commentId, status: $status) {
+    comment {
+      id
+      status
+      updatedAt
+    }
+  }
+}
+```
+
+### `next-blog` HTTP route contract
+
+#### `GET /api/comments`
+
+Allowed query params:
+
+- `chapterId`
+- `postId`
+
+Rules:
+
+- exactly one required
+
+Success:
+
+```json
+{
+  "docs": [],
+  "totalDocs": 0,
+  "viewerCanComment": false
+}
+```
+
+#### `POST /api/comments`
+
+Allowed body:
+
+```json
+{
+  "chapterId": 123,
+  "content": "Hello",
+  "parentCommentId": 456
+}
+```
+
+or
+
+```json
+{
+  "postId": 321,
+  "content": "Hello"
+}
+```
+
+Success:
+
+```json
+{
+  "comment": {
+    "id": "1",
+    "content": "Hello",
+    "status": "pending"
+  }
+}
+```
+
+### Error mapping contract
+
+The blog API route should normalize GraphQL or validation errors into stable HTTP behavior.
+
+Recommended mapping:
+
+- malformed query/body shape: `400`
+- unauthenticated create: `401`
+- authenticated but forbidden target: `403`
+- target not found or unreadable: `404`
+- validation failure such as reply-to-reply or empty content: `400`
+- unexpected server error: `500`
+
+Recommended user-facing generic messages:
+
+- `400`: `Invalid comment request.`
+- `401`: `You must be signed in to comment.`
+- `403`: `You do not have permission to comment here.`
+- `404`: `Comments are unavailable for this content.`
+- `500`: `Unable to load comments right now.`
+
 ## Edge Cases the Implementer Must Not Skip
 
 1. Comment creation on a private chapter must fail if the user lost book access after page load.
@@ -801,6 +1264,75 @@ Acceptance criteria:
 11. Do not expose admin moderation mutation through `next-blog`.
 12. Do not show comments on draft posts in preview mode in this phase.
 13. Do not rely on client-side cookie parsing for auth decisions; server routes should decide.
+14. Do not let pending comments from a deleted or rejected parent create orphaned visible reply trees.
+15. Do not allow a reply on a target whose top-level parent is no longer approved.
+16. Do not allow create if both `chapterId` and `postId` are omitted.
+17. Do not allow create if both `chapterId` and `postId` are provided.
+18. Do not trust client-submitted `author`, `status`, `moderatedAt`, or `moderatedBy`.
+19. Do not forget to trim content before length validation.
+20. Do not silently accept invalid moderation status strings.
+
+## Failure Modes and How to Handle Them
+
+### Failure mode: public post comments disappear for anonymous readers
+
+Cause:
+
+- implementer reused `postsReadAccess`
+
+Correct fix:
+
+- comment resolver must load post by ID with `overrideAccess: true` and explicitly require published status
+
+### Failure mode: chapter comments visible before chapter password is unlocked
+
+Cause:
+
+- implementer checked chapter collection visibility only
+
+Correct fix:
+
+- enforce `canReadChapterContentForRequest` in comment query and create flows
+
+### Failure mode: weak query plan with large OR condition
+
+Cause:
+
+- implementer used one broad query instead of two narrow indexed queries
+
+Correct fix:
+
+- split approved and own-pending reads
+
+### Failure mode: SSR regression on posts
+
+Cause:
+
+- implementer moved post page to `getServerSideProps`
+
+Correct fix:
+
+- keep post page static and load comments client-side through `/api/comments`
+
+### Failure mode: browser cannot submit comment because auth token is inaccessible
+
+Cause:
+
+- implementer tried direct browser-to-Payload call
+
+Correct fix:
+
+- browser calls same-origin blog API route; server route forwards token from cookies
+
+### Failure mode: duplicate rendering or unstable order after create
+
+Cause:
+
+- implementer appends pending comment without dedupe or stable sort
+
+Correct fix:
+
+- dedupe by `id` and sort by `createdAt`
 
 ## Testing Plan
 
@@ -952,6 +1484,292 @@ Deliverables:
 Exit criteria:
 
 - verification command set passes or blockers are documented explicitly
+
+## Definition of Done
+
+The feature is not done until all items below are true.
+
+### PayloadCMS done criteria
+
+1. `Comments` collection exists and is registered.
+2. Field indexes and compound indexes are present in schema.
+3. Migration files were generated and committed.
+4. `src/payload-types.ts` was regenerated.
+5. `comments` query is registered and returns custom public payload.
+6. `createComment` mutation is registered and creates `pending` comments only.
+7. `updateCommentStatus` mutation is registered and admin-only.
+8. Chapter comment reads and creates enforce password-proof access.
+9. Anonymous reads show approved comments only.
+10. Authenticated user reads show approved comments plus their own pending comments only.
+11. Rejected comments never appear in public responses.
+
+### next-blog done criteria
+
+1. `/api/comments` exists and handles `GET` and `POST`.
+2. The API route forwards Better Auth token.
+3. The API route forwards chapter password proof.
+4. Chapter page renders comments section.
+5. Post page renders comments section without changing to SSR.
+6. Create comment UI works for top-level comments.
+7. Reply UI works for one reply level only.
+8. Pending moderation state is shown after submit.
+9. Plain text rendering is used for comment content.
+
+### Verification done criteria
+
+1. `payloadcms` TypeScript passes.
+2. `payloadcms` targeted integration tests pass.
+3. `next-blog` lint and targeted tests pass.
+4. Representative query plans were checked.
+5. No generated file was edited manually.
+
+## Resolver Pseudocode Appendix
+
+### `commentsResolver` pseudocode
+
+```ts
+async function commentsResolver(_, args, context) {
+  const req = context.req
+  const payload = req.payload
+  const user = req.user ?? null
+
+  assertExactlyOneTarget(args.chapterId, args.postId)
+
+  const target =
+    args.chapterId != null
+      ? await assertCommentTargetReadable({
+          chapterId: args.chapterId,
+          payload,
+          req,
+          user,
+        })
+      : await assertCommentTargetReadable({
+          postId: args.postId,
+          payload,
+          req,
+          user,
+        })
+
+  const approvedDocs = await payload.find({
+    collection: 'comments',
+    where: {
+      and: [
+        buildTargetWhere(target),
+        { status: { equals: 'approved' } },
+      ],
+    },
+    sort: 'createdAt',
+    limit: 200,
+    depth: 1,
+    overrideAccess: true,
+  })
+
+  let pendingDocs = []
+
+  if (user?.role === 'user') {
+    pendingDocs = (
+      await payload.find({
+        collection: 'comments',
+        where: {
+          and: [
+            buildTargetWhere(target),
+            { status: { equals: 'pending' } },
+            { author: { equals: user.id } },
+          ],
+        },
+        sort: 'createdAt',
+        limit: 200,
+        depth: 1,
+        overrideAccess: true,
+      })
+    ).docs
+  }
+
+  const merged = dedupeById([...approvedDocs.docs, ...pendingDocs])
+  merged.sort(sortByCreatedAtAscending)
+
+  return {
+    docs: merged.map((doc) => mapCommentDocToPublicComment(doc, user)),
+    totalDocs: merged.length,
+    viewerCanComment: user?.role === 'user',
+  }
+}
+```
+
+### `createCommentResolver` pseudocode
+
+```ts
+async function createCommentResolver(_, args, context) {
+  const req = context.req
+  const payload = req.payload
+  const user = req.user
+
+  assertAuthenticated(user)
+  assertCommentCreateRole(user)
+  assertExactlyOneTarget(args.chapterId, args.postId)
+
+  const target = await assertCommentTargetReadable({
+    chapterId: args.chapterId,
+    postId: args.postId,
+    payload,
+    req,
+    user,
+  })
+
+  const content = normalizeCommentContent(args.content)
+
+  const parent = await assertParentCommentIsValid({
+    parentCommentId: args.parentCommentId,
+    target,
+    payload,
+    req,
+  })
+
+  const created = await payload.create({
+    collection: 'comments',
+    data: {
+      chapter: target.type === 'chapter' ? target.id : null,
+      post: target.type === 'post' ? target.id : null,
+      author: user.id,
+      content,
+      status: 'pending',
+      parentComment: parent?.id ?? null,
+      moderatedAt: null,
+      moderatedBy: null,
+    },
+    overrideAccess: true,
+  })
+
+  return {
+    comment: mapCommentDocToPublicComment(created, user),
+  }
+}
+```
+
+### `updateCommentStatusResolver` pseudocode
+
+```ts
+async function updateCommentStatusResolver(_, args, context) {
+  const req = context.req
+  const payload = req.payload
+  const user = req.user
+
+  assertAdmin(user)
+  assertAllowedModerationStatus(args.status)
+
+  const existing = await payload.findByID({
+    collection: 'comments',
+    id: args.commentId,
+    depth: 1,
+    overrideAccess: true,
+  })
+
+  if (!existing) {
+    throw new Error('Comment not found')
+  }
+
+  const updated = await payload.update({
+    collection: 'comments',
+    id: args.commentId,
+    data: {
+      status: args.status,
+      moderatedAt: new Date().toISOString(),
+      moderatedBy: user.id,
+    },
+    overrideAccess: true,
+  })
+
+  return {
+    comment: mapCommentDocToPublicComment(updated, user),
+  }
+}
+```
+
+## Blog API Route Pseudocode Appendix
+
+### `pages/api/comments.ts` pseudocode
+
+```ts
+export default async function handler(req, res) {
+  res.setHeader('Cache-Control', 'no-store, max-age=0')
+
+  if (req.method === 'GET') {
+    const sessionToken = getBetterAuthTokenFromRequest(req)
+    const chapterPasswordProof = getChapterPasswordProofCookieValueFromRequest(req)
+
+    validateExactlyOneTarget(req.query.chapterId, req.query.postId)
+
+    const graphqlResponse = await fetchPayloadGraphQL({
+      query: COMMENTS_QUERY,
+      variables: normalizeTargetVariables(req.query),
+      authToken: sessionToken,
+      chapterPasswordProof,
+    })
+
+    return sendMappedGraphQLResponse(res, graphqlResponse)
+  }
+
+  if (req.method === 'POST') {
+    const sessionToken = getBetterAuthTokenFromRequest(req)
+    const chapterPasswordProof = getChapterPasswordProofCookieValueFromRequest(req)
+
+    if (!sessionToken) {
+      return res.status(401).json({ error: 'You must be signed in to comment.' })
+    }
+
+    const body = parseJsonBody(req.body)
+    validateCreateBody(body)
+
+    const graphqlResponse = await fetchPayloadGraphQL({
+      query: CREATE_COMMENT_MUTATION,
+      variables: normalizeCreateVariables(body),
+      authToken: sessionToken,
+      chapterPasswordProof,
+    })
+
+    return sendMappedGraphQLResponse(res, graphqlResponse)
+  }
+
+  res.setHeader('Allow', 'GET, POST')
+  return res.status(405).json({ error: 'Method Not Allowed' })
+}
+```
+
+## UI Assembly Appendix
+
+### Thread assembly algorithm
+
+Input:
+
+- flat `docs` array from API
+
+Process:
+
+1. split docs into:
+   - `topLevel = docs.filter(parentCommentId == null)`
+   - `replies = docs.filter(parentCommentId != null)`
+2. create a `Map<parentCommentId, Comment[]>`
+3. insert replies into the map
+4. render top-level comments in created order
+5. for each top-level comment, render `replyMap.get(comment.id) ?? []`
+
+Do not recursively traverse replies.
+
+### Optimistic/local update rules
+
+After successful `POST`:
+
+1. append returned comment if not already present
+2. sort by `createdAt`
+3. if it is a reply, place under parent using `parentCommentId`
+4. show pending badge if `status === 'pending'`
+5. clear the relevant form
+
+### Empty-state rules
+
+- no comments + cannot comment: show `No comments yet.`
+- no comments + can comment: show `No comments yet. Start the discussion.`
+- fetch error: show non-blocking error box with retry action
 
 ## Final Recommendations
 
