@@ -129,6 +129,8 @@ describe('bookExportChunkResolver', () => {
 
     expect(result.page).toBe(1)
     expect(result.chapters).toHaveLength(2)
+    expect(result.chapters[0]?.content).toEqual(chapters[0]?.content)
+    expect(result.chapters[1]?.content).toEqual(chapters[1]?.content)
     expect(result.media).toHaveLength(1)
     expect(result.media[0]).toMatchObject({
       id: '101',

@@ -1,4 +1,5 @@
 import type { GraphQLFieldConfig } from 'graphql'
+import { GraphQLJSON } from '@payloadcms/graphql/types'
 
 import { bookExportChunkResolver } from './resolver'
 
@@ -9,7 +10,7 @@ export const BookExportChunk = (GraphQL: any, _payload: any): GraphQLFieldConfig
       id: { type: new GraphQL.GraphQLNonNull(GraphQL.GraphQLID) },
       order: { type: new GraphQL.GraphQLNonNull(GraphQL.GraphQLInt) },
       title: { type: new GraphQL.GraphQLNonNull(GraphQL.GraphQLString) },
-      content: { type: GraphQL.GraphQLJSON },
+      content: { type: GraphQLJSON },
     },
   })
 
