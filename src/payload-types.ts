@@ -513,6 +513,8 @@ export interface Comment {
   parentComment?: (number | null) | Comment;
   moderatedAt?: string | null;
   moderatedBy?: (number | null) | User;
+  deletedAt?: string | null;
+  deletedBy?: (number | null) | User;
   updatedAt: string;
   createdAt: string;
 }
@@ -838,6 +840,8 @@ export interface CommentsSelect<T extends boolean = true> {
   parentComment?: T;
   moderatedAt?: T;
   moderatedBy?: T;
+  deletedAt?: T;
+  deletedBy?: T;
   updatedAt?: T;
   createdAt?: T;
 }

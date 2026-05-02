@@ -1,7 +1,9 @@
 import type { Payload } from 'payload'
 
+import { normalizeEntityId } from '@/utils/identifiers'
 import {
-  assertCommentCreateRole,
+  assertAuthenticatedCommentUser,
+  assertCommentCreateRateLimit,
   assertCommentTargetReadable,
   assertExclusiveCommentTarget,
   assertParentCommentIsValid,
@@ -29,21 +31,16 @@ export const createCommentResolver = async (
   const req = context.req
   const user = context.req.user
 
-  // 1. Require authenticated user
-  if (!user) {
-    throw new Error('You must be signed in to comment.')
-  }
+  // 1. Require authenticated user (any role)
+  assertAuthenticatedCommentUser(user)
 
-  // 2. Enforce commenter role (user only)
-  assertCommentCreateRole(user)
-
-  // 3. Validate exactly one target
+  // 2. Validate exactly one target
   assertExclusiveCommentTarget({
     chapter: args.chapterId,
     post: args.postId,
   })
 
-  // 4. Validate target readability (password-proof, book access, published)
+  // 3. Validate target readability (password-proof, book access, published)
   const target = await assertCommentTargetReadable({
     chapterId: args.chapterId,
     postId: args.postId,
@@ -52,6 +49,12 @@ export const createCommentResolver = async (
     user,
     headers: req.headers,
   })
+
+  // 4. Rate limiting
+  const userId = normalizeEntityId(user.id)
+  if (userId != null && typeof userId === 'number') {
+    await assertCommentCreateRateLimit({ payload, userId, target })
+  }
 
   // 5. Normalize and validate content
   const content = normalizeCommentContent(args.content)

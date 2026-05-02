@@ -15,6 +15,11 @@ export type CommentStatus = (typeof COMMENT_STATUSES)[number]
 export type ModeratableCommentStatus = (typeof MODERATABLE_COMMENT_STATUSES)[number]
 
 const MAX_COMMENT_LENGTH = 2000
+export const COMMENT_EDIT_WINDOW_MS = 5 * 60 * 60 * 1000
+export const COMMENT_RATE_LIMIT_PER_TARGET = 5
+export const COMMENT_RATE_LIMIT_PER_TARGET_WINDOW_MS = 10 * 60 * 1000
+export const COMMENT_RATE_LIMIT_GLOBAL = 20
+export const COMMENT_RATE_LIMIT_GLOBAL_WINDOW_MS = 60 * 60 * 1000
 
 const hasOwn = (value: object, key: string): boolean => {
   return Object.prototype.hasOwnProperty.call(value, key)
@@ -53,10 +58,7 @@ type CommentTargetArgs = {
   post?: unknown
 }
 
-export const assertExclusiveCommentTarget = ({
-  chapter,
-  post,
-}: CommentTargetArgs): void => {
+export const assertExclusiveCommentTarget = ({ chapter, post }: CommentTargetArgs): void => {
   const hasChapter = normalizeEntityId(chapter) != null
   const hasPost = normalizeEntityId(post) != null
 
@@ -147,7 +149,7 @@ export const loadCommentTarget = async ({
   return null
 }
 
-// ----------------------- Readability Checks -----------------------
+// ----------------------- Readability Checkss -----------------------
 
 type AssertTargetReadableArgs = {
   chapterId?: unknown
@@ -306,9 +308,7 @@ export const assertParentCommentIsValid = async ({
 
 // ----------------------- Role Validation -----------------------
 
-export const assertCommentCreateRole = (
-  user?: { role?: unknown } | null,
-): void => {
+export const assertCommentCreateRole = (user?: { role?: unknown } | null): void => {
   if (!user) {
     throw new Error('You must be signed in to comment.')
   }
@@ -322,12 +322,141 @@ export const viewerCanComment = (user?: { role?: unknown } | null): boolean => {
   return user?.role === 'user'
 }
 
+export const assertAuthenticatedCommentUser = (user?: { id?: unknown } | null): void => {
+  if (!user || normalizeEntityId(user.id) == null) {
+    throw new Error('You must be signed in to comment.')
+  }
+}
+
+export const viewerCanCommentAnyAuth = (user?: { id?: unknown } | null): boolean => {
+  return user != null && normalizeEntityId(user.id) != null
+}
+
+// ----------------------- Edit Window -----------------------
+
+export const getCommentEditWindowEndsAt = (createdAt: string | undefined): string | undefined => {
+  if (!createdAt) return undefined
+  const createdMs = new Date(createdAt).getTime()
+  if (Number.isNaN(createdMs)) return undefined
+  return new Date(createdMs + COMMENT_EDIT_WINDOW_MS).toISOString()
+}
+
+export const isCommentWithinEditWindow = (createdAt: string | undefined): boolean => {
+  if (!createdAt) return false
+  const createdMs = new Date(createdAt).getTime()
+  if (Number.isNaN(createdMs)) return false
+  return Date.now() - createdMs < COMMENT_EDIT_WINDOW_MS
+}
+
+// ----------------------- Ownership / Deletion Checks -----------------------
+
+type CommentAuthorDoc = {
+  id?: unknown
+  author?: unknown
+  deletedAt?: unknown
+  status?: unknown
+  createdAt?: unknown
+}
+
+export const assertCommentAuthor = ({
+  comment,
+  user,
+  action = 'edit',
+}: {
+  comment: CommentAuthorDoc
+  user: { id?: unknown }
+  action?: 'delete' | 'edit' | 'modify'
+}): void => {
+  const authorId = normalizeEntityId(comment.author)
+  const userId = normalizeEntityId(user.id)
+
+  if (authorId == null || userId == null || String(authorId) !== String(userId)) {
+    const actionLabel = action === 'modify' ? 'modify' : action
+    throw new Error(`You do not have permission to ${actionLabel} this comment.`)
+  }
+}
+
+export const assertCommentNotDeleted = (comment: CommentAuthorDoc): void => {
+  if (comment.deletedAt != null) {
+    throw new Error('This comment has been deleted.')
+  }
+}
+
+export const assertCommentEditableNow = (comment: CommentAuthorDoc): void => {
+  const status = normalizeCommentStatus(comment.status)
+
+  if (status !== 'approved' && status !== 'pending') {
+    throw new Error('This comment cannot be edited.')
+  }
+
+  if (!isCommentWithinEditWindow(comment.createdAt as string | undefined)) {
+    throw new Error('The edit window for this comment has expired.')
+  }
+}
+
+export const commentIsDeleted = (comment: CommentAuthorDoc): boolean => {
+  return comment.deletedAt != null
+}
+
+// ----------------------- Rate Limiting -----------------------
+
+type RateLimitArgs = {
+  payload: Payload
+  userId: number
+  target: { type: 'chapter' | 'post'; id: number }
+}
+
+export const assertCommentCreateRateLimit = async ({
+  payload,
+  userId,
+  target,
+}: RateLimitArgs): Promise<void> => {
+  const tenMinutesAgo = new Date(Date.now() - COMMENT_RATE_LIMIT_PER_TARGET_WINDOW_MS).toISOString()
+  const oneHourAgo = new Date(Date.now() - COMMENT_RATE_LIMIT_GLOBAL_WINDOW_MS).toISOString()
+
+  const perTargetWhere: any = {
+    and: [
+      target.type === 'chapter'
+        ? { chapter: { equals: target.id } }
+        : { post: { equals: target.id } },
+      { author: { equals: userId } },
+      { createdAt: { greater_than: tenMinutesAgo } },
+    ],
+  }
+
+  const globalWhere: any = {
+    and: [{ author: { equals: userId } }, { createdAt: { greater_than: oneHourAgo } }],
+  }
+
+  const [perTargetCount, globalCount] = await Promise.all([
+    payload.count({
+      collection: 'comments',
+      where: perTargetWhere,
+      overrideAccess: true,
+    }),
+    payload.count({
+      collection: 'comments',
+      where: globalWhere,
+      overrideAccess: true,
+    }),
+  ])
+
+  if (perTargetCount.totalDocs >= COMMENT_RATE_LIMIT_PER_TARGET) {
+    throw new Error('Too many comments on this item. Please wait a few minutes.')
+  }
+
+  if (globalCount.totalDocs >= COMMENT_RATE_LIMIT_GLOBAL) {
+    throw new Error('Too many comments overall. Please wait before commenting again.')
+  }
+}
+
 // ----------------------- Hooks -----------------------
 
 export const commentsBeforeValidateHook: CollectionBeforeValidateHook = async ({
   data,
   operation,
   originalDoc,
+  req,
 }) => {
   if (!data) {
     return data
@@ -355,7 +484,9 @@ export const commentsBeforeValidateHook: CollectionBeforeValidateHook = async ({
     const original = originalDoc as Record<string, unknown> | undefined
 
     if (hasOwn(workingData, 'content')) {
-      ;(workingData as Record<string, unknown>).content = normalizeCommentContent(workingData.content)
+      ;(workingData as Record<string, unknown>).content = normalizeCommentContent(
+        workingData.content,
+      )
     }
 
     if (hasOwn(workingData, 'status')) {
@@ -366,8 +497,24 @@ export const commentsBeforeValidateHook: CollectionBeforeValidateHook = async ({
         throw new Error('Invalid comment status.')
       }
 
+      // Allow approved -> pending only when the original author is performing
+      // the update. This prevents admin collection edits from silently
+      // re-pending someone else's comment.
       if (originalStatus && nextStatus !== originalStatus && nextStatus === 'pending') {
-        throw new Error('Comment status cannot be reset to pending.')
+        if (originalStatus !== 'approved') {
+          throw new Error('Comment status cannot be reset to pending.')
+        }
+
+        const originalAuthorId = normalizeEntityId(original?.author)
+        const requestUserId = normalizeEntityId(req.user?.id)
+
+        if (
+          originalAuthorId == null ||
+          requestUserId == null ||
+          String(originalAuthorId) !== String(requestUserId)
+        ) {
+          throw new Error('Comment status cannot be reset to pending.')
+        }
       }
     }
 
@@ -452,17 +599,18 @@ export const commentsBeforeChangeHook: CollectionBeforeChangeHook = async ({
 
   if (nextStatus !== originalStatus) {
     if (nextStatus === 'pending') {
-      throw new Error('Comment status cannot be reset to pending.')
-    }
+      ;(workingData as Record<string, unknown>).moderatedAt = null
+      ;(workingData as Record<string, unknown>).moderatedBy = null
+    } else {
+      ;(workingData as Record<string, unknown>).moderatedAt = new Date().toISOString()
 
-    ;(workingData as Record<string, unknown>).moderatedAt = new Date().toISOString()
+      const moderatorId = normalizeEntityId(req.user?.id)
 
-    const moderatorId = normalizeEntityId(req.user?.id)
-
-    if (moderatorId != null) {
-      ;(workingData as Record<string, unknown>).moderatedBy = moderatorId
-    } else if (original.moderatedBy != null) {
-      ;(workingData as Record<string, unknown>).moderatedBy = original.moderatedBy
+      if (moderatorId != null) {
+        ;(workingData as Record<string, unknown>).moderatedBy = moderatorId
+      } else if (original.moderatedBy != null) {
+        ;(workingData as Record<string, unknown>).moderatedBy = original.moderatedBy
+      }
     }
   } else {
     ;(workingData as Record<string, unknown>).moderatedAt = original.moderatedAt ?? null
@@ -490,6 +638,7 @@ type CommentDoc = {
   chapter?: unknown
   post?: unknown
   author?: unknown
+  deletedAt?: unknown
 }
 
 type PublicCommentAuthor = {
@@ -508,6 +657,10 @@ type PublicComment = {
   chapterId?: string | number | null
   postId?: string | number | null
   isOwnPending: boolean
+  isDeleted: boolean
+  viewerCanEdit: boolean
+  viewerCanDelete: boolean
+  editWindowEndsAt?: string
   author: PublicCommentAuthor
 }
 
@@ -519,43 +672,38 @@ export const mapCommentDocToPublicComment = (
   const a = (d.author as CommentDocAuthor | undefined) ?? {}
 
   // author might be a primitive ID when relationship is unpopulated
-  const authorId =
-    normalizeEntityId(a.id) ??
-    normalizeEntityId(d.author) ??
-    ''
+  const authorId = normalizeEntityId(a.id) ?? normalizeEntityId(d.author) ?? ''
   const authorFullName =
-    typeof a.fullName === 'string' && a.fullName.trim().length > 0
-      ? a.fullName.trim()
-      : 'Unknown'
+    typeof a.fullName === 'string' && a.fullName.trim().length > 0 ? a.fullName.trim() : 'Unknown'
 
   const commentId = normalizeEntityId(d.id) ?? ''
-  const commentContent =
-    typeof d.content === 'string' ? d.content : ''
-  const commentStatus =
-    typeof d.status === 'string' ? d.status : 'pending'
+  const isDeleted = d.deletedAt != null
+  const commentContent = isDeleted ? '' : typeof d.content === 'string' ? d.content : ''
+  const commentStatus = typeof d.status === 'string' ? d.status : 'pending'
 
   const viewerId = normalizeEntityId(viewer?.id)
+  const isOwner = viewerId != null && authorId !== '' && String(viewerId) === String(authorId)
+  const createdAtStr = typeof d.createdAt === 'string' ? d.createdAt : undefined
+  const editableStatuses = ['pending', 'approved']
 
   return {
     id: commentId,
     content: commentContent,
     status: commentStatus,
-    createdAt:
-      typeof d.createdAt === 'string'
-        ? d.createdAt
-        : undefined,
-    updatedAt:
-      typeof d.updatedAt === 'string'
-        ? d.updatedAt
-        : undefined,
+    createdAt: createdAtStr,
+    updatedAt: typeof d.updatedAt === 'string' ? d.updatedAt : undefined,
     parentCommentId: normalizeEntityId(d.parentComment) ?? null,
     chapterId: normalizeEntityId(d.chapter) ?? null,
     postId: normalizeEntityId(d.post) ?? null,
-    isOwnPending:
-      commentStatus === 'pending' &&
-      viewerId != null &&
-      authorId !== '' &&
-      String(viewerId) === String(authorId),
+    isOwnPending: commentStatus === 'pending' && isOwner,
+    isDeleted,
+    viewerCanEdit:
+      isOwner &&
+      !isDeleted &&
+      editableStatuses.includes(commentStatus) &&
+      isCommentWithinEditWindow(createdAtStr),
+    viewerCanDelete: isOwner && !isDeleted,
+    editWindowEndsAt: getCommentEditWindowEndsAt(createdAtStr),
     author: {
       id: authorId,
       fullName: authorFullName,

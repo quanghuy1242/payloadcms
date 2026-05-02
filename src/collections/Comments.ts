@@ -30,6 +30,7 @@ export const Comments: CollectionConfig = {
       'parentComment',
       'createdAt',
       'updatedAt',
+      'deletedAt',
     ],
   },
   hooks: {
@@ -103,6 +104,22 @@ export const Comments: CollectionConfig = {
         readOnly: true,
       },
     },
+    {
+      name: 'deletedAt',
+      type: 'date',
+      admin: {
+        readOnly: true,
+      },
+    },
+    {
+      name: 'deletedBy',
+      type: 'relationship',
+      relationTo: 'users',
+      index: true,
+      admin: {
+        readOnly: true,
+      },
+    },
   ],
   indexes: [
     { fields: ['chapter', 'status', 'createdAt'] },
@@ -110,5 +127,8 @@ export const Comments: CollectionConfig = {
     { fields: ['chapter', 'author', 'status', 'createdAt'] },
     { fields: ['post', 'author', 'status', 'createdAt'] },
     { fields: ['status', 'createdAt'] },
+    { fields: ['author', 'createdAt'] },
+    { fields: ['chapter', 'author', 'createdAt'] },
+    { fields: ['post', 'author', 'createdAt'] },
   ],
 }

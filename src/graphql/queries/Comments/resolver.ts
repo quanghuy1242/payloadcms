@@ -6,7 +6,7 @@ import {
   assertCommentTargetReadable,
   assertExclusiveCommentTarget,
   mapCommentDocToPublicComment,
-  viewerCanComment,
+  viewerCanCommentAnyAuth,
 } from '@/utils/comments'
 
 interface CommentsArgs {
@@ -78,7 +78,7 @@ export const commentsResolver = async (
       : { post: { equals: target.id } }
 
   const userId = normalizeEntityId(getUserId(user))
-  const canCreateComments = viewerCanComment(user)
+  const canCreateComments = viewerCanCommentAnyAuth(user)
   let ownPendingDocs: unknown[] = []
   let approvedLimit = HARD_CAP
 

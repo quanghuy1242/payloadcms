@@ -56,6 +56,7 @@ export const updateCommentStatusResolver = async (
       id: existingId,
       depth: 1,
       overrideAccess: true,
+      req,
     })
     .catch(() => null)
 
@@ -63,7 +64,12 @@ export const updateCommentStatusResolver = async (
     throw new Error('Comment not found.')
   }
 
-  // 4. Update status and moderation metadata
+  // 5. Reject moderation attempts on deleted comments
+  if ((existing as { deletedAt?: unknown }).deletedAt != null) {
+    throw new Error('Cannot moderate a deleted comment.')
+  }
+
+  // 6. Update status and moderation metadata
   const updated = await payload.update({
     collection: 'comments',
     id: existingId,
@@ -73,6 +79,7 @@ export const updateCommentStatusResolver = async (
     },
     depth: 1,
     overrideAccess: true,
+    req,
   })
 
   return {

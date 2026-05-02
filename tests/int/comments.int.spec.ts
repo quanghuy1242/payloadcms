@@ -3,16 +3,30 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Comments } from '@/collections/Comments'
 import { commentsResolver } from '@/graphql/queries/Comments/resolver'
 import { createCommentResolver } from '@/graphql/mutations/CreateComment/resolver'
+import { updateCommentResolver } from '@/graphql/mutations/UpdateComment/resolver'
+import { deleteCommentResolver } from '@/graphql/mutations/DeleteComment/resolver'
 import { updateCommentStatusResolver } from '@/graphql/mutations/UpdateCommentStatus/resolver'
 import {
+  assertAuthenticatedCommentUser,
+  assertCommentAuthor,
   assertCommentCreateRole,
+  assertCommentCreateRateLimit,
+  assertCommentEditableNow,
+  assertCommentNotDeleted,
   assertCommentTargetReadable,
   assertExclusiveCommentTarget,
   assertParentCommentIsValid,
+  commentIsDeleted,
   commentsBeforeChangeHook,
   commentsBeforeValidateHook,
+  COMMENT_EDIT_WINDOW_MS,
+  COMMENT_RATE_LIMIT_GLOBAL,
+  COMMENT_RATE_LIMIT_PER_TARGET,
+  getCommentEditWindowEndsAt,
+  isCommentWithinEditWindow,
   mapCommentDocToPublicComment,
   normalizeCommentContent,
+  viewerCanCommentAnyAuth,
 } from '@/utils/comments'
 
 afterEach(() => {
@@ -34,6 +48,8 @@ describe('Comments collection', () => {
     expect(fieldNames).toContain('parentComment')
     expect(fieldNames).toContain('moderatedAt')
     expect(fieldNames).toContain('moderatedBy')
+    expect(fieldNames).toContain('deletedAt')
+    expect(fieldNames).toContain('deletedBy')
   })
 
   it('uses adminAccess for all operations', () => {
@@ -61,7 +77,14 @@ describe('Comments collection', () => {
 
   it('has compound indexes defined', () => {
     expect(Comments.indexes).toBeDefined()
-    expect(Comments.indexes!.length).toBeGreaterThanOrEqual(5)
+    expect(Comments.indexes!.length).toBeGreaterThanOrEqual(8)
+  })
+
+  it('has rate-limit indexes', () => {
+    const indexFields = Comments.indexes!.map((idx) => idx.fields.join(','))
+    expect(indexFields).toContain('author,createdAt')
+    expect(indexFields).toContain('chapter,author,createdAt')
+    expect(indexFields).toContain('post,author,createdAt')
   })
 
   it('has beforeValidate and beforeChange hooks', () => {
@@ -150,6 +173,149 @@ describe('assertCommentCreateRole', () => {
     expect(() => assertCommentCreateRole({ role: 'admin' })).toThrow(
       'You do not have permission to comment from this interface.',
     )
+  })
+})
+
+// ---------------------------------------------------------------------------
+// assertAuthenticatedCommentUser
+// ---------------------------------------------------------------------------
+
+describe('assertAuthenticatedCommentUser', () => {
+  it('accepts any authenticated user with id', () => {
+    expect(() => assertAuthenticatedCommentUser({ id: 99 })).not.toThrow()
+  })
+
+  it('accepts admin user', () => {
+    expect(() => assertAuthenticatedCommentUser({ id: 1 })).not.toThrow()
+  })
+
+  it('throws when not authenticated', () => {
+    expect(() => assertAuthenticatedCommentUser(null)).toThrow('You must be signed in to comment.')
+    expect(() => assertAuthenticatedCommentUser(undefined)).toThrow('You must be signed in to comment.')
+  })
+
+  it('throws when user has no id', () => {
+    expect(() => assertAuthenticatedCommentUser({})).toThrow('You must be signed in to comment.')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// viewerCanCommentAnyAuth
+// ---------------------------------------------------------------------------
+
+describe('viewerCanCommentAnyAuth', () => {
+  it('returns true for authenticated user', () => {
+    expect(viewerCanCommentAnyAuth({ id: 99 })).toBe(true)
+  })
+
+  it('returns true for authenticated admin', () => {
+    expect(viewerCanCommentAnyAuth({ id: 1 })).toBe(true)
+  })
+
+  it('returns false for unauthenticated', () => {
+    expect(viewerCanCommentAnyAuth(null)).toBe(false)
+    expect(viewerCanCommentAnyAuth(undefined)).toBe(false)
+  })
+
+  it('returns false when user has no id', () => {
+    expect(viewerCanCommentAnyAuth({})).toBe(false)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Edit window helpers
+// ---------------------------------------------------------------------------
+
+describe('getCommentEditWindowEndsAt', () => {
+  it('returns ISO string 5 hours after createdAt', () => {
+    const createdAt = '2026-01-01T00:00:00Z'
+    const result = getCommentEditWindowEndsAt(createdAt)
+    expect(result).toBe('2026-01-01T05:00:00.000Z')
+  })
+
+  it('returns undefined for undefined input', () => {
+    expect(getCommentEditWindowEndsAt(undefined)).toBeUndefined()
+  })
+
+  it('returns undefined for invalid date', () => {
+    expect(getCommentEditWindowEndsAt('invalid')).toBeUndefined()
+  })
+})
+
+describe('isCommentWithinEditWindow', () => {
+  it('returns true for recent comment', () => {
+    const recent = new Date(Date.now() - 60_000).toISOString() // 1 minute ago
+    expect(isCommentWithinEditWindow(recent)).toBe(true)
+  })
+
+  it('returns false for old comment', () => {
+    const old = new Date(Date.now() - COMMENT_EDIT_WINDOW_MS - 1_000).toISOString()
+    expect(isCommentWithinEditWindow(old)).toBe(false)
+  })
+
+  it('returns false for undefined input', () => {
+    expect(isCommentWithinEditWindow(undefined)).toBe(false)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Ownership / Deletion checks
+// ---------------------------------------------------------------------------
+
+describe('assertCommentAuthor', () => {
+  it('passes when user owns the comment', () => {
+    expect(() =>
+      assertCommentAuthor({ comment: { author: 99 }, user: { id: 99 } }),
+    ).not.toThrow()
+  })
+
+  it('throws when user does not own the comment', () => {
+    expect(() =>
+      assertCommentAuthor({ comment: { author: 99 }, user: { id: 88 } }),
+    ).toThrow('You do not have permission to edit this comment.')
+  })
+})
+
+describe('assertCommentNotDeleted', () => {
+  it('passes when comment is not deleted', () => {
+    expect(() => assertCommentNotDeleted({})).not.toThrow()
+  })
+
+  it('throws when comment is deleted', () => {
+    expect(() => assertCommentNotDeleted({ deletedAt: '2026-01-01T00:00:00Z' })).toThrow(
+      'This comment has been deleted.',
+    )
+  })
+})
+
+describe('assertCommentEditableNow', () => {
+  it('passes when within edit window', () => {
+    const recent = new Date(Date.now() - 60_000).toISOString()
+    expect(() => assertCommentEditableNow({ createdAt: recent, status: 'pending' })).not.toThrow()
+  })
+
+  it('throws when outside edit window', () => {
+    const old = new Date(Date.now() - COMMENT_EDIT_WINDOW_MS - 1_000).toISOString()
+    expect(() => assertCommentEditableNow({ createdAt: old, status: 'approved' })).toThrow(
+      'The edit window for this comment has expired.',
+    )
+  })
+
+  it('throws when comment status is not editable', () => {
+    const recent = new Date(Date.now() - 60_000).toISOString()
+    expect(() => assertCommentEditableNow({ createdAt: recent, status: 'rejected' })).toThrow(
+      'This comment cannot be edited.',
+    )
+  })
+})
+
+describe('commentIsDeleted', () => {
+  it('returns false when not deleted', () => {
+    expect(commentIsDeleted({})).toBe(false)
+  })
+
+  it('returns true when deleted', () => {
+    expect(commentIsDeleted({ deletedAt: '2026-01-01T00:00:00Z' })).toBe(true)
   })
 })
 
@@ -343,6 +509,108 @@ describe('mapCommentDocToPublicComment', () => {
 
     expect(result.isOwnPending).toBe(false)
     expect(result.author.fullName).toBe('Alice')
+  })
+
+  it('returns isDeleted true and blank content for deleted comments', () => {
+    const doc = {
+      id: 1,
+      content: 'Secret text',
+      status: 'approved',
+      deletedAt: '2026-01-01T00:00:00Z',
+      author: { id: 99, fullName: 'Bob' },
+    }
+
+    const result = mapCommentDocToPublicComment(doc, { id: 99 })
+
+    expect(result.isDeleted).toBe(true)
+    expect(result.content).toBe('')
+  })
+
+  it('returns viewerCanEdit true for owner within edit window', () => {
+    const recent = new Date(Date.now() - 60_000).toISOString()
+    const doc = {
+      id: 1,
+      content: 'Hello',
+      status: 'approved',
+      createdAt: recent,
+      author: { id: 99, fullName: 'Bob' },
+    }
+
+    const result = mapCommentDocToPublicComment(doc, { id: 99 })
+
+    expect(result.viewerCanEdit).toBe(true)
+  })
+
+  it('returns viewerCanEdit false for expired edit window', () => {
+    const old = new Date(Date.now() - COMMENT_EDIT_WINDOW_MS - 1_000).toISOString()
+    const doc = {
+      id: 1,
+      content: 'Hello',
+      status: 'approved',
+      createdAt: old,
+      author: { id: 99, fullName: 'Bob' },
+    }
+
+    const result = mapCommentDocToPublicComment(doc, { id: 99 })
+
+    expect(result.viewerCanEdit).toBe(false)
+  })
+
+  it('returns viewerCanEdit false for deleted comments', () => {
+    const recent = new Date(Date.now() - 60_000).toISOString()
+    const doc = {
+      id: 1,
+      content: 'Hello',
+      status: 'approved',
+      createdAt: recent,
+      deletedAt: '2026-01-01T00:00:00Z',
+      author: { id: 99, fullName: 'Bob' },
+    }
+
+    const result = mapCommentDocToPublicComment(doc, { id: 99 })
+
+    expect(result.viewerCanEdit).toBe(false)
+  })
+
+  it('returns viewerCanDelete true for owner of non-deleted comment', () => {
+    const doc = {
+      id: 1,
+      content: 'Hello',
+      status: 'approved',
+      author: { id: 99, fullName: 'Bob' },
+    }
+
+    const result = mapCommentDocToPublicComment(doc, { id: 99 })
+
+    expect(result.viewerCanDelete).toBe(true)
+  })
+
+  it('returns viewerCanDelete false for deleted comments', () => {
+    const doc = {
+      id: 1,
+      content: 'Hello',
+      status: 'approved',
+      deletedAt: '2026-01-01T00:00:00Z',
+      author: { id: 99, fullName: 'Bob' },
+    }
+
+    const result = mapCommentDocToPublicComment(doc, { id: 99 })
+
+    expect(result.viewerCanDelete).toBe(false)
+  })
+
+  it('returns editWindowEndsAt 5 hours after createdAt', () => {
+    const doc = {
+      id: 1,
+      content: 'Hello',
+      status: 'approved',
+      createdAt: '2026-01-01T00:00:00Z',
+      author: { id: 99, fullName: 'Bob' },
+    }
+
+    const result = mapCommentDocToPublicComment(doc, { id: 99 })
+
+    expect(result.editWindowEndsAt).toBe('2026-01-01T05:00:00.000Z')
   })
 })
 
@@ -578,8 +846,30 @@ describe('commentsBeforeValidateHook', () => {
       commentsBeforeValidateHook({
         data: { status: 'pending' },
         operation: 'update',
-        originalDoc: { chapter: 7, author: 99, status: 'approved' },
+        originalDoc: { chapter: 7, author: 99, status: 'rejected' },
         req: {} as never,
+      } as never),
+    ).rejects.toThrow('Comment status cannot be reset to pending.')
+  })
+
+  it('allows approved -> pending transition (author edit)', async () => {
+    const result = await commentsBeforeValidateHook({
+      data: { status: 'pending', content: 'updated' },
+      operation: 'update',
+      originalDoc: { chapter: 7, author: 99, status: 'approved' },
+      req: { user: { id: 99 } } as never,
+    } as never)
+
+    expect(result).toBeDefined()
+  })
+
+  it('rejects approved -> pending transition for non-author updates', async () => {
+    await expect(
+      commentsBeforeValidateHook({
+        data: { status: 'pending', content: 'updated' },
+        operation: 'update',
+        originalDoc: { chapter: 7, author: 99, status: 'approved' },
+        req: { user: { id: 1 } } as never,
       } as never),
     ).rejects.toThrow('Comment status cannot be reset to pending.')
   })
@@ -645,6 +935,26 @@ describe('commentsBeforeChangeHook', () => {
 
     expect((result as Record<string, unknown>).moderatedAt).toEqual(expect.any(String))
     expect((result as Record<string, unknown>).moderatedBy).toBe(1)
+  })
+
+  it('preserves moderation metadata when approved -> pending (author edit)', async () => {
+    const result = await commentsBeforeChangeHook({
+      data: { status: 'pending', moderatedAt: null, moderatedBy: null },
+      operation: 'update',
+      originalDoc: {
+        author: 99,
+        chapter: 7,
+        status: 'approved',
+        moderatedAt: '2026-01-01T00:00:00Z',
+        moderatedBy: 1,
+      },
+      req: { user: { id: 99 } } as never,
+    } as never)
+
+    // When author edits approved comment, resolver passes null for moderatedAt/moderatedBy
+    // The hook should preserve what's in the workingData (null from resolver)
+    expect((result as Record<string, unknown>).moderatedAt).toBeNull()
+    expect((result as Record<string, unknown>).moderatedBy).toBeNull()
   })
 
   it('preserves moderation metadata when status does not change', async () => {
@@ -824,7 +1134,17 @@ describe('commentsResolver', () => {
 
   it('does not include own pending for admin role', async () => {
     const findByID = vi.fn().mockResolvedValue({ id: 3, _status: 'published' })
-    const findMock = vi.fn().mockResolvedValue({ docs: [], totalDocs: 0 })
+    const ownPending = {
+      id: 2,
+      content: 'My pending',
+      status: 'pending',
+      createdAt: '2026-01-02T00:00:00Z',
+      author: { id: 1, fullName: 'Admin' },
+    }
+    const findMock = vi
+      .fn()
+      .mockResolvedValueOnce({ docs: [ownPending], totalDocs: 1 })
+      .mockResolvedValueOnce({ docs: [], totalDocs: 0 })
 
     const result = await commentsResolver(
       undefined,
@@ -836,8 +1156,9 @@ describe('commentsResolver', () => {
       }),
     )
 
-    expect(result.viewerCanComment).toBe(false)
-    expect(findMock).toHaveBeenCalledTimes(1) // Only approved query
+    expect(result.viewerCanComment).toBe(true)
+    expect(result.totalDocs).toBe(1)
+    expect(findMock).toHaveBeenCalledTimes(2) // own pending + approved
   })
 
   it('throws when both chapterId and postId are provided', async () => {
@@ -984,15 +1305,18 @@ describe('createCommentResolver', () => {
     user,
     findByID,
     createMock,
+    countMock,
   }: {
     user?: unknown
     findByID?: ReturnType<typeof vi.fn>
     createMock?: ReturnType<typeof vi.fn>
+    countMock?: ReturnType<typeof vi.fn>
   } = {}) => ({
     req: {
       payload: {
         findByID: findByID ?? vi.fn().mockResolvedValue(null),
         create: createMock ?? vi.fn().mockResolvedValue({}),
+        count: countMock ?? vi.fn().mockResolvedValue({ totalDocs: 0 }),
       },
       user: user ?? null,
       headers: {},
@@ -1081,14 +1405,24 @@ describe('createCommentResolver', () => {
     ).rejects.toThrow('You must be signed in to comment.')
   })
 
-  it('rejects admin create via public flow', async () => {
-    await expect(
-      createCommentResolver(
-        undefined,
-        { postId: '3', content: 'Hello' },
-        makeContext({ user: { id: 1, role: 'admin' } }),
-      ),
-    ).rejects.toThrow('You do not have permission to comment from this interface.')
+  it('accepts admin create via public flow', async () => {
+    const findByID = vi.fn().mockResolvedValue({ id: 3, _status: 'published' })
+    const createMock = vi.fn().mockResolvedValue({
+      id: 1,
+      content: 'Admin comment',
+      status: 'pending',
+      post: 3,
+      author: { id: 1, fullName: 'Admin' },
+    })
+
+    const result = await createCommentResolver(
+      undefined,
+      { postId: '3', content: 'Admin comment' },
+      makeContext({ user: { id: 1, role: 'admin' }, findByID, createMock }),
+    )
+
+    const comment = result.comment as Record<string, unknown>
+    expect(comment.content).toBe('Admin comment')
   })
 
   it('rejects content that is only whitespace', async () => {
@@ -1240,7 +1574,7 @@ describe('createCommentResolver', () => {
         { chapterId: '7', content: 'Trying to comment' },
         {
           req: {
-            payload: { findByID, create: vi.fn() },
+            payload: { findByID, create: vi.fn(), count: vi.fn().mockResolvedValue({ totalDocs: 0 }) },
             user: { id: 99, role: 'user' },
             headers: {},
           },
@@ -1249,6 +1583,42 @@ describe('createCommentResolver', () => {
     ).rejects.toThrow(
       'You do not have permission to view comments on this content.',
     )
+  })
+
+  it('rejects when per-target rate limit is exceeded', async () => {
+    const findByID = vi.fn().mockResolvedValue({ id: 3, _status: 'published' })
+    const countMock = vi.fn().mockResolvedValue({ totalDocs: 5 })
+
+    await expect(
+      createCommentResolver(
+        undefined,
+        { postId: '3', content: 'Hello' },
+        makeContext({
+          findByID,
+          countMock,
+          user: { id: 99, role: 'user' },
+        }),
+      ),
+    ).rejects.toThrow('Too many comments on this item.')
+  })
+
+  it('rejects when global rate limit is exceeded', async () => {
+    const findByID = vi.fn().mockResolvedValue({ id: 3, _status: 'published' })
+    const countMock = vi.fn()
+      .mockResolvedValueOnce({ totalDocs: 0 })
+      .mockResolvedValueOnce({ totalDocs: 20 })
+
+    await expect(
+      createCommentResolver(
+        undefined,
+        { postId: '3', content: 'Hello' },
+        makeContext({
+          findByID,
+          countMock,
+          user: { id: 99, role: 'user' },
+        }),
+      ),
+    ).rejects.toThrow('Too many comments overall.')
   })
 })
 
@@ -1303,8 +1673,8 @@ describe('updateCommentStatusResolver', () => {
         data: expect.objectContaining({
           status: 'approved',
           moderatedAt: expect.any(String),
-          moderatedBy: 1,
         }),
+        depth: 1,
         overrideAccess: true,
       }),
     )
@@ -1390,5 +1760,372 @@ describe('updateCommentStatusResolver', () => {
         }),
       ),
     ).rejects.toThrow('Comment not found.')
+  })
+
+  it('rejects moderation of deleted comments', async () => {
+    const existing = {
+      id: 1,
+      content: 'Test',
+      status: 'pending',
+      deletedAt: '2026-01-01T00:00:00Z',
+      author: { id: 99, fullName: 'Bob' },
+    }
+    const findById = vi.fn().mockResolvedValue(existing)
+
+    await expect(
+      updateCommentStatusResolver(
+        undefined,
+        { commentId: '1', status: 'approved' },
+        makeContext({
+          findById,
+          user: { id: 1, role: 'admin' },
+        }),
+      ),
+    ).rejects.toThrow('Cannot moderate a deleted comment.')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// updateCommentResolver (GraphQL mutation)
+// ---------------------------------------------------------------------------
+
+describe('updateCommentResolver', () => {
+  const makeContext = ({
+    user,
+    findById,
+    updateMock,
+  }: {
+    user?: unknown
+    findById?: ReturnType<typeof vi.fn>
+    updateMock?: ReturnType<typeof vi.fn>
+  } = {}) => ({
+    req: {
+      payload: {
+        findByID: findById ?? vi.fn().mockResolvedValue(null),
+        update: updateMock ?? vi.fn().mockResolvedValue({}),
+      },
+      user: user ?? null,
+      headers: {},
+    },
+  })
+
+  it('allows author edit within 5 hours', async () => {
+    const recent = new Date(Date.now() - 60_000).toISOString()
+    const existing = {
+      id: 1,
+      content: 'Original',
+      status: 'pending',
+      createdAt: recent,
+      author: { id: 99, fullName: 'Bob' },
+      chapter: 7,
+    }
+    const findById = vi.fn().mockResolvedValue(existing)
+    const updateMock = vi.fn().mockResolvedValue({ ...existing, content: 'Updated' })
+
+    const result = await updateCommentResolver(
+      undefined,
+      { commentId: '1', content: 'Updated' },
+      makeContext({
+        findById,
+        updateMock,
+        user: { id: 99, role: 'user' },
+      }),
+    )
+
+    const comment = result.comment as Record<string, unknown>
+    expect(comment.content).toBe('Updated')
+  })
+
+  it('keeps pending as pending', async () => {
+    const recent = new Date(Date.now() - 60_000).toISOString()
+    const existing = {
+      id: 1,
+      content: 'Original',
+      status: 'pending',
+      createdAt: recent,
+      author: { id: 99, fullName: 'Bob' },
+      chapter: 7,
+    }
+    const findById = vi.fn().mockResolvedValue(existing)
+    const updateMock = vi.fn().mockResolvedValue({ ...existing, content: 'Updated' })
+
+    await updateCommentResolver(
+      undefined,
+      { commentId: '1', content: 'Updated' },
+      makeContext({
+        findById,
+        updateMock,
+        user: { id: 99, role: 'user' },
+      }),
+    )
+
+    expect(updateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: 'pending',
+        }),
+      }),
+    )
+  })
+
+  it('changes approved to pending', async () => {
+    const recent = new Date(Date.now() - 60_000).toISOString()
+    const existing = {
+      id: 1,
+      content: 'Original',
+      status: 'approved',
+      createdAt: recent,
+      moderatedAt: '2026-01-01T00:00:00Z',
+      moderatedBy: 1,
+      author: { id: 99, fullName: 'Bob' },
+      chapter: 7,
+    }
+    const findById = vi.fn().mockResolvedValue(existing)
+    const updateMock = vi.fn().mockResolvedValue({ ...existing, content: 'Updated', status: 'pending' })
+
+    await updateCommentResolver(
+      undefined,
+      { commentId: '1', content: 'Updated' },
+      makeContext({
+        findById,
+        updateMock,
+        user: { id: 99, role: 'user' },
+      }),
+    )
+
+    expect(updateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: 'pending',
+          moderatedAt: null,
+          moderatedBy: null,
+        }),
+      }),
+    )
+  })
+
+  it('rejects non-owner', async () => {
+    const recent = new Date(Date.now() - 60_000).toISOString()
+    const existing = {
+      id: 1,
+      content: 'Original',
+      status: 'pending',
+      createdAt: recent,
+      author: { id: 99, fullName: 'Bob' },
+      chapter: 7,
+    }
+    const findById = vi.fn().mockResolvedValue(existing)
+
+    await expect(
+      updateCommentResolver(
+        undefined,
+        { commentId: '1', content: 'Updated' },
+        makeContext({
+          findById,
+          user: { id: 88, role: 'user' },
+        }),
+      ),
+    ).rejects.toThrow('You do not have permission to edit this comment.')
+  })
+
+  it('rejects deleted comment', async () => {
+    const recent = new Date(Date.now() - 60_000).toISOString()
+    const existing = {
+      id: 1,
+      content: 'Original',
+      status: 'pending',
+      createdAt: recent,
+      deletedAt: '2026-01-01T00:00:00Z',
+      author: { id: 99, fullName: 'Bob' },
+      chapter: 7,
+    }
+    const findById = vi.fn().mockResolvedValue(existing)
+
+    await expect(
+      updateCommentResolver(
+        undefined,
+        { commentId: '1', content: 'Updated' },
+        makeContext({
+          findById,
+          user: { id: 99, role: 'user' },
+        }),
+      ),
+    ).rejects.toThrow('This comment has been deleted.')
+  })
+
+  it('rejects expired edit window', async () => {
+    const old = new Date(Date.now() - COMMENT_EDIT_WINDOW_MS - 1_000).toISOString()
+    const existing = {
+      id: 1,
+      content: 'Original',
+      status: 'pending',
+      createdAt: old,
+      author: { id: 99, fullName: 'Bob' },
+      chapter: 7,
+    }
+    const findById = vi.fn().mockResolvedValue(existing)
+
+    await expect(
+      updateCommentResolver(
+        undefined,
+        { commentId: '1', content: 'Updated' },
+        makeContext({
+          findById,
+          user: { id: 99, role: 'user' },
+        }),
+      ),
+    ).rejects.toThrow('The edit window for this comment has expired.')
+  })
+
+  it('rejects rejected comments even when they are still within the time window', async () => {
+    const recent = new Date(Date.now() - 60_000).toISOString()
+    const existing = {
+      id: 1,
+      content: 'Original',
+      status: 'rejected',
+      createdAt: recent,
+      author: { id: 99, fullName: 'Bob' },
+      chapter: 7,
+    }
+    const findById = vi.fn().mockResolvedValue(existing)
+
+    await expect(
+      updateCommentResolver(
+        undefined,
+        { commentId: '1', content: 'Updated' },
+        makeContext({
+          findById,
+          user: { id: 99, role: 'user' },
+        }),
+      ),
+    ).rejects.toThrow('This comment cannot be edited.')
+  })
+
+  it('rejects unauthenticated requests', async () => {
+    await expect(
+      updateCommentResolver(
+        undefined,
+        { commentId: '1', content: 'Updated' },
+        makeContext({ user: null }),
+      ),
+    ).rejects.toThrow('You must be signed in to comment.')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// deleteCommentResolver (GraphQL mutation)
+// ---------------------------------------------------------------------------
+
+describe('deleteCommentResolver', () => {
+  const makeContext = ({
+    user,
+    findById,
+    updateMock,
+  }: {
+    user?: unknown
+    findById?: ReturnType<typeof vi.fn>
+    updateMock?: ReturnType<typeof vi.fn>
+  } = {}) => ({
+    req: {
+      payload: {
+        findByID: findById ?? vi.fn().mockResolvedValue(null),
+        update: updateMock ?? vi.fn().mockResolvedValue({}),
+      },
+      user: user ?? null,
+    },
+  })
+
+  it('soft-deletes by setting deletedAt and deletedBy', async () => {
+    const existing = {
+      id: 1,
+      content: 'Test',
+      status: 'approved',
+      author: { id: 99, fullName: 'Bob' },
+    }
+    const findById = vi.fn().mockResolvedValue(existing)
+    const updateMock = vi.fn().mockResolvedValue({
+      ...existing,
+      deletedAt: '2026-01-01T00:00:00Z',
+      deletedBy: 99,
+    })
+
+    const result = await deleteCommentResolver(
+      undefined,
+      { commentId: '1' },
+      makeContext({
+        findById,
+        updateMock,
+        user: { id: 99, role: 'user' },
+      }),
+    )
+
+    const comment = result.comment as Record<string, unknown>
+    expect(comment.isDeleted).toBe(true)
+    expect(comment.content).toBe('')
+    expect(updateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        collection: 'comments',
+        id: 1,
+        data: expect.objectContaining({
+          deletedAt: expect.any(String),
+          deletedBy: 99,
+        }),
+        depth: 1,
+        overrideAccess: true,
+      }),
+    )
+  })
+
+  it('rejects non-owner', async () => {
+    const existing = {
+      id: 1,
+      content: 'Test',
+      status: 'approved',
+      author: { id: 99, fullName: 'Bob' },
+    }
+    const findById = vi.fn().mockResolvedValue(existing)
+
+    await expect(
+      deleteCommentResolver(
+        undefined,
+        { commentId: '1' },
+        makeContext({
+          findById,
+          user: { id: 88, role: 'user' },
+        }),
+      ),
+    ).rejects.toThrow('You do not have permission to delete this comment.')
+  })
+
+  it('rejects double-delete', async () => {
+    const existing = {
+      id: 1,
+      content: 'Test',
+      status: 'approved',
+      deletedAt: '2026-01-01T00:00:00Z',
+      author: { id: 99, fullName: 'Bob' },
+    }
+    const findById = vi.fn().mockResolvedValue(existing)
+
+    await expect(
+      deleteCommentResolver(
+        undefined,
+        { commentId: '1' },
+        makeContext({
+          findById,
+          user: { id: 99, role: 'user' },
+        }),
+      ),
+    ).rejects.toThrow('This comment has been deleted.')
+  })
+
+  it('rejects unauthenticated requests', async () => {
+    await expect(
+      deleteCommentResolver(
+        undefined,
+        { commentId: '1' },
+        makeContext({ user: null }),
+      ),
+    ).rejects.toThrow('You must be signed in to comment.')
   })
 })

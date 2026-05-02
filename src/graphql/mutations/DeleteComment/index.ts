@@ -1,12 +1,12 @@
 import type { GraphQLFieldConfig } from 'graphql'
 
-import { commentsResolver } from './resolver'
+import { deleteCommentResolver } from './resolver'
 
-export const Comments = (GraphQL: any, payload: any): GraphQLFieldConfig<any, any> => {
+export const DeleteComment = (GraphQL: any, payload: any): GraphQLFieldConfig<any, any> => {
   const mediaType = payload.collections['media']?.graphQL?.type
 
   const publicCommentAuthorType = new GraphQL.GraphQLObjectType({
-    name: 'PublicCommentAuthor',
+    name: 'DeleteComment_PublicCommentAuthor',
     fields: {
       id: { type: new GraphQL.GraphQLNonNull(GraphQL.GraphQLID) },
       fullName: { type: new GraphQL.GraphQLNonNull(GraphQL.GraphQLString) },
@@ -15,7 +15,7 @@ export const Comments = (GraphQL: any, payload: any): GraphQLFieldConfig<any, an
   })
 
   const publicCommentType = new GraphQL.GraphQLObjectType({
-    name: 'PublicComment',
+    name: 'DeleteComment_PublicComment',
     fields: {
       id: { type: new GraphQL.GraphQLNonNull(GraphQL.GraphQLID) },
       content: { type: new GraphQL.GraphQLNonNull(GraphQL.GraphQLString) },
@@ -36,25 +36,14 @@ export const Comments = (GraphQL: any, payload: any): GraphQLFieldConfig<any, an
 
   return {
     type: new GraphQL.GraphQLObjectType({
-      name: 'CommentsResult',
+      name: 'DeleteCommentResult',
       fields: {
-        docs: {
-          type: new GraphQL.GraphQLNonNull(
-            new GraphQL.GraphQLList(new GraphQL.GraphQLNonNull(publicCommentType)),
-          ),
-        },
-        totalDocs: {
-          type: new GraphQL.GraphQLNonNull(GraphQL.GraphQLInt),
-        },
-        viewerCanComment: {
-          type: new GraphQL.GraphQLNonNull(GraphQL.GraphQLBoolean),
-        },
+        comment: { type: new GraphQL.GraphQLNonNull(publicCommentType) },
       },
     }),
     args: {
-      chapterId: { type: GraphQL.GraphQLID },
-      postId: { type: GraphQL.GraphQLID },
+      commentId: { type: new GraphQL.GraphQLNonNull(GraphQL.GraphQLID) },
     },
-    resolve: commentsResolver,
+    resolve: deleteCommentResolver,
   }
 }

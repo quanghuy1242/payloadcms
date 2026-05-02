@@ -26,6 +26,10 @@ export const UpdateCommentStatus = (GraphQL: any, payload: any): GraphQLFieldCon
       chapterId: { type: GraphQL.GraphQLID },
       postId: { type: GraphQL.GraphQLID },
       isOwnPending: { type: new GraphQL.GraphQLNonNull(GraphQL.GraphQLBoolean) },
+      isDeleted: { type: new GraphQL.GraphQLNonNull(GraphQL.GraphQLBoolean) },
+      viewerCanEdit: { type: new GraphQL.GraphQLNonNull(GraphQL.GraphQLBoolean) },
+      viewerCanDelete: { type: new GraphQL.GraphQLNonNull(GraphQL.GraphQLBoolean) },
+      editWindowEndsAt: { type: GraphQL.GraphQLString },
       author: { type: new GraphQL.GraphQLNonNull(publicCommentAuthorType) },
     },
   })
