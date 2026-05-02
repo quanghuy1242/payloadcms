@@ -9,6 +9,7 @@ import { fileURLToPath } from 'url'
 import { Bookmarks } from './collections/Bookmarks'
 import { Categories } from './collections/Categories'
 import { Chapters } from './collections/Chapters'
+import { Comments } from './collections/Comments'
 import { Posts } from './collections/Posts'
 import { ReadingProgress } from './collections/ReadingProgress'
 import { Users } from './collections/Users'
@@ -106,7 +107,7 @@ export default buildConfig({
     },
     autoRefresh: true, // Enable automatic token refresh to keep users logged in
   },
-  collections: [Users, Media, Books, Chapters, Posts, Categories, GrantMirror, DeferredGrants, ReadingProgress, Bookmarks],
+  collections: [Users, Media, Books, Chapters, Posts, Categories, GrantMirror, DeferredGrants, ReadingProgress, Bookmarks, Comments],
   editor: lexicalEditor({}),
   secret: process.env.PAYLOAD_SECRET || '',
   typescript: {

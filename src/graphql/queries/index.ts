@@ -1,6 +1,7 @@
 import { BookExportChunk } from './BookExportChunk'
 import { BookExportManifest } from './BookExportManifest'
 import { Bookmarks } from './Bookmarks'
+import { Comments } from './Comments'
 import { PreviewToken } from './PreviewToken'
 import { ReadingProgress } from './ReadingProgress'
 import { SimilarPosts } from './SimilarPosts'
@@ -11,6 +12,7 @@ export const queries = (GraphQL: any, payload: any) => {
     previewToken: PreviewToken(GraphQL, payload),
     readingProgress: ReadingProgress(GraphQL, payload),
     bookmarks: Bookmarks(GraphQL, payload),
+    comments: Comments(GraphQL, payload),
     bookExportManifest: BookExportManifest(GraphQL, payload),
     bookExportChunk: BookExportChunk(GraphQL, payload),
   }

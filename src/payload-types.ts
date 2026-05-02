@@ -77,6 +77,7 @@ export interface Config {
     'deferred-grants': DeferredGrant;
     'reading-progress': ReadingProgress;
     bookmarks: Bookmark;
+    comments: Comment;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
     'payload-migrations': PayloadMigration;
@@ -93,6 +94,7 @@ export interface Config {
     'deferred-grants': DeferredGrantsSelect<false> | DeferredGrantsSelect<true>;
     'reading-progress': ReadingProgressSelect<false> | ReadingProgressSelect<true>;
     bookmarks: BookmarksSelect<false> | BookmarksSelect<true>;
+    comments: CommentsSelect<false> | CommentsSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
     'payload-migrations': PayloadMigrationsSelect<false> | PayloadMigrationsSelect<true>;
@@ -499,6 +501,23 @@ export interface Bookmark {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "comments".
+ */
+export interface Comment {
+  id: number;
+  chapter?: (number | null) | Chapter;
+  post?: (number | null) | Post;
+  author: number | User;
+  content: string;
+  status: 'pending' | 'approved' | 'rejected';
+  parentComment?: (number | null) | Comment;
+  moderatedAt?: string | null;
+  moderatedBy?: (number | null) | User;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-locked-documents".
  */
 export interface PayloadLockedDocument {
@@ -543,6 +562,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'bookmarks';
         value: number | Bookmark;
+      } | null)
+    | ({
+        relationTo: 'comments';
+        value: number | Comment;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -799,6 +822,22 @@ export interface BookmarksSelect<T extends boolean = true> {
   contentType?: T;
   chapter?: T;
   book?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "comments_select".
+ */
+export interface CommentsSelect<T extends boolean = true> {
+  chapter?: T;
+  post?: T;
+  author?: T;
+  content?: T;
+  status?: T;
+  parentComment?: T;
+  moderatedAt?: T;
+  moderatedBy?: T;
   updatedAt?: T;
   createdAt?: T;
 }
