@@ -24,9 +24,9 @@ import {
   fetchAutherGroupMembers,
   listGrantMirrorTupleMetadata,
   listAutherObjects,
+  parsePayloadMirrorEntityType,
   resolvePayloadUserId,
   revokeGrantMirrorRows,
-  stripEntityTypeScope,
   upsertGrantMirrorRow,
 } from '@/utils/grantMirror'
 
@@ -132,14 +132,10 @@ const handleGrantCreated = async (
     return
   }
 
-  const rawEntityType = stripEntityTypeScope(event.entityType)
-  const validEntityTypes = ['book', 'chapter', 'comment'] as const
-  const entityType = validEntityTypes.includes(rawEntityType as (typeof validEntityTypes)[number])
-    ? (rawEntityType as (typeof validEntityTypes)[number])
-    : null
+  const entityType = parsePayloadMirrorEntityType(event.entityType)
 
   if (!entityType) {
-    // Ignore entity types we don't mirror
+    // Ignore entity types outside the Payload client scope or types we do not mirror.
     return
   }
 
@@ -268,6 +264,10 @@ const handleGrantRevoked = async (
 ): Promise<void> => {
   // API key grants (e.g. full_access) have no Payload user mirror — skip silently.
   if (event.subjectType === 'apikey') {
+    return
+  }
+
+  if (!parsePayloadMirrorEntityType(event.entityType)) {
     return
   }
 

@@ -2,6 +2,7 @@ import type { Payload } from 'payload'
 
 import type { User } from '../../payload-types'
 import type { BetterAuthTokenPayload } from './tokens'
+import { drainDeferredGrantsForUser } from '@/utils/deferredGrants'
 
 const USERS_COLLECTION = 'users'
 
@@ -63,6 +64,18 @@ const updateUserIfNecessary = async ({
     overrideAccess: true,
     depth: 0,
   })) as User
+}
+
+const drainDeferredGrantsIfNeeded = async ({
+  betterAuthUserId,
+  payload,
+  user,
+}: {
+  betterAuthUserId: string
+  payload: Payload
+  user: User
+}): Promise<void> => {
+  await drainDeferredGrantsForUser(payload, betterAuthUserId, user.id)
 }
 
 export const upsertBetterAuthUser = async ({
@@ -134,6 +147,7 @@ export const upsertBetterAuthUser = async ({
 
   if (emailMatch) {
     const updates: Partial<User> = {}
+    const wasNewlyLinked = !emailMatch.betterAuthUserId
 
     if (!emailMatch.betterAuthUserId) {
       updates.betterAuthUserId = betterAuthUserId
@@ -147,16 +161,26 @@ export const upsertBetterAuthUser = async ({
       updates.role = 'admin'
     }
 
-    return updateUserIfNecessary({
+    const user = await updateUserIfNecessary({
       payload,
       user: emailMatch,
       updates,
     })
+
+    if (wasNewlyLinked) {
+      await drainDeferredGrantsIfNeeded({
+        betterAuthUserId,
+        payload,
+        user,
+      })
+    }
+
+    return user
   }
 
   const role: User['role'] = rolesFromToken === 'admin' ? 'admin' : 'user'
 
-  return (await payload.create({
+  const createdUser = (await payload.create({
     collection: USERS_COLLECTION,
     data: {
       email: tokenEmail,
@@ -167,4 +191,12 @@ export const upsertBetterAuthUser = async ({
     overrideAccess: true,
     depth: 0,
   })) as User
+
+  await drainDeferredGrantsIfNeeded({
+    betterAuthUserId,
+    payload,
+    user: createdUser,
+  })
+
+  return createdUser
 }

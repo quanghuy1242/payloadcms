@@ -4,6 +4,7 @@ import {
   buildAutherTupleMetadataMap,
   listAutherClientGrants,
   listAutherObjects,
+  parsePayloadMirrorEntityType,
   upsertGrantMirrorRow,
 } from '@/utils/grantMirror'
 
@@ -247,5 +248,12 @@ describe('Grant mirror Auther helpers', () => {
       overrideAccess: true,
     })
     expect(payload.create).not.toHaveBeenCalled()
+  })
+
+  it('only accepts mirrored entity types scoped to the payload client', () => {
+    expect(parsePayloadMirrorEntityType('client_payload-client-id:book')).toBe('book')
+    expect(parsePayloadMirrorEntityType('client_payload-client-id:chapter')).toBe('chapter')
+    expect(parsePayloadMirrorEntityType('client_blog-client-id:book')).toBeNull()
+    expect(parsePayloadMirrorEntityType('book')).toBeNull()
   })
 })

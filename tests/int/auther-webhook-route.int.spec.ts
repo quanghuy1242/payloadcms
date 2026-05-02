@@ -22,6 +22,7 @@ vi.mock('@payload-config', () => ({
 }))
 
 vi.mock('@/lib/env', () => ({
+  getAutherClientId: vi.fn(() => 'payload-client-id'),
   getAutherWebhookSecret: vi.fn(() => 'webhook-secret'),
 }))
 
@@ -49,6 +50,7 @@ import { POST as autherWebhookRoute } from '@/app/api/webhooks/auther/route'
 
 describe('Auther webhook route', () => {
   beforeEach(() => {
+    process.env.PAYLOAD_CLIENT_ID = 'payload-client-id'
     getPayloadMock.mockResolvedValue({})
     enqueueDeferredGrantJobMock.mockReset()
     enqueueDeferredGrantJobMock.mockResolvedValue(11)
@@ -87,6 +89,7 @@ describe('Auther webhook route', () => {
   })
 
   afterEach(() => {
+    delete process.env.PAYLOAD_CLIENT_ID
     vi.restoreAllMocks()
   })
 
@@ -109,8 +112,8 @@ describe('Auther webhook route', () => {
         body: rawBody,
         headers: {
           'content-type': 'application/json',
-          'x-auther-signature-256': `sha256=${signature}`,
-          'x-auther-timestamp': String(event.timestamp),
+          'x-webhook-signature': `sha256=${signature}`,
+          'x-webhook-timestamp': String(event.timestamp),
         },
         method: 'POST',
       }),
@@ -130,6 +133,86 @@ describe('Auther webhook route', () => {
         sourceSubjectType: 'group',
       }),
     )
+    expect(enqueueDeferredGrantJobMock).not.toHaveBeenCalled()
+  })
+
+  it('acknowledges and skips projected events for a different client envelope', async () => {
+    const envelope = {
+      id: 'evt-2',
+      timestamp: Date.now(),
+      type: 'grant.created',
+      data: {
+        clientId: 'blog-client-id',
+        tupleId: 'tuple-blog-1',
+        subjectType: 'user',
+        subjectId: 'auth-user-1',
+        entityType: 'client_payload-client-id:book',
+        entityId: 'book-9',
+        relation: 'viewer',
+        hasCondition: false,
+      },
+    }
+    const rawBody = JSON.stringify(envelope)
+    const signature = crypto
+      .createHmac('sha256', 'webhook-secret')
+      .update(`${envelope.timestamp}.${rawBody}`)
+      .digest('hex')
+
+    const response = await autherWebhookRoute(
+      new Request('https://example.test/api/webhooks/auther', {
+        body: rawBody,
+        headers: {
+          'content-type': 'application/json',
+          'x-webhook-signature': `sha256=${signature}`,
+          'x-webhook-timestamp': String(envelope.timestamp),
+        },
+        method: 'POST',
+      }),
+    )
+
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toEqual({ ok: true, skipped: 'wrong_client' })
+    expect(upsertGrantMirrorRowMock).not.toHaveBeenCalled()
+    expect(enqueueDeferredGrantJobMock).not.toHaveBeenCalled()
+  })
+
+  it('skips mirrored grant writes when the tuple entity scope is not payload-owned', async () => {
+    const envelope = {
+      id: 'evt-3',
+      timestamp: Date.now(),
+      type: 'grant.created',
+      data: {
+        clientId: 'payload-client-id',
+        tupleId: 'tuple-blog-2',
+        subjectType: 'user',
+        subjectId: 'auth-user-1',
+        entityType: 'client_blog-client-id:book',
+        entityId: 'book-9',
+        relation: 'viewer',
+        hasCondition: false,
+      },
+    }
+    const rawBody = JSON.stringify(envelope)
+    const signature = crypto
+      .createHmac('sha256', 'webhook-secret')
+      .update(`${envelope.timestamp}.${rawBody}`)
+      .digest('hex')
+
+    const response = await autherWebhookRoute(
+      new Request('https://example.test/api/webhooks/auther', {
+        body: rawBody,
+        headers: {
+          'content-type': 'application/json',
+          'x-webhook-signature': `sha256=${signature}`,
+          'x-webhook-timestamp': String(envelope.timestamp),
+        },
+        method: 'POST',
+      }),
+    )
+
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toEqual({ ok: true })
+    expect(upsertGrantMirrorRowMock).not.toHaveBeenCalled()
     expect(enqueueDeferredGrantJobMock).not.toHaveBeenCalled()
   })
 })

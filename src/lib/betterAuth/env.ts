@@ -43,6 +43,7 @@ export const getAuthBaseUrl = (): string => {
 }
 
 let cachedClientId: string | undefined
+let cachedBlogClientId: string | null | undefined
 
 export const getPayloadClientId = (): string => {
   if (cachedClientId) {
@@ -68,6 +69,32 @@ export const getPayloadClientId = (): string => {
   }
 
   return cachedClientId
+}
+
+export const getBlogClientId = (): string | null => {
+  if (cachedBlogClientId !== undefined) {
+    return cachedBlogClientId
+  }
+
+  const envValue = process.env.BLOG_CLIENT_ID
+
+  if (!envValue) {
+    if (isNextBuild) {
+      cachedBlogClientId = 'build-blog-client-id'
+
+      return cachedBlogClientId
+    }
+
+    cachedBlogClientId = null
+
+    return cachedBlogClientId
+  }
+
+  const trimmed = envValue.trim()
+
+  cachedBlogClientId = trimmed.length > 0 ? trimmed : null
+
+  return cachedBlogClientId
 }
 
 let cachedClientSecret: string | undefined
@@ -158,21 +185,27 @@ export const getBetterAuthExpectedAudience = (): string[] | null => {
   }
 
   const envValue = optionalStringSchema.parse(process.env.BETTER_AUTH_JWT_AUDIENCE ?? null)
+  const configuredAudience = envValue
+    ? envValue
+        .split(',')
+        .map((value) => value.trim())
+        .filter((value) => value.length > 0)
+    : []
 
-  if (!envValue) {
+  const blogClientId = getBlogClientId()
+  const requiredAudiences = [getPayloadClientId(), blogClientId].filter(
+    (value): value is string => typeof value === 'string' && value.length > 0,
+  )
+
+  const mergedAudience = [...new Set([...configuredAudience, ...requiredAudiences])]
+
+  if (mergedAudience.length === 0) {
     cachedAudience = null
 
     return cachedAudience
   }
 
-  cachedAudience = envValue
-    .split(',')
-    .map((value) => value.trim())
-    .filter((value) => value.length > 0)
-
-  if (cachedAudience.length === 0) {
-    cachedAudience = null
-  }
+  cachedAudience = mergedAudience
 
   return cachedAudience
 }

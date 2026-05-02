@@ -24,6 +24,9 @@ export type GrantMirrorRow = {
   syncedAt: string
 }
 
+export const MIRRORED_ENTITY_TYPES = ['book', 'chapter', 'comment'] as const
+export type MirrorableEntityType = (typeof MIRRORED_ENTITY_TYPES)[number]
+
 type GroupMembersResponse = {
   members?: Array<{ userId: string }>
 }
@@ -484,4 +487,20 @@ export const stripEntityTypeScope = (scopedEntityType: string): string => {
   const idx = scopedEntityType.lastIndexOf(':')
 
   return idx >= 0 ? scopedEntityType.slice(idx + 1) : scopedEntityType
+}
+
+export const parsePayloadMirrorEntityType = (
+  scopedEntityType: string,
+): MirrorableEntityType | null => {
+  const payloadScopePrefix = `client_${getPayloadClientId()}:`
+
+  if (!scopedEntityType.startsWith(payloadScopePrefix)) {
+    return null
+  }
+
+  const entityType = scopedEntityType.slice(payloadScopePrefix.length)
+
+  return MIRRORED_ENTITY_TYPES.includes(entityType as MirrorableEntityType)
+    ? (entityType as MirrorableEntityType)
+    : null
 }
