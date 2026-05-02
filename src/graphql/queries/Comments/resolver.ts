@@ -3,6 +3,7 @@ import type { Payload } from 'payload'
 import { getUserId } from '@/utils/access'
 import { normalizeEntityId } from '@/utils/identifiers'
 import {
+  PUBLIC_COMMENT_DEPTH,
   assertCommentTargetReadable,
   assertExclusiveCommentTarget,
   mapCommentDocToPublicComment,
@@ -94,7 +95,7 @@ export const commentsResolver = async (
       },
       sort: 'createdAt',
       limit: HARD_CAP,
-      depth: 1,
+      depth: PUBLIC_COMMENT_DEPTH,
       overrideAccess: true,
     })
 
@@ -111,7 +112,7 @@ export const commentsResolver = async (
           },
           sort: 'createdAt',
           limit: approvedLimit,
-          depth: 1,
+          depth: PUBLIC_COMMENT_DEPTH,
           overrideAccess: true,
         })
       : { docs: [] as unknown[] }

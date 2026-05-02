@@ -5,6 +5,7 @@ import { normalizeEntityId } from '@/utils/identifiers'
 import {
   MODERATABLE_COMMENT_STATUSES,
   ModeratableCommentStatus,
+  PUBLIC_COMMENT_DEPTH,
   mapCommentDocToPublicComment,
 } from '@/utils/comments'
 
@@ -77,7 +78,7 @@ export const updateCommentStatusResolver = async (
       status: nextStatus,
       moderatedAt: new Date().toISOString(),
     },
-    depth: 1,
+    depth: PUBLIC_COMMENT_DEPTH,
     overrideAccess: true,
     req,
   })

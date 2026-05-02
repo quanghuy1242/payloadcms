@@ -14,12 +14,13 @@ export const MODERATABLE_COMMENT_STATUSES = ['approved', 'rejected'] as const
 export type CommentStatus = (typeof COMMENT_STATUSES)[number]
 export type ModeratableCommentStatus = (typeof MODERATABLE_COMMENT_STATUSES)[number]
 
-const MAX_COMMENT_LENGTH = 2000
+export const COMMENT_MAX_LENGTH = 550
 export const COMMENT_EDIT_WINDOW_MS = 5 * 60 * 60 * 1000
 export const COMMENT_RATE_LIMIT_PER_TARGET = 5
 export const COMMENT_RATE_LIMIT_PER_TARGET_WINDOW_MS = 10 * 60 * 1000
 export const COMMENT_RATE_LIMIT_GLOBAL = 20
 export const COMMENT_RATE_LIMIT_GLOBAL_WINDOW_MS = 60 * 60 * 1000
+export const PUBLIC_COMMENT_DEPTH = 2
 
 const hasOwn = (value: object, key: string): boolean => {
   return Object.prototype.hasOwnProperty.call(value, key)
@@ -44,8 +45,8 @@ export const normalizeCommentContent = (input: unknown): string => {
     throw new Error('Comment content cannot be empty.')
   }
 
-  if (trimmed.length > MAX_COMMENT_LENGTH) {
-    throw new Error(`Comment content must not exceed ${MAX_COMMENT_LENGTH} characters.`)
+  if (trimmed.length > COMMENT_MAX_LENGTH) {
+    throw new Error(`Comment content must not exceed ${COMMENT_MAX_LENGTH} characters.`)
   }
 
   return trimmed
@@ -664,6 +665,16 @@ type PublicComment = {
   author: PublicCommentAuthor
 }
 
+const normalizeCommentAuthorAvatar = (value: unknown): Record<string, unknown> | null => {
+  if (typeof value !== 'object' || value === null) {
+    return null
+  }
+
+  return normalizeEntityId((value as { id?: unknown }).id) != null
+    ? (value as Record<string, unknown>)
+    : null
+}
+
 export const mapCommentDocToPublicComment = (
   doc: unknown,
   viewer?: { id?: unknown } | null,
@@ -707,7 +718,7 @@ export const mapCommentDocToPublicComment = (
     author: {
       id: authorId,
       fullName: authorFullName,
-      avatar: a.avatar ?? null,
+      avatar: normalizeCommentAuthorAvatar(a.avatar),
     },
   }
 }

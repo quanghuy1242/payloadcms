@@ -2,6 +2,7 @@ import type { Payload } from 'payload'
 
 import { normalizeEntityId } from '@/utils/identifiers'
 import {
+  PUBLIC_COMMENT_DEPTH,
   assertAuthenticatedCommentUser,
   assertCommentCreateRateLimit,
   assertCommentTargetReadable,
@@ -80,7 +81,7 @@ export const createCommentResolver = async (
       moderatedAt: null,
       moderatedBy: null,
     },
-    depth: 1,
+    depth: PUBLIC_COMMENT_DEPTH,
     overrideAccess: true,
   })
 

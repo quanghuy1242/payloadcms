@@ -20,8 +20,10 @@ import {
   commentsBeforeChangeHook,
   commentsBeforeValidateHook,
   COMMENT_EDIT_WINDOW_MS,
+  COMMENT_MAX_LENGTH,
   COMMENT_RATE_LIMIT_GLOBAL,
   COMMENT_RATE_LIMIT_PER_TARGET,
+  PUBLIC_COMMENT_DEPTH,
   getCommentEditWindowEndsAt,
   isCommentWithinEditWindow,
   mapCommentDocToPublicComment,
@@ -114,12 +116,14 @@ describe('normalizeCommentContent', () => {
   })
 
   it('throws on content exceeding max length', () => {
-    const longContent = 'a'.repeat(2001)
-    expect(() => normalizeCommentContent(longContent)).toThrow('Comment content must not exceed 2000 characters.')
+    const longContent = 'a'.repeat(COMMENT_MAX_LENGTH + 1)
+    expect(() => normalizeCommentContent(longContent)).toThrow(
+      `Comment content must not exceed ${COMMENT_MAX_LENGTH} characters.`,
+    )
   })
 
   it('allows content at exactly max length', () => {
-    const maxContent = 'a'.repeat(2000)
+    const maxContent = 'a'.repeat(COMMENT_MAX_LENGTH)
     expect(normalizeCommentContent(maxContent)).toBe(maxContent)
   })
 })
@@ -495,6 +499,32 @@ describe('mapCommentDocToPublicComment', () => {
 
     expect(result.author.id).toBe(99)
     expect(result.author.fullName).toBe('Unknown')
+  })
+
+  it('drops avatar when the relation is only an ID', () => {
+    const doc = {
+      id: 1,
+      content: 'Hello',
+      status: 'approved',
+      author: { id: 99, fullName: 'Bob', avatar: 42 },
+    }
+
+    const result = mapCommentDocToPublicComment(doc, { id: 99 })
+
+    expect(result.author.avatar).toBeNull()
+  })
+
+  it('keeps avatar when the relation is populated', () => {
+    const doc = {
+      id: 1,
+      content: 'Hello',
+      status: 'approved',
+      author: { id: 99, fullName: 'Bob', avatar: { id: 42, alt: 'avatar' } },
+    }
+
+    const result = mapCommentDocToPublicComment(doc, { id: 99 })
+
+    expect(result.author.avatar).toEqual({ id: 42, alt: 'avatar' })
   })
 
   it('handles null viewer gracefully', () => {
@@ -1442,7 +1472,7 @@ describe('createCommentResolver', () => {
 
   it('rejects content exceeding max length', async () => {
     const findByID = vi.fn().mockResolvedValue({ id: 3, _status: 'published' })
-    const longContent = 'a'.repeat(2001)
+    const longContent = 'a'.repeat(COMMENT_MAX_LENGTH + 1)
 
     await expect(
       createCommentResolver(
@@ -1453,7 +1483,7 @@ describe('createCommentResolver', () => {
           user: { id: 99, role: 'user' },
         }),
       ),
-    ).rejects.toThrow('Comment content must not exceed 2000 characters.')
+    ).rejects.toThrow(`Comment content must not exceed ${COMMENT_MAX_LENGTH} characters.`)
   })
 
   it('rejects reply-to-reply', async () => {
@@ -1674,7 +1704,7 @@ describe('updateCommentStatusResolver', () => {
           status: 'approved',
           moderatedAt: expect.any(String),
         }),
-        depth: 1,
+        depth: PUBLIC_COMMENT_DEPTH,
         overrideAccess: true,
       }),
     )
@@ -2070,7 +2100,7 @@ describe('deleteCommentResolver', () => {
           deletedAt: expect.any(String),
           deletedBy: 99,
         }),
-        depth: 1,
+        depth: PUBLIC_COMMENT_DEPTH,
         overrideAccess: true,
       }),
     )

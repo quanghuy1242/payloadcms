@@ -2,6 +2,7 @@ import type { Payload } from 'payload'
 
 import { normalizeEntityId } from '@/utils/identifiers'
 import {
+  PUBLIC_COMMENT_DEPTH,
   assertAuthenticatedCommentUser,
   assertCommentAuthor,
   assertCommentNotDeleted,
@@ -64,7 +65,7 @@ export const deleteCommentResolver = async (
       deletedAt: new Date().toISOString(),
       ...(deletedBy != null ? { deletedBy: deletedBy as number } : {}),
     },
-    depth: 1,
+    depth: PUBLIC_COMMENT_DEPTH,
     overrideAccess: true,
     req,
   })
