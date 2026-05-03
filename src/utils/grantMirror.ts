@@ -198,15 +198,15 @@ export const parseAutherProjectionRoutingMetadata = (
 ): AutherProjectionRoutingMetadata => {
   const clientId = data?.clientId
   const authorizationSpaceId = data?.authorizationSpaceId
+  const normalizedClientId = typeof clientId === 'string' ? clientId.trim() : ''
+  const normalizedAuthorizationSpaceId =
+    typeof authorizationSpaceId === 'string' ? authorizationSpaceId.trim() : ''
 
   return {
-    clientId: typeof clientId === 'string' && clientId.trim().length > 0
-      ? clientId
+    clientId: normalizedClientId.length > 0 ? normalizedClientId : null,
+    authorizationSpaceId: normalizedAuthorizationSpaceId.length > 0
+      ? normalizedAuthorizationSpaceId
       : null,
-    authorizationSpaceId:
-      typeof authorizationSpaceId === 'string' && authorizationSpaceId.trim().length > 0
-        ? authorizationSpaceId
-        : null,
   }
 }
 

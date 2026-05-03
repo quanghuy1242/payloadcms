@@ -220,12 +220,22 @@ describe('Grant mirror Auther helpers', () => {
 
     expect(
       parseAutherProjectionRoutingMetadata({
-        authorizationSpaceId: '',
+        authorizationSpaceId: '  ',
         clientId: 123,
       }),
     ).toEqual({
       authorizationSpaceId: null,
       clientId: null,
+    })
+
+    expect(
+      parseAutherProjectionRoutingMetadata({
+        authorizationSpaceId: ' space_payload_content ',
+        clientId: ' payload-client-id ',
+      }),
+    ).toEqual({
+      authorizationSpaceId: 'space_payload_content',
+      clientId: 'payload-client-id',
     })
   })
 
