@@ -24,6 +24,7 @@ import {
   fetchAutherGroupMembers,
   listGrantMirrorTupleMetadata,
   listAutherObjects,
+  parseAutherProjectionRoutingMetadata,
   parsePayloadMirrorEntityType,
   resolvePayloadUserId,
   revokeGrantMirrorRows,
@@ -51,6 +52,7 @@ type GrantCreatedEvent = {
   entityId: string
   relation: string
   hasCondition: boolean
+  authorizationSpaceId?: string
 }
 
 type GrantRevokedEvent = {
@@ -62,6 +64,7 @@ type GrantRevokedEvent = {
   subjectId: string
   entityType: string
   entityId: string
+  authorizationSpaceId?: string
 }
 
 type GroupMemberAddedEvent = {
@@ -552,10 +555,11 @@ export async function POST(request: Request): Promise<Response> {
     const envelope = JSON.parse(rawBody) as AutherWebhookEnvelope
 
     // If AUTHER_CLIENT_ID is configured, reject events not scoped to this client.
-    // Events without a clientId in the payload are platform-level and pass through.
+    // R2 also accepts future authorizationSpaceId metadata, but does not use it
+    // as the routing source of truth until the R3 space-routing migration.
     if (expectedClientId) {
-      const eventClientId = envelope?.data?.clientId
-      if (eventClientId !== undefined && eventClientId !== expectedClientId) {
+      const routingMetadata = parseAutherProjectionRoutingMetadata(envelope?.data)
+      if (routingMetadata.clientId !== null && routingMetadata.clientId !== expectedClientId) {
         // Wrong client — acknowledge to prevent retries; this is not our event.
         return Response.json({ ok: true, skipped: 'wrong_client' })
       }

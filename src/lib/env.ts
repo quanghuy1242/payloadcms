@@ -16,6 +16,12 @@ const autherBaseUrlSchema = createUrlSchema()
 const autherApiKeySchema = z.string().trim().min(1)
 
 const autherWebhookSecretSchema = z.string().trim().min(1)
+const autherAuthorizationSpaceIdSchema = z.string().trim().min(1)
+const autherAuthorizationSpaceSlugSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .regex(/^[a-z0-9][a-z0-9-_.]*$/)
 
 const qstashTokenSchema = z.string().trim().min(1)
 const qstashSigningKeySchema = z.string().trim().min(1)
@@ -28,6 +34,8 @@ let cachedAutherBaseUrl: string | undefined
 let cachedAutherApiKey: string | undefined
 let cachedAutherWebhookSecret: string | undefined
 let cachedAutherClientId: string | undefined
+let cachedAutherAuthorizationSpaceId: string | null | undefined
+let cachedAutherAuthorizationSpaceSlug: string | null | undefined
 let cachedQStashToken: string | undefined
 let cachedQStashBaseUrl: string | undefined
 let cachedQStashCurrentSigningKey: string | undefined
@@ -171,6 +179,51 @@ export const getAutherClientId = (): string | null => {
   cachedAutherClientId = process.env.AUTHER_CLIENT_ID?.trim() || undefined
 
   return cachedAutherClientId ?? null
+}
+
+/**
+ * Returns the Auther authorization space this Payload instance will consume.
+ * R2 only exposes this metadata for compatibility; webhook/reconcile routing
+ * remains client-based until the R3 space-routing migration.
+ */
+export const getAutherAuthorizationSpaceId = (): string | null => {
+  if (cachedAutherAuthorizationSpaceId !== undefined) {
+    return cachedAutherAuthorizationSpaceId
+  }
+
+  const value = process.env.AUTHER_AUTHORIZATION_SPACE_ID
+
+  if (!value) {
+    cachedAutherAuthorizationSpaceId = null
+
+    return cachedAutherAuthorizationSpaceId
+  }
+
+  cachedAutherAuthorizationSpaceId = autherAuthorizationSpaceIdSchema.parse(value)
+
+  return cachedAutherAuthorizationSpaceId
+}
+
+/**
+ * Optional human-stable Auther authorization space slug.
+ * This prepares Payload for R3 without changing current client-based routing.
+ */
+export const getAutherAuthorizationSpaceSlug = (): string | null => {
+  if (cachedAutherAuthorizationSpaceSlug !== undefined) {
+    return cachedAutherAuthorizationSpaceSlug
+  }
+
+  const value = process.env.AUTHER_AUTHORIZATION_SPACE_SLUG
+
+  if (!value) {
+    cachedAutherAuthorizationSpaceSlug = null
+
+    return cachedAutherAuthorizationSpaceSlug
+  }
+
+  cachedAutherAuthorizationSpaceSlug = autherAuthorizationSpaceSlugSchema.parse(value)
+
+  return cachedAutherAuthorizationSpaceSlug
 }
 
 export const getQStashToken = (): string => {

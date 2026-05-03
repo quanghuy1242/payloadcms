@@ -4,6 +4,7 @@ import {
   buildAutherTupleMetadataMap,
   listAutherClientGrants,
   listAutherObjects,
+  parseAutherProjectionRoutingMetadata,
   parsePayloadMirrorEntityType,
   upsertGrantMirrorRow,
 } from '@/utils/grantMirror'
@@ -204,6 +205,28 @@ describe('Grant mirror Auther helpers', () => {
         ],
       ]),
     )
+  })
+
+  it('parses client and authorization-space projection routing metadata', () => {
+    expect(
+      parseAutherProjectionRoutingMetadata({
+        authorizationSpaceId: 'space_payload_content',
+        clientId: 'payload-client-id',
+      }),
+    ).toEqual({
+      authorizationSpaceId: 'space_payload_content',
+      clientId: 'payload-client-id',
+    })
+
+    expect(
+      parseAutherProjectionRoutingMetadata({
+        authorizationSpaceId: '',
+        clientId: 123,
+      }),
+    ).toEqual({
+      authorizationSpaceId: null,
+      clientId: null,
+    })
   })
 
   it('updates an existing mirror row without overwriting relation or source provenance', async () => {

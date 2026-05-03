@@ -46,6 +46,11 @@ export type AutherTupleMetadata = {
   subjectId: string
 }
 
+export type AutherProjectionRoutingMetadata = {
+  clientId: string | null
+  authorizationSpaceId: string | null
+}
+
 type AutherClientGrantsResponse = {
   grants?: AutherClientGrantRecord[]
   nextCursor?: string | null
@@ -181,6 +186,28 @@ export const buildAutherTupleMetadataMap = (
   }
 
   return tupleMetadata
+}
+
+/**
+ * Parses projection routing metadata carried by Auther webhook envelopes.
+ * R2 accepts both client and future authorization-space metadata, but callers
+ * must keep clientId as the routing source of truth until R3.
+ */
+export const parseAutherProjectionRoutingMetadata = (
+  data: Record<string, unknown> | undefined,
+): AutherProjectionRoutingMetadata => {
+  const clientId = data?.clientId
+  const authorizationSpaceId = data?.authorizationSpaceId
+
+  return {
+    clientId: typeof clientId === 'string' && clientId.trim().length > 0
+      ? clientId
+      : null,
+    authorizationSpaceId:
+      typeof authorizationSpaceId === 'string' && authorizationSpaceId.trim().length > 0
+        ? authorizationSpaceId
+        : null,
+  }
 }
 
 /**

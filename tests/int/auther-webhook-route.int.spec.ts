@@ -51,7 +51,9 @@ import { POST as autherWebhookRoute } from '@/app/api/webhooks/auther/route'
 describe('Auther webhook route', () => {
   beforeEach(() => {
     process.env.PAYLOAD_CLIENT_ID = 'payload-client-id'
-    getPayloadMock.mockResolvedValue({})
+    getPayloadMock.mockResolvedValue({
+      find: vi.fn().mockResolvedValue({ docs: [] }),
+    })
     enqueueDeferredGrantJobMock.mockReset()
     enqueueDeferredGrantJobMock.mockResolvedValue(11)
     expirePendingDeferredGrantsByTupleIdMock.mockReset()
@@ -174,6 +176,56 @@ describe('Auther webhook route', () => {
     await expect(response.json()).resolves.toEqual({ ok: true, skipped: 'wrong_client' })
     expect(upsertGrantMirrorRowMock).not.toHaveBeenCalled()
     expect(enqueueDeferredGrantJobMock).not.toHaveBeenCalled()
+  })
+
+  it('accepts future authorization space metadata while preserving client routing', async () => {
+    const envelope = {
+      id: 'evt-space-1',
+      timestamp: Date.now(),
+      type: 'grant.created',
+      data: {
+        clientId: 'payload-client-id',
+        authorizationSpaceId: 'space_payload_content',
+        tupleId: 'tuple-space-1',
+        subjectType: 'user',
+        subjectId: 'auth-user-1',
+        entityType: 'client_payload-client-id:book',
+        entityId: 'book-9',
+        relation: 'viewer',
+        hasCondition: false,
+      },
+    }
+    const rawBody = JSON.stringify(envelope)
+    const signature = crypto
+      .createHmac('sha256', 'webhook-secret')
+      .update(`${envelope.timestamp}.${rawBody}`)
+      .digest('hex')
+
+    const response = await autherWebhookRoute(
+      new Request('https://example.test/api/webhooks/auther', {
+        body: rawBody,
+        headers: {
+          'content-type': 'application/json',
+          'x-webhook-signature': `sha256=${signature}`,
+          'x-webhook-timestamp': String(envelope.timestamp),
+        },
+        method: 'POST',
+      }),
+    )
+
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toEqual({ ok: true })
+    expect(upsertGrantMirrorRowMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        autherTupleId: 'tuple-space-1',
+        entityId: 'book-9',
+        entityType: 'book',
+        payloadUserId: 'payload-user-1',
+        relation: 'viewer',
+        sourceSubjectType: 'user',
+      }),
+    )
   })
 
   it('skips mirrored grant writes when the tuple entity scope is not payload-owned', async () => {
