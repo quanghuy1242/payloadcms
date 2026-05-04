@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { cleanup, render, screen } from '@testing-library/react'
 
 import ChapterEditAccessNotice from '@/components/admin/chapters/ChapterEditAccessNotice'
 
@@ -29,6 +29,7 @@ describe('ChapterEditAccessNotice', () => {
   })
 
   afterEach(() => {
+    cleanup()
     vi.restoreAllMocks()
   })
 

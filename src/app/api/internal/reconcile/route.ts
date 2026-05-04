@@ -26,7 +26,7 @@ import {
 import {
   buildAutherTupleMetadataMap,
   fetchAutherGroupMembers,
-  listAutherClientGrants,
+  listAutherProjectionGrants,
   listAutherObjects,
   resolvePayloadUserId,
   type AutherTupleMetadata,
@@ -207,7 +207,7 @@ const scanAutherClientGrants = async ({
   let aborted = false
 
   while (true) {
-    const page = await listAutherClientGrants({
+    const page = await listAutherProjectionGrants({
       cursor: cursor ?? undefined,
       limit: BOOTSTRAP_GRANTS_PAGE_LIMIT,
     }).catch((error) => {

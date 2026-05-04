@@ -22,6 +22,11 @@ const autherAuthorizationSpaceSlugSchema = z
   .trim()
   .min(1)
   .regex(/^[a-z0-9][a-z0-9-_.]*$/)
+const booleanFlagSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .transform((value) => value === 'true' || value === '1' || value === 'yes')
 
 const qstashTokenSchema = z.string().trim().min(1)
 const qstashSigningKeySchema = z.string().trim().min(1)
@@ -36,6 +41,7 @@ let cachedAutherWebhookSecret: string | undefined
 let cachedAutherClientId: string | undefined
 let cachedAutherAuthorizationSpaceId: string | null | undefined
 let cachedAutherAuthorizationSpaceSlug: string | null | undefined
+let cachedAutherUseSpaceRouting: boolean | undefined
 let cachedQStashToken: string | undefined
 let cachedQStashBaseUrl: string | undefined
 let cachedQStashCurrentSigningKey: string | undefined
@@ -187,10 +193,6 @@ export const getAutherClientId = (): string | null => {
  * remains client-based until the R3 space-routing migration.
  */
 export const getAutherAuthorizationSpaceId = (): string | null => {
-  if (cachedAutherAuthorizationSpaceId !== undefined) {
-    return cachedAutherAuthorizationSpaceId
-  }
-
   const value = process.env.AUTHER_AUTHORIZATION_SPACE_ID
 
   if (!value) {
@@ -224,6 +226,14 @@ export const getAutherAuthorizationSpaceSlug = (): string | null => {
   cachedAutherAuthorizationSpaceSlug = autherAuthorizationSpaceSlugSchema.parse(value)
 
   return cachedAutherAuthorizationSpaceSlug
+}
+
+export const getAutherUseSpaceRouting = (): boolean => {
+  const value = process.env.AUTHER_USE_SPACE_ROUTING
+
+  cachedAutherUseSpaceRouting = value ? booleanFlagSchema.parse(value) : false
+
+  return cachedAutherUseSpaceRouting
 }
 
 export const getQStashToken = (): string => {

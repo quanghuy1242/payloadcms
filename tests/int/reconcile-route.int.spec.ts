@@ -5,7 +5,7 @@ const headersMock = vi.hoisted(() => vi.fn(async () => new Headers()))
 const cleanupRevocationTombstonesMock = vi.hoisted(() => vi.fn())
 const enqueueDeferredGrantJobMock = vi.hoisted(() => vi.fn())
 const fetchAutherGroupMembersMock = vi.hoisted(() => vi.fn())
-const listAutherClientGrantsMock = vi.hoisted(() => vi.fn())
+const listAutherProjectionGrantsMock = vi.hoisted(() => vi.fn())
 const listAutherObjectsMock = vi.hoisted(() => vi.fn())
 const resolvePayloadUserIdMock = vi.hoisted(() => vi.fn())
 const upsertGrantMirrorRowMock = vi.hoisted(() => vi.fn())
@@ -33,7 +33,7 @@ vi.mock('@/utils/grantMirror', async () => {
   return {
     ...actual,
     fetchAutherGroupMembers: fetchAutherGroupMembersMock,
-    listAutherClientGrants: listAutherClientGrantsMock,
+    listAutherProjectionGrants: listAutherProjectionGrantsMock,
     listAutherObjects: listAutherObjectsMock,
     resolvePayloadUserId: resolvePayloadUserIdMock,
     upsertGrantMirrorRow: upsertGrantMirrorRowMock,
@@ -58,8 +58,8 @@ describe('Reconcile route', () => {
     enqueueDeferredGrantJobMock.mockResolvedValue(101)
     fetchAutherGroupMembersMock.mockReset()
     fetchAutherGroupMembersMock.mockResolvedValue(['auth-user-1'])
-    listAutherClientGrantsMock.mockReset()
-    listAutherClientGrantsMock.mockResolvedValue({
+    listAutherProjectionGrantsMock.mockReset()
+    listAutherProjectionGrantsMock.mockResolvedValue({
       grants: [
         {
           relation: 'editor',

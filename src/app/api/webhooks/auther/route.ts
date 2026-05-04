@@ -12,8 +12,10 @@ import { getPayload } from 'payload'
 import configPromise from '@payload-config'
 
 import {
+  getAutherAuthorizationSpaceId,
   getAutherWebhookSecret,
   getAutherClientId,
+  getAutherUseSpaceRouting,
 } from '@/lib/env'
 import {
   enqueueDeferredGrantJob,
@@ -545,6 +547,8 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   const expectedClientId = getAutherClientId()
+  const expectedAuthorizationSpaceId = getAutherAuthorizationSpaceId()
+  const useSpaceRouting = getAutherUseSpaceRouting() && expectedAuthorizationSpaceId !== null
 
   let event: AutherWebhookEvent
 
@@ -554,13 +558,22 @@ export async function POST(request: Request): Promise<Response> {
     // We need to unwrap it and flatten into the event shape.
     const envelope = JSON.parse(rawBody) as AutherWebhookEnvelope
 
-    // If AUTHER_CLIENT_ID is configured, reject events not scoped to this client.
-    // R2 also accepts future authorizationSpaceId metadata, but does not use it
-    // as the routing source of truth until the R3 space-routing migration.
-    if (expectedClientId) {
-      const routingMetadata = parseAutherProjectionRoutingMetadata(envelope?.data)
+    const routingMetadata = parseAutherProjectionRoutingMetadata(envelope?.data)
+
+    if (useSpaceRouting && routingMetadata.authorizationSpaceId !== null) {
+      console.info('[auther-webhook] routing grant event by authorization space', {
+        authorizationSpaceId: routingMetadata.authorizationSpaceId,
+      })
+
+      if (routingMetadata.authorizationSpaceId !== expectedAuthorizationSpaceId) {
+        return Response.json({ ok: true, skipped: 'wrong_authorization_space' })
+      }
+    } else if (expectedClientId) {
+      console.info('[auther-webhook] routing grant event by legacy client scope', {
+        clientId: routingMetadata.clientId,
+      })
+
       if (routingMetadata.clientId !== null && routingMetadata.clientId !== expectedClientId) {
-        // Wrong client — acknowledge to prevent retries; this is not our event.
         return Response.json({ ok: true, skipped: 'wrong_client' })
       }
     }

@@ -4,6 +4,7 @@ import {
   buildAutherTupleMetadataMap,
   listAutherClientGrants,
   listAutherObjects,
+  listAutherProjectionGrants,
   parseAutherProjectionRoutingMetadata,
   parsePayloadMirrorEntityType,
   upsertGrantMirrorRow,
@@ -13,6 +14,8 @@ describe('Grant mirror Auther helpers', () => {
   afterEach(() => {
     delete process.env.AUTH_BASE_URL
     delete process.env.AUTHER_API_KEY
+    delete process.env.AUTHER_AUTHORIZATION_SPACE_ID
+    delete process.env.AUTHER_USE_SPACE_ROUTING
     delete process.env.PAYLOAD_CLIENT_ID
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
@@ -163,6 +166,97 @@ describe('Grant mirror Auther helpers', () => {
     expect(url.searchParams.get('entityTypeName')).toBeNull()
     expect(url.searchParams.get('entityId')).toBeNull()
     expect(init.headers).toEqual({ 'x-api-key': 'internal-api-key' })
+  })
+
+  it('uses authorization-space grant sweep when space routing is enabled', async () => {
+    process.env.AUTHER_AUTHORIZATION_SPACE_ID = 'space_payload_content'
+    process.env.AUTHER_USE_SPACE_ROUTING = 'true'
+
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          grants: [
+            {
+              relation: 'viewer',
+              subjectId: 'auth-user-2',
+              subjectType: 'user',
+              tupleId: 'tuple-2',
+              userEmail: 'reader@example.com',
+              userId: 'auth-user-2',
+            },
+          ],
+        }),
+        {
+          headers: { 'content-type': 'application/json' },
+          status: 200,
+        },
+      ),
+    )
+
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(listAutherProjectionGrants({ entityTypeName: 'book', entityId: 'book-1' }))
+      .resolves
+      .toMatchObject({
+        grants: [
+          {
+            relation: 'viewer',
+            subjectId: 'auth-user-2',
+            subjectType: 'user',
+            tupleId: 'tuple-2',
+          },
+        ],
+      })
+
+    const [rawUrl] = fetchMock.mock.calls[0] as [string, RequestInit]
+    const url = new URL(rawUrl)
+
+    expect(url.pathname).toBe('/api/internal/authorization-spaces/space_payload_content/grants')
+    expect(url.searchParams.get('entityTypeName')).toBe('book')
+    expect(url.searchParams.get('entityId')).toBe('book-1')
+  })
+
+  it('uses authorization-space list-objects when space routing is enabled', async () => {
+    process.env.AUTHER_AUTHORIZATION_SPACE_ID = 'space_payload_content'
+    process.env.AUTHER_USE_SPACE_ROUTING = 'true'
+
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          items: [{ entityId: 'book-1', tupleIds: ['tuple-1'] }],
+        }),
+        {
+          headers: { 'content-type': 'application/json' },
+          status: 200,
+        },
+      ),
+    )
+
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(listAutherObjects('auth-user-1', 'book')).resolves.toMatchObject([
+      {
+        entityId: 'book-1',
+        tupleIds: ['tuple-1'],
+      },
+    ])
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    const body = JSON.parse(String(init.body)) as {
+      entityTypeName?: string
+      entityType?: string
+      permission?: string
+      userId?: string
+    }
+
+    expect(url).toBe(
+      'https://auth.example.test/api/internal/authorization-spaces/space_payload_content/list-objects',
+    )
+    expect(body).toEqual({
+      entityTypeName: 'book',
+      permission: 'view',
+      userId: 'auth-user-1',
+    })
   })
 
   it('builds tuple metadata from client grants', () => {

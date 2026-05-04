@@ -4,7 +4,12 @@
  */
 import type { Payload } from 'payload'
 
-import { getAutherBaseUrl, getAutherApiKey } from '@/lib/env'
+import {
+  getAutherAuthorizationSpaceId,
+  getAutherBaseUrl,
+  getAutherApiKey,
+  getAutherUseSpaceRouting,
+} from '@/lib/env'
 import { getPayloadClientId } from '@/lib/betterAuth/env'
 import { requestJSON } from '@/utils/http'
 
@@ -115,6 +120,10 @@ export type AutherClientGrantsPage = {
   hasMore: boolean
 }
 
+const shouldUseSpaceRouting = (): boolean => (
+  getAutherUseSpaceRouting() && getAutherAuthorizationSpaceId() !== null
+)
+
 /**
  * Calls Auther's client-scoped grants endpoint.
  * When entityTypeName/entityId are omitted, Auther returns a paginated full grant sweep for the client.
@@ -168,6 +177,80 @@ export const listAutherClientGrants = async ({
   }
 }
 
+export const listAutherSpaceGrants = async ({
+  cursor,
+  entityId,
+  entityTypeName,
+  limit,
+}: {
+  cursor?: string
+  entityId?: string
+  entityTypeName?: string
+  limit?: number
+} = {}): Promise<AutherClientGrantsPage> => {
+  const spaceId = getAutherAuthorizationSpaceId()
+
+  if (!spaceId) {
+    throw new Error('AUTHER_AUTHORIZATION_SPACE_ID is required when AUTHER_USE_SPACE_ROUTING is enabled')
+  }
+
+  const url = new URL(
+    `/api/internal/authorization-spaces/${encodeURIComponent(spaceId)}/grants`,
+    getAutherBaseUrl(),
+  )
+
+  if (entityTypeName) {
+    url.searchParams.set('entityTypeName', entityTypeName)
+  }
+
+  if (entityId) {
+    url.searchParams.set('entityId', entityId)
+  }
+
+  if (cursor) {
+    url.searchParams.set('cursor', cursor)
+  }
+
+  if (typeof limit === 'number' && Number.isFinite(limit) && limit > 0) {
+    url.searchParams.set('limit', String(limit))
+  }
+
+  console.info('[grantMirror] grant sweep using authorization-space routing', { spaceId })
+
+  const response = await requestJSON<AutherClientGrantsResponse>(url.toString(), {
+    headers: { 'x-api-key': getAutherApiKey() },
+  })
+
+  return {
+    grants: (response.grants ?? []).filter(
+      (grant): grant is AutherClientGrantRecord =>
+        grant != null &&
+        typeof grant.tupleId === 'string' &&
+        typeof grant.relation === 'string' &&
+        (grant.subjectType === 'user' || grant.subjectType === 'group') &&
+        typeof grant.subjectId === 'string',
+    ),
+    hasMore: response.hasMore === true,
+    nextCursor: typeof response.nextCursor === 'string' && response.nextCursor.length > 0
+      ? response.nextCursor
+      : null,
+  }
+}
+
+export const listAutherProjectionGrants = async (
+  options: Parameters<typeof listAutherClientGrants>[0] = {},
+): Promise<AutherClientGrantsPage> => {
+  if (shouldUseSpaceRouting()) {
+    return listAutherSpaceGrants(options)
+  }
+
+  console.info('[grantMirror] grant sweep using legacy client routing', {
+    clientId: getPayloadClientId(),
+  })
+
+  return listAutherClientGrants(options)
+}
+
 export const buildAutherTupleMetadataMap = (
   grants: AutherClientGrantRecord[],
 ): Map<string, AutherTupleMetadata> => {
@@ -219,9 +302,22 @@ export const listAutherObjects = async (
   entityType: string,
   permission = 'view',
 ): Promise<ListObjectsItem[]> => {
-  const url = new URL('/api/auth/list-objects', getAutherBaseUrl())
-  const clientId = getPayloadClientId()
-  const entityTypeName = `client_${clientId}:${entityType}`
+  const spaceId = getAutherAuthorizationSpaceId()
+  const useSpaceRouting = getAutherUseSpaceRouting() && spaceId !== null
+  const url = useSpaceRouting
+    ? new URL(
+        `/api/internal/authorization-spaces/${encodeURIComponent(spaceId)}/list-objects`,
+        getAutherBaseUrl(),
+      )
+    : new URL('/api/auth/list-objects', getAutherBaseUrl())
+  const entityTypeName = useSpaceRouting ? entityType : `client_${getPayloadClientId()}:${entityType}`
+
+  console.info(
+    useSpaceRouting
+      ? '[grantMirror] list-objects using authorization-space routing'
+      : '[grantMirror] list-objects using legacy client routing',
+    useSpaceRouting ? { spaceId } : { clientId: getPayloadClientId() },
+  )
 
   const response = await requestJSON<ListObjectsResponse>(url.toString(), {
     method: 'POST',
@@ -229,7 +325,11 @@ export const listAutherObjects = async (
       'Content-Type': 'application/json',
       'x-api-key': getAutherApiKey(),
     },
-    body: JSON.stringify({ userId: autherUserId, entityType: entityTypeName, permission }),
+    body: JSON.stringify(
+      useSpaceRouting
+        ? { userId: autherUserId, entityTypeName, permission }
+        : { userId: autherUserId, entityType: entityTypeName, permission },
+    ),
   })
 
   return (response.items ?? []).reduce<ListObjectsItem[]>((items, item) => {
@@ -519,6 +619,10 @@ export const stripEntityTypeScope = (scopedEntityType: string): string => {
 export const parsePayloadMirrorEntityType = (
   scopedEntityType: string,
 ): MirrorableEntityType | null => {
+  if (shouldUseSpaceRouting() && MIRRORED_ENTITY_TYPES.includes(scopedEntityType as MirrorableEntityType)) {
+    return scopedEntityType as MirrorableEntityType
+  }
+
   const payloadScopePrefix = `client_${getPayloadClientId()}:`
 
   if (!scopedEntityType.startsWith(payloadScopePrefix)) {
