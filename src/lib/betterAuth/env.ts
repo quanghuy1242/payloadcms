@@ -219,13 +219,19 @@ export const getBetterAuthExpectedAudience = (): string[] | null => {
     : []
 
   const resourceAudience = getPayloadResourceServerAudience()
-  const migrationAudiences = shouldAcceptClientAudiences()
-    ? [getPayloadClientId(), getBlogClientId()].filter(
-        (value): value is string => typeof value === 'string' && value.length > 0,
-      )
+  const clientAudiences = [getPayloadClientId(), getBlogClientId()].filter(
+    (value): value is string => typeof value === 'string' && value.length > 0,
+  )
+  const acceptsClientAudiences = shouldAcceptClientAudiences()
+  const clientAudienceSet = new Set(clientAudiences)
+  const configuredResourceAudiences = acceptsClientAudiences
+    ? configuredAudience
+    : configuredAudience.filter((value) => !clientAudienceSet.has(value))
+  const migrationAudiences = acceptsClientAudiences
+    ? clientAudiences
     : []
 
-  const mergedAudience = [...new Set([resourceAudience, ...configuredAudience, ...migrationAudiences])]
+  const mergedAudience = [...new Set([resourceAudience, ...configuredResourceAudiences, ...migrationAudiences])]
 
   if (mergedAudience.length === 0) {
     cachedAudience = null

@@ -21,7 +21,7 @@ describe('Better Auth env', () => {
     expect(getBetterAuthExpectedAudience()).toEqual(['payload-content-api'])
   })
 
-  it('includes configured resource audiences without automatically adding client audiences', async () => {
+  it('includes configured resource audiences without accepting stale client audiences', async () => {
     process.env.BETTER_AUTH_JWT_AUDIENCE = 'existing-audience, payload-client-id'
     process.env.PAYLOAD_RESOURCE_SERVER_AUDIENCE = 'payload-content-api'
 
@@ -30,18 +30,18 @@ describe('Better Auth env', () => {
     expect(getBetterAuthExpectedAudience()).toEqual([
       'payload-content-api',
       'existing-audience',
-      'payload-client-id',
     ])
   })
 
   it('can temporarily include client audiences for rollback compatibility', async () => {
-    process.env.BETTER_AUTH_JWT_AUDIENCE = 'payload-content-api'
+    process.env.BETTER_AUTH_JWT_AUDIENCE = 'payload-content-api, extra-resource'
     process.env.PAYLOAD_ACCEPT_CLIENT_AUDIENCES = 'true'
 
     const { getBetterAuthExpectedAudience } = await import('@/lib/betterAuth/env')
 
     expect(getBetterAuthExpectedAudience()).toEqual([
       'payload-content-api',
+      'extra-resource',
       'payload-client-id',
       'blog-client-id',
     ])

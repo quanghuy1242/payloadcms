@@ -327,7 +327,7 @@ Browser ↔ Payload Admin (Next.js) ↔ Better Auth (Next.js) ↔ Turso (auth DB
    - Verify JWT signature using public keys from JWKS
    - Validate claims:
      - `iss` (issuer): Must match `BETTER_AUTH_EXPECTED_ISSUER` or `AUTH_BASE_URL`
-     - `aud` (audience): Must match `BETTER_AUTH_EXPECTED_AUDIENCE` (if set)
+     - `aud` (audience): Must match `PAYLOAD_RESOURCE_SERVER_AUDIENCE`, default `payload-content-api`
      - `exp` (expiration): Must be in the future
    - Extract payload:
      ```json
