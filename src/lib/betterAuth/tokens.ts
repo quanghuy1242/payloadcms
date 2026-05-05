@@ -7,6 +7,7 @@ import {
   getBetterAuthExpectedAudience,
   getBetterAuthExpectedIssuer,
 } from './env'
+import { getCookieValue } from '@/utils/cookies'
 
 const bearerPrefix = 'bearer '
 
@@ -31,29 +32,10 @@ export const extractTokenFromHeaders = (headers: Headers): string | null => {
     return null
   }
 
-  const cookies = cookieHeader.split(';')
-
-  for (const segment of cookies) {
-    const [name, value] = segment.split('=')
-
-    if (!name || value === undefined) {
-      continue
-    }
-
-    const trimmedName = name.trim()
-
-    if (trimmedName !== BETTER_AUTH_TOKEN_COOKIE && trimmedName !== PAYLOAD_ADMIN_TOKEN_COOKIE) {
-      continue
-    }
-
-    const token = decodeURIComponent(value.trim())
-
-    if (token.length > 0) {
-      return token
-    }
-  }
-
-  return null
+  return (
+    getCookieValue(cookieHeader, BETTER_AUTH_TOKEN_COOKIE) ??
+    getCookieValue(cookieHeader, PAYLOAD_ADMIN_TOKEN_COOKIE)
+  )
 }
 
 const getJwks = () => {

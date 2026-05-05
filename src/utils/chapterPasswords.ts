@@ -1,6 +1,7 @@
 import { createHmac, pbkdf2, randomBytes, timingSafeEqual } from 'crypto'
 import { promisify } from 'node:util'
 
+import { getCookieValue } from './cookies'
 import { normalizeEntityId } from './identifiers'
 
 const pbkdf2Async = promisify(pbkdf2)
@@ -68,28 +69,6 @@ const normalizePasswordVersion = (value: unknown): number => {
   }
 
   return 0
-}
-
-const getCookieValue = (cookieHeader: string, cookieName: string): string | null => {
-  const segments = cookieHeader.split(';')
-
-  for (const segment of segments) {
-    const [rawName, ...rawValueParts] = segment.split('=')
-
-    if (!rawName || rawValueParts.length === 0) {
-      continue
-    }
-
-    if (rawName.trim() !== cookieName) {
-      continue
-    }
-
-    const value = rawValueParts.join('=').trim()
-
-    return value.length > 0 ? decodeURIComponent(value) : null
-  }
-
-  return null
 }
 
 const readHeaderValue = (headers: HeaderSource, headerName: string): string | null => {
