@@ -2,6 +2,8 @@
  * Grant mirror utilities — shared logic for syncing Auther grant tuples
  * into the local GrantMirror collection.
  */
+import { createHash } from 'node:crypto'
+
 import type { Payload } from 'payload'
 
 import {
@@ -431,6 +433,99 @@ type CheckPermissionBatchResponse = {
   results?: Record<string, boolean>
 }
 
+type PermissionBatchCacheEntry = {
+  expiresAt: number
+  result: string[]
+}
+
+const DEFAULT_PERMISSION_BATCH_CACHE_TTL_MS = 15_000
+const MAX_PERMISSION_BATCH_CACHE_ENTRIES = 500
+const permissionBatchCache = new Map<string, PermissionBatchCacheEntry>()
+
+const getPermissionBatchCacheTtlMs = (): number => {
+  const value = Number.parseInt(process.env.AUTHER_PERMISSION_CACHE_TTL_MS ?? '', 10)
+
+  if (!Number.isFinite(value) || value < 0) {
+    return DEFAULT_PERMISSION_BATCH_CACHE_TTL_MS
+  }
+
+  return value
+}
+
+const stableStringify = (value: unknown): string => {
+  if (value === null || typeof value !== 'object') {
+    return JSON.stringify(value)
+  }
+
+  if (Array.isArray(value)) {
+    return `[${value.map(stableStringify).join(',')}]`
+  }
+
+  const record = value as Record<string, unknown>
+  return `{${Object.keys(record)
+    .sort()
+    .map((key) => `${JSON.stringify(key)}:${stableStringify(record[key])}`)
+    .join(',')}}`
+}
+
+const hashCachePart = (value: unknown): string => {
+  return createHash('sha256').update(stableStringify(value)).digest('base64url')
+}
+
+const buildPermissionBatchCacheKey = ({
+  context,
+  entityIds,
+  entityType,
+  sessionToken,
+}: {
+  context: Record<string, unknown>
+  entityIds: string[]
+  entityType: string
+  sessionToken: string
+}): string => {
+  return hashCachePart({
+    context,
+    entityIds,
+    entityType,
+    token: createHash('sha256').update(sessionToken).digest('base64url'),
+  })
+}
+
+const readPermissionBatchCache = (key: string, now = Date.now()): string[] | null => {
+  const cached = permissionBatchCache.get(key)
+
+  if (!cached) {
+    return null
+  }
+
+  if (cached.expiresAt <= now) {
+    permissionBatchCache.delete(key)
+    return null
+  }
+
+  return [...cached.result]
+}
+
+const writePermissionBatchCache = (key: string, result: string[], now = Date.now()): void => {
+  const ttlMs = getPermissionBatchCacheTtlMs()
+
+  if (ttlMs <= 0) {
+    return
+  }
+
+  if (permissionBatchCache.size >= MAX_PERMISSION_BATCH_CACHE_ENTRIES) {
+    const firstKey = permissionBatchCache.keys().next().value as string | undefined
+    if (firstKey) {
+      permissionBatchCache.delete(firstKey)
+    }
+  }
+
+  permissionBatchCache.set(key, {
+    expiresAt: now + ttlMs,
+    result: [...result],
+  })
+}
+
 /**
  * Calls Auther check-permission for a batch of book IDs with the given context.
  * Returns the set of entityIds that passed.
@@ -449,6 +544,17 @@ export const checkPermissionBatch = async ({
   const clientId = getPayloadClientId()
   const scopedEntityType = `client_${clientId}:${entityType}`
   const url = new URL('/api/auth/check-permission/batch', getAutherBaseUrl())
+  const cacheKey = buildPermissionBatchCacheKey({
+    context,
+    entityIds,
+    entityType: scopedEntityType,
+    sessionToken,
+  })
+  const cached = readPermissionBatchCache(cacheKey)
+
+  if (cached) {
+    return cached
+  }
 
   const response = await requestJSON<CheckPermissionBatchResponse>(url.toString(), {
     method: 'POST',
@@ -469,7 +575,10 @@ export const checkPermissionBatch = async ({
 
   const results = response.results ?? {}
 
-  return entityIds.filter((id) => results[id] === true)
+  const approved = entityIds.filter((id) => results[id] === true)
+  writePermissionBatchCache(cacheKey, approved)
+
+  return approved
 }
 
 // ---------------------------------------------------------------------------
