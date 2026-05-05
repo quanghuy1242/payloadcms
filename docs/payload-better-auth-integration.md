@@ -106,10 +106,10 @@ Browser ↔ Payload Admin (Next.js) ↔ Better Auth (Next.js) ↔ Turso (auth DB
      - `code`: Authorization code
      - `redirect_uri`: Must match authorize request
      - `code_verifier`: From PKCE cookie
-5. Extracts `id_token` from response (JWT)
+5. Extracts `access_token` from response (JWKS-signed resource token for Payload)
 6. Sets two cookies (both HttpOnly, Secure, SameSite=Lax, expiry from token):
-   - `betterAuthToken`: ID token
-   - `payloadAdminToken`: Same ID token (legacy compatibility)
+   - `betterAuthToken`: Payload resource access token
+   - `payloadAdminToken`: Same access token (legacy compatibility)
 7. Clears PKCE cookie
 8. Redirects to `/admin`
 
@@ -272,23 +272,23 @@ Browser ↔ Payload Admin (Next.js) ↔ Better Auth (Next.js) ↔ Turso (auth DB
    **Response** (JSON):
    ```json
    {
-     "access_token": "...",
-     "id_token": "eyJhbGc...",  // JWT - THIS IS WHAT WE USE
+     "access_token": "eyJhbGc...",
+     "id_token": "eyJhbGc...",
      "token_type": "Bearer",
      "expires_in": 3600
    }
    ```
 
-6. **Extract ID token**:
+6. **Extract access token**:
    - Response contains both `access_token` and `id_token`
-   - **We use `id_token`** (JWT containing user claims)
-   - `access_token` is ignored (Better Auth specific)
-   - If `id_token` missing → Redirect to `/admin?error=missing_id_token`
+   - **We use `access_token`** as the Payload resource bearer
+   - `id_token` remains the OIDC identity token for the OAuth client
+   - If `access_token` missing → Redirect to `/admin?error=missing_access_token`
 
-7. **Set authentication cookies** (both set to `id_token` value):
+7. **Set authentication cookies** (both set to `access_token` value):
    
    **`betterAuthToken` cookie** (primary):
-   - Value: `id_token` JWT
+   - Value: `access_token` JWT
    - HttpOnly: `true`
    - Secure: `true` (production) / `false` (dev)
    - SameSite: `'lax'`
@@ -375,7 +375,7 @@ Browser ↔ Payload Admin (Next.js) ↔ Better Auth (Next.js) ↔ Turso (auth DB
 5. **Request proceeds** with authenticated user context
 
 #### 6. Token Expiration
-**When ID token expires** (typically after 1 hour):
+**When the resource access token expires**:
 
 1. JWT verification fails with `JWTExpired` error
 2. `betterAuthStrategy.authenticate()` returns `{ user: null }`

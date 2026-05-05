@@ -177,6 +177,32 @@ export const getBetterAuthExpectedIssuer = (): string | null => {
   return cachedIssuer
 }
 
+let cachedPayloadResourceServerAudience: string | undefined
+
+export const getPayloadResourceServerAudience = (): string => {
+  if (cachedPayloadResourceServerAudience) {
+    return cachedPayloadResourceServerAudience
+  }
+
+  const envValue = process.env.PAYLOAD_RESOURCE_SERVER_AUDIENCE?.trim()
+
+  cachedPayloadResourceServerAudience = envValue && envValue.length > 0 ? envValue : 'payload-content-api'
+
+  return cachedPayloadResourceServerAudience
+}
+
+const parseBooleanEnv = (value: string | undefined): boolean => {
+  if (!value) {
+    return false
+  }
+
+  return ['1', 'true', 'yes', 'on'].includes(value.trim().toLowerCase())
+}
+
+export const shouldAcceptClientAudiences = (): boolean => {
+  return parseBooleanEnv(process.env.PAYLOAD_ACCEPT_CLIENT_AUDIENCES)
+}
+
 let cachedAudience: string[] | null | undefined
 
 export const getBetterAuthExpectedAudience = (): string[] | null => {
@@ -192,12 +218,14 @@ export const getBetterAuthExpectedAudience = (): string[] | null => {
         .filter((value) => value.length > 0)
     : []
 
-  const blogClientId = getBlogClientId()
-  const requiredAudiences = [getPayloadClientId(), blogClientId].filter(
-    (value): value is string => typeof value === 'string' && value.length > 0,
-  )
+  const resourceAudience = getPayloadResourceServerAudience()
+  const migrationAudiences = shouldAcceptClientAudiences()
+    ? [getPayloadClientId(), getBlogClientId()].filter(
+        (value): value is string => typeof value === 'string' && value.length > 0,
+      )
+    : []
 
-  const mergedAudience = [...new Set([...configuredAudience, ...requiredAudiences])]
+  const mergedAudience = [...new Set([resourceAudience, ...configuredAudience, ...migrationAudiences])]
 
   if (mergedAudience.length === 0) {
     cachedAudience = null

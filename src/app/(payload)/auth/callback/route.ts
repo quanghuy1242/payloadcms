@@ -109,10 +109,10 @@ export async function GET(request: NextRequest) {
     expires_in?: number
   } | null
 
-  const idToken = tokenData?.id_token
+  const accessToken = tokenData?.access_token
 
-  if (!idToken) {
-    const response = buildRedirectResponse(`${url.origin}/admin?error=missing_id_token`)
+  if (!accessToken) {
+    const response = buildRedirectResponse(`${url.origin}/admin?error=missing_access_token`)
     clearPkceCookie(response)
 
     return response
@@ -123,8 +123,8 @@ export async function GET(request: NextRequest) {
 
   const cookieOptions = getNextTokenCookieOptions(expiresInSeconds)
 
-  response.cookies.set(BETTER_AUTH_TOKEN_COOKIE, idToken, cookieOptions)
-  response.cookies.set(PAYLOAD_ADMIN_TOKEN_COOKIE, idToken, cookieOptions)
+  response.cookies.set(BETTER_AUTH_TOKEN_COOKIE, accessToken, cookieOptions)
+  response.cookies.set(PAYLOAD_ADMIN_TOKEN_COOKIE, accessToken, cookieOptions)
   clearPkceCookie(response)
 
   response.headers.set('Cache-Control', 'no-store')

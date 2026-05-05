@@ -10,16 +10,38 @@ describe('Better Auth env', () => {
     delete process.env.PAYLOAD_CLIENT_ID
     delete process.env.BLOG_CLIENT_ID
     delete process.env.BETTER_AUTH_JWT_AUDIENCE
+    delete process.env.PAYLOAD_RESOURCE_SERVER_AUDIENCE
+    delete process.env.PAYLOAD_ACCEPT_CLIENT_AUDIENCES
     vi.resetModules()
   })
 
-  it('always includes the payload and blog audiences during the transition', async () => {
+  it('defaults to the Payload resource-server audience', async () => {
+    const { getBetterAuthExpectedAudience } = await import('@/lib/betterAuth/env')
+
+    expect(getBetterAuthExpectedAudience()).toEqual(['payload-content-api'])
+  })
+
+  it('includes configured resource audiences without automatically adding client audiences', async () => {
     process.env.BETTER_AUTH_JWT_AUDIENCE = 'existing-audience, payload-client-id'
+    process.env.PAYLOAD_RESOURCE_SERVER_AUDIENCE = 'payload-content-api'
 
     const { getBetterAuthExpectedAudience } = await import('@/lib/betterAuth/env')
 
     expect(getBetterAuthExpectedAudience()).toEqual([
+      'payload-content-api',
       'existing-audience',
+      'payload-client-id',
+    ])
+  })
+
+  it('can temporarily include client audiences for rollback compatibility', async () => {
+    process.env.BETTER_AUTH_JWT_AUDIENCE = 'payload-content-api'
+    process.env.PAYLOAD_ACCEPT_CLIENT_AUDIENCES = 'true'
+
+    const { getBetterAuthExpectedAudience } = await import('@/lib/betterAuth/env')
+
+    expect(getBetterAuthExpectedAudience()).toEqual([
+      'payload-content-api',
       'payload-client-id',
       'blog-client-id',
     ])
