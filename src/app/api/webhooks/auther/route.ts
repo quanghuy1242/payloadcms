@@ -560,7 +560,7 @@ export async function POST(request: Request): Promise<Response> {
 
     const routingMetadata = parseAutherProjectionRoutingMetadata(envelope?.data)
 
-    if (useSpaceRouting && routingMetadata.authorizationSpaceId !== null) {
+    if (useSpaceRouting) {
       console.info('[auther-webhook] routing grant event by authorization space', {
         authorizationSpaceId: routingMetadata.authorizationSpaceId,
       })

@@ -383,4 +383,14 @@ describe('Grant mirror Auther helpers', () => {
     expect(parsePayloadMirrorEntityType('client_blog-client-id:book')).toBeNull()
     expect(parsePayloadMirrorEntityType('book')).toBeNull()
   })
+
+  it('accepts canonical authorization-space entity scopes when space routing is enabled', () => {
+    process.env.AUTHER_AUTHORIZATION_SPACE_ID = 'space_payload_content'
+    process.env.AUTHER_USE_SPACE_ROUTING = 'true'
+
+    expect(parsePayloadMirrorEntityType('book')).toBe('book')
+    expect(parsePayloadMirrorEntityType('space_payload-space:book')).toBe('book')
+    expect(parsePayloadMirrorEntityType('space_payload-space:chapter')).toBe('chapter')
+    expect(parsePayloadMirrorEntityType('space_payload-space:unknown')).toBeNull()
+  })
 })

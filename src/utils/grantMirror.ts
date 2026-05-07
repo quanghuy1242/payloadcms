@@ -728,8 +728,12 @@ export const stripEntityTypeScope = (scopedEntityType: string): string => {
 export const parsePayloadMirrorEntityType = (
   scopedEntityType: string,
 ): MirrorableEntityType | null => {
-  if (shouldUseSpaceRouting() && MIRRORED_ENTITY_TYPES.includes(scopedEntityType as MirrorableEntityType)) {
-    return scopedEntityType as MirrorableEntityType
+  if (shouldUseSpaceRouting()) {
+    const entityType = stripEntityTypeScope(scopedEntityType)
+
+    return MIRRORED_ENTITY_TYPES.includes(entityType as MirrorableEntityType)
+      ? (entityType as MirrorableEntityType)
+      : null
   }
 
   const payloadScopePrefix = `client_${getPayloadClientId()}:`
