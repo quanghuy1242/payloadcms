@@ -36,6 +36,7 @@ export type MirrorableEntityType = (typeof MIRRORED_ENTITY_TYPES)[number]
 
 type GroupMembersResponse = {
   members?: Array<{ userId: string }>
+  memberIds?: string[]
 }
 
 export type AutherClientGrantRecord = {
@@ -81,6 +82,10 @@ export const fetchAutherGroupMembers = async (groupId: string): Promise<string[]
   const response = await requestJSON<GroupMembersResponse>(url.toString(), {
     headers: { 'x-api-key': getAutherApiKey() },
   })
+
+  if (Array.isArray(response.memberIds)) {
+    return response.memberIds.filter((id): id is string => typeof id === 'string' && id.length > 0)
+  }
 
   return (response.members ?? []).map((m) => m.userId).filter(Boolean)
 }

@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   buildAutherTupleMetadataMap,
   listAutherClientGrants,
+  fetchAutherGroupMembers,
   listAutherObjects,
   listAutherProjectionGrants,
   parseAutherProjectionRoutingMetadata,
@@ -166,6 +167,28 @@ describe('Grant mirror Auther helpers', () => {
     expect(url.searchParams.get('entityTypeName')).toBeNull()
     expect(url.searchParams.get('entityId')).toBeNull()
     expect(init.headers).toEqual({ 'x-api-key': 'internal-api-key' })
+  })
+
+  it('reads expanded group members from Auther memberIds responses', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          groupId: 'group-1',
+          memberIds: ['auth-user-1', 'auth-user-2'],
+        }),
+        {
+          headers: { 'content-type': 'application/json' },
+          status: 200,
+        },
+      ),
+    )
+
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(fetchAutherGroupMembers('group-1')).resolves.toEqual([
+      'auth-user-1',
+      'auth-user-2',
+    ])
   })
 
   it('uses authorization-space grant sweep when space routing is enabled', async () => {
