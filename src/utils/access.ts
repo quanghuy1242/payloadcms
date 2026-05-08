@@ -769,9 +769,12 @@ export const ownerAccess = (field: string): Access => {
 
 // @ts-ignore
 export const postsReadAccess: Access = ({ req }) => {
-  // No authentication = no access
   if (!req.user) {
-    return false
+    return {
+      _status: {
+        equals: 'published',
+      },
+    }
   }
 
   if (isAdminUser(req.user)) {

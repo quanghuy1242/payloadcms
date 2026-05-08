@@ -415,6 +415,19 @@ describe('assertCommentTargetReadable', () => {
       }),
     ).rejects.toThrow('Comment target not found.')
   })
+
+  it('does not mask database failures as missing comment targets', async () => {
+    const findByID = vi.fn().mockRejectedValue(new Error('fetch failed: other side closed'))
+    const payload = { findByID } as never
+
+    await expect(
+      assertCommentTargetReadable({
+        postId: 999,
+        payload,
+        req: {} as never,
+      }),
+    ).rejects.toThrow('fetch failed')
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -1235,6 +1248,18 @@ describe('commentsResolver', () => {
         makeContext({ findByID }),
       ),
     ).rejects.toThrow('Comment target not found.')
+  })
+
+  it('does not mask target lookup database failures', async () => {
+    const findByID = vi.fn().mockRejectedValue(new Error('fetch failed: other side closed'))
+
+    await expect(
+      commentsResolver(
+        undefined,
+        { postId: '999' },
+        makeContext({ findByID }),
+      ),
+    ).rejects.toThrow('fetch failed')
   })
 
   it('returns approved comments for a chapter (authorized)', async () => {

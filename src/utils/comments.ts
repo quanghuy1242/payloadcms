@@ -32,6 +32,21 @@ const normalizeCommentStatus = (value: unknown): CommentStatus | null => {
     : null
 }
 
+const isNotFoundLikeError = (error: unknown): boolean => {
+  if (!error || typeof error !== 'object') {
+    return false
+  }
+
+  const status = (error as { status?: unknown; statusCode?: unknown }).status
+    ?? (error as { statusCode?: unknown }).statusCode
+  if (status === 404) {
+    return true
+  }
+
+  const message = (error as { message?: unknown }).message
+  return typeof message === 'string' && message.toLowerCase().includes('not found')
+}
+
 // ----------------------- Normalization -----------------------
 
 export const normalizeCommentContent = (input: unknown): string => {
@@ -114,7 +129,13 @@ export const loadCommentTarget = async ({
         overrideAccess: true,
         req,
       })
-      .catch(() => null)
+      .catch((error: unknown) => {
+        if (isNotFoundLikeError(error)) {
+          return null
+        }
+
+        throw error
+      })
 
     if (!doc) {
       return null
@@ -138,7 +159,13 @@ export const loadCommentTarget = async ({
         overrideAccess: true,
         req,
       })
-      .catch(() => null)
+      .catch((error: unknown) => {
+        if (isNotFoundLikeError(error)) {
+          return null
+        }
+
+        throw error
+      })
 
     if (!doc) {
       return null
@@ -190,7 +217,13 @@ export const assertCommentTargetReadable = async ({
         depth: 0,
         req,
       })
-      .catch(() => null)
+      .catch((error: unknown) => {
+        if (isNotFoundLikeError(error)) {
+          return null
+        }
+
+        throw error
+      })
 
     if (!chapter) {
       throw new Error('Comment target not found.')

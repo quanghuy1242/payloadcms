@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { chaptersReadAccess, normalizeEntityId, publicBooksReadAccess } from '@/utils/access'
+import { chaptersReadAccess, normalizeEntityId, postsReadAccess, publicBooksReadAccess } from '@/utils/access'
 
 describe('Access utilities', () => {
   beforeEach(() => {
@@ -44,6 +44,14 @@ describe('Access utilities', () => {
           },
         },
       ],
+    })
+  })
+
+  it('allows anonymous users to read published posts', () => {
+    expect(postsReadAccess({ req: { user: null } } as never)).toEqual({
+      _status: {
+        equals: 'published',
+      },
     })
   })
 
