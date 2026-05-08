@@ -8,6 +8,14 @@ const USERS_COLLECTION = 'users'
 
 const isNonNullString = (value: unknown): value is string => typeof value === 'string' && value.trim().length > 0
 
+const USER_AUTH_SELECT = {
+  id: true,
+  email: true,
+  fullName: true,
+  role: true,
+  betterAuthUserId: true,
+} as const
+
 type UpsertBetterAuthUserArgs = {
   payload: Payload
   token: BetterAuthTokenPayload
@@ -63,6 +71,7 @@ const updateUserIfNecessary = async ({
     data: updates,
     overrideAccess: true,
     depth: 0,
+    select: USER_AUTH_SELECT,
   })) as User
 }
 
@@ -97,6 +106,7 @@ export const upsertBetterAuthUser = async ({
     },
     limit: 1,
     depth: 0,
+    select: USER_AUTH_SELECT,
   })
 
   const existingUser = existingById.docs[0] as User | undefined
@@ -141,6 +151,7 @@ export const upsertBetterAuthUser = async ({
     },
     limit: 1,
     depth: 0,
+    select: USER_AUTH_SELECT,
   })
 
   const emailMatch = existingByEmail.docs[0] as User | undefined
@@ -190,6 +201,7 @@ export const upsertBetterAuthUser = async ({
     },
     overrideAccess: true,
     depth: 0,
+    select: USER_AUTH_SELECT,
   })) as User
 
   await drainDeferredGrantsIfNeeded({
