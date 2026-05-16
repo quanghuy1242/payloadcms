@@ -22,7 +22,7 @@ export type SerializedYouTubeNode = Spread<
 
 // Lazy-import the React component
 const YouTubeComponent = React.lazy(() =>
-  import('../components/YouTubeComponent.js').then((module) => ({
+  import('../components/YouTubeComponent').then((module) => ({
     default: module.YouTubeComponent,
   })),
 )

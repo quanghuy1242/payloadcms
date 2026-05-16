@@ -57,3 +57,4 @@ data/
 debug*.ts
 /dist/
 /.wrangler/
+/.open-next/
