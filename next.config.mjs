@@ -4,6 +4,7 @@ import { withPayload } from '@payloadcms/next/withPayload'
 const nextConfig = {
   productionBrowserSourceMaps: true,
   serverExternalPackages: ['@libsql/client', 'libsql'],
+  turbopack: {},
 }
 
 export default withPayload(nextConfig, { devBundleServerPackages: false })

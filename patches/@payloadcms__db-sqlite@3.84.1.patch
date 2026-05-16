@@ -1,0 +1,51 @@
+diff --git a/dist/connect.js b/dist/connect.js
+index 9f4c05b97f5a4d67d4b98044e485c4024092f08a..96a83c0452f506de8ff8765f742a0a9ae4380dfe 100644
+--- a/dist/connect.js
++++ b/dist/connect.js
+@@ -1,6 +1,7 @@
+ import { createClient } from '@libsql/client';
+-import { pushDevSchema } from '@payloadcms/drizzle';
++import { createRequire } from 'module';
+ import { drizzle } from 'drizzle-orm/libsql';
++const require = createRequire(import.meta.url);
+ export const connect = async function connect(options = {
+     hotReload: false
+ }) {
+@@ -48,6 +49,7 @@ export const connect = async function connect(options = {
+     }
+     // Only push schema if not in production
+     if (process.env.NODE_ENV !== 'production' && process.env.PAYLOAD_MIGRATING !== 'true' && this.push !== false) {
++        const { pushDevSchema } = require('@payloadcms/drizzle');
+         await pushDevSchema(this);
+     }
+     if (typeof this.resolveInitializing === 'function') {
+diff --git a/dist/index.js b/dist/index.js
+index c68263c860dad8f4b11cd7a76499b74146be8e74..a7dabb7db55bba92173ee93620c36c2d38caa256 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -1,10 +1,12 @@
+ import { beginTransaction, buildCreateMigration, commitTransaction, count, countGlobalVersions, countVersions, create, createBlocksToJsonMigrator, createGlobal, createGlobalVersion, createSchemaGenerator, createVersion, deleteMany, deleteOne, deleteVersions, destroy, find, findDistinct, findGlobal, findGlobalVersions, findOne, findVersions, migrate, migrateDown, migrateFresh, migrateRefresh, migrateReset, migrateStatus, operatorMap, queryDrafts, rollbackTransaction, updateGlobal, updateGlobalVersion, updateJobs, updateMany, updateOne, updateVersion, upsert } from '@payloadcms/drizzle';
+-import { columnToCodeConverter, convertPathToJSONTraversal, countDistinct, createJSONQuery, defaultDrizzleSnapshot, deleteWhere, dropDatabase, execute, init, insert, requireDrizzleKit } from '@payloadcms/drizzle/sqlite';
++import { columnToCodeConverter, convertPathToJSONTraversal, countDistinct, createJSONQuery, defaultDrizzleSnapshot, deleteWhere, dropDatabase, execute, init, insert } from '@payloadcms/drizzle/sqlite';
+ import { like, notLike } from 'drizzle-orm';
++import { createRequire } from 'module';
+ import { createDatabaseAdapter, defaultBeginTransaction, findMigrationDir } from 'payload';
+ import { fileURLToPath } from 'url';
+ import { connect } from './connect.js';
+ const filename = fileURLToPath(import.meta.url);
++const require = createRequire(import.meta.url);
+ export function sqliteAdapter(args) {
+     const sqliteIDType = args.idType || 'number';
+     const payloadIDType = sqliteIDType === 'uuid' || sqliteIDType === 'uuidv7' ? 'text' : 'number';
+@@ -143,7 +145,10 @@ export function sqliteAdapter(args) {
+             payload,
+             queryDrafts,
+             rejectInitializing,
+-            requireDrizzleKit,
++            requireDrizzleKit: ()=>{
++                const { requireDrizzleKit } = require('@payloadcms/drizzle/sqlite');
++                return requireDrizzleKit();
++            },
+             resolveInitializing,
+             rollbackTransaction,
+             updateGlobal,

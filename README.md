@@ -1,6 +1,6 @@
 # payloadcms
 
-A self-hosted content management platform built on **PayloadCMS 3.60 + Next.js 15**. Manages EPUB books (with browser-side import) and blog content from a single admin panel. Exposes GraphQL + REST APIs. Operates as a **resource server consumer** and **grant projection subscriber** within the Auther identity ecosystem.
+A self-hosted content management platform built on **PayloadCMS 3.84.1 + Next.js 16**. Manages EPUB books (with browser-side import) and blog content from a single admin panel. Exposes GraphQL + REST APIs. Operates as a **resource server consumer** and **grant projection subscriber** within the Auther identity ecosystem.
 
 ---
 
@@ -309,6 +309,16 @@ CLOUDFLARE_CACHE_API_TOKEN=your-api-token
 | `pnpm payload migrate` | Apply pending migrations |
 | `pnpm epub:probe` | Inspect EPUB file structure |
 
+## Build Targets
+
+This repo intentionally keeps three deployment models working at the same time:
+
+- `pnpm build`: standard Next.js production build for Vercel-style deployment
+- `pnpm build:opennext`: OpenNext build for Cloudflare Workers
+- `pnpm build:vinext`: Vinext build for Cloudflare Workers
+
+OpenNext uses Turbopack as well. That path depends on two PNPM package patches under [patches/README.md](./patches/README.md), because Payload's SQLite/Drizzle packages currently leak migration helpers into the Turbopack production bundle graph and break OpenNext's Cloudflare rebundling step.
+
 ## File Map
 
 ```
@@ -359,8 +369,8 @@ src/
 
 | Layer | Technology |
 |-------|-----------|
-| Framework | Next.js 15 (App Router, React 19, TypeScript 5.7) |
-| CMS | PayloadCMS 3.60 |
+| Framework | Next.js 16 (App Router, React 19, TypeScript 5.7) |
+| CMS | PayloadCMS 3.84.1 |
 | Database | Turso (libSQL) → local SQLite fallback |
 | Object Storage | Cloudflare R2 (S3-compatible API + `/cdn-cgi/image/` transforms) |
 | Rich Text | `@payloadcms/richtext-lexical` + 5 custom features |
@@ -387,3 +397,10 @@ For local Turso without cloud: `docker-compose -f docker-compose.turso.yml up`.
 4. Start: `pnpm start`
 
 EPUB processing is **fully browser-side** — fits within Vercel free-tier function limits. Turso and R2 credentials required in production.
+
+### Cloudflare worker targets
+
+- OpenNext dry run: `pnpm deploy:opennext:dry-run`
+- Vinext dry run: `pnpm deploy:vinext:dry-run`
+
+If either Cloudflare target starts failing after a dependency upgrade, inspect [patches/README.md](./patches/README.md) first. That file documents why the patches exist, where PNPM applies them, and the verification commands required before removing them.

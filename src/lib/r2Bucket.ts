@@ -25,30 +25,45 @@ type PutValue =
   | null
 type MultipartPart = { etag?: string; partNumber: number }
 
+type R2UploadedPart = {
+  etag: string
+  partNumber: number
+}
+
+type R2Object = {
+  etag: string
+  key: string
+  size: number
+  writeHttpMetadata: (headers: Headers) => void
+}
+
+type R2ObjectBody = R2Object & {
+  body: ReadableStream
+}
+
+type R2MultipartUpload = {
+  abort: () => Promise<void>
+  complete: (uploadedParts: R2UploadedPart[]) => Promise<R2Object>
+  key: string
+  uploadId: string
+  uploadPart: (partNumber: number, value: PutValue, options?: unknown) => Promise<R2UploadedPart>
+}
+
 type R2Bucket = {
-  put: (key: string, value: PutValue, options?: Record<string, unknown>) => Promise<unknown>
+  createMultipartUpload: (key: string, options?: unknown) => Promise<R2MultipartUpload>
+  delete: (keys: string | string[]) => Promise<void>
   get: (
     key: string,
-    options?: Record<string, unknown>,
-  ) => Promise<{
-    body: ReadableStream
-    etag?: string
-    writeHttpMetadata: (headers: Headers) => void
-  } | null>
-  delete: (keys: string | string[]) => Promise<void>
-  head: (key: string) => Promise<unknown>
-  list: (options?: Record<string, unknown>) => Promise<unknown>
-  createMultipartUpload: (key: string, options?: Record<string, unknown>) => Promise<unknown>
-  resumeMultipartUpload: (
-    key: string,
-    uploadId: string,
-  ) => {
-    uploadId: string
-    key: string
-    uploadPart: (partNumber: number, value: PutValue) => Promise<{ etag?: string }>
-    complete: (parts: MultipartPart[]) => Promise<unknown>
-    abort: () => Promise<void>
-  }
+    options?: {
+      onlyIf?: Headers | unknown
+      range?: unknown
+      [key: string]: unknown
+    },
+  ) => Promise<R2ObjectBody | null>
+  head: (key: string) => Promise<R2Object | null>
+  list: (options?: unknown) => Promise<unknown>
+  put: (key: string, value: PutValue, options?: unknown) => Promise<unknown>
+  resumeMultipartUpload: (key: string, uploadId: string) => R2MultipartUpload
 }
 
 const isReadableStream = (value: unknown): value is ReadableStream => {
@@ -149,6 +164,29 @@ const getRangeHeader = (options?: { range?: unknown }): string | undefined => {
 
 const normalizeKey = (key: string): string => key.replace(/^\/+/, '')
 
+const writeHttpMetadata = (
+  headers: Headers,
+  metadata: {
+    CacheControl?: string
+    ContentDisposition?: string
+    ContentEncoding?: string
+    ContentLanguage?: string
+    ContentLength?: number
+    ContentType?: string
+    ETag?: string
+    LastModified?: Date
+  },
+) => {
+  if (metadata.ContentType) headers.set('content-type', metadata.ContentType)
+  if (metadata.CacheControl) headers.set('cache-control', metadata.CacheControl)
+  if (metadata.ContentDisposition) headers.set('content-disposition', metadata.ContentDisposition)
+  if (metadata.ContentEncoding) headers.set('content-encoding', metadata.ContentEncoding)
+  if (metadata.ContentLanguage) headers.set('content-language', metadata.ContentLanguage)
+  if (metadata.ContentLength != null) headers.set('content-length', metadata.ContentLength.toString())
+  if (metadata.ETag) headers.set('etag', metadata.ETag)
+  if (metadata.LastModified) headers.set('last-modified', metadata.LastModified.toUTCString())
+}
+
 type BucketOptions = {
   /**
    * When true, missing environment variables will throw an error.
@@ -211,15 +249,12 @@ export const createR2BucketFromEnv = (options?: BucketOptions): R2Bucket | null 
       options?: {
         range?: unknown
       },
-    ): Promise<{
-      body: ReadableStream
-      etag?: string
-      writeHttpMetadata: (headers: Headers) => void
-    } | null> {
+    ): Promise<R2ObjectBody | null> {
       const Range = getRangeHeader(options)
+      const normalizedKey = normalizeKey(key)
       const command = new GetObjectCommand({
         Bucket: bucketName,
-        Key: normalizeKey(key),
+        Key: normalizedKey,
         Range,
       })
       const result = await client.send(command)
@@ -236,19 +271,10 @@ export const createR2BucketFromEnv = (options?: BucketOptions): R2Bucket | null 
 
       return {
         body,
-        etag: result.ETag ?? undefined,
-        writeHttpMetadata: (headers: Headers) => {
-          if (result.ContentType) headers.set('content-type', result.ContentType)
-          if (result.CacheControl) headers.set('cache-control', result.CacheControl)
-          if (result.ContentDisposition)
-            headers.set('content-disposition', result.ContentDisposition)
-          if (result.ContentEncoding) headers.set('content-encoding', result.ContentEncoding)
-          if (result.ContentLanguage) headers.set('content-language', result.ContentLanguage)
-          if (result.ContentLength != null)
-            headers.set('content-length', result.ContentLength.toString())
-          if (result.ETag) headers.set('etag', result.ETag)
-          if (result.LastModified) headers.set('last-modified', result.LastModified.toUTCString())
-        },
+        etag: result.ETag ?? '',
+        key: normalizedKey,
+        size: result.ContentLength ?? 0,
+        writeHttpMetadata: (headers: Headers) => writeHttpMetadata(headers, result),
       }
     },
     async delete(keys: string | string[]): Promise<void> {
@@ -275,41 +301,50 @@ export const createR2BucketFromEnv = (options?: BucketOptions): R2Bucket | null 
       })
       await client.send(command)
     },
-    async head(key): Promise<unknown> {
+    async head(key): Promise<R2Object | null> {
+      const normalizedKey = normalizeKey(key)
       const command = new HeadObjectCommand({
         Bucket: bucketName,
-        Key: normalizeKey(key),
+        Key: normalizedKey,
       })
 
-      return client.send(command)
+      const result = await client.send(command)
+
+      return {
+        etag: result.ETag ?? '',
+        key: normalizedKey,
+        size: result.ContentLength ?? 0,
+        writeHttpMetadata: (headers: Headers) => writeHttpMetadata(headers, result),
+      }
     },
-    async list(options?: Record<string, unknown>): Promise<unknown> {
+    async list(options?: unknown): Promise<unknown> {
       const command = new ListObjectsV2Command({
         Bucket: bucketName,
-        ...(options ?? {}),
+        ...((options as Record<string, unknown> | undefined) ?? {}),
       })
 
       return client.send(command)
     },
-    async createMultipartUpload(key, options?: Record<string, unknown>): Promise<unknown> {
+    async createMultipartUpload(
+      key,
+      options?: unknown,
+    ): Promise<R2MultipartUpload> {
+      const normalizedKey = normalizeKey(key)
       const command = new CreateMultipartUploadCommand({
         Bucket: bucketName,
-        Key: normalizeKey(key),
-        ...(options ?? {}),
+        Key: normalizedKey,
+        ...((options as Record<string, unknown> | undefined) ?? {}),
       })
 
-      return client.send(command)
+      const result = await client.send(command)
+
+      if (!result.UploadId) {
+        throw new Error(`Missing UploadId when creating multipart upload for ${normalizedKey}.`)
+      }
+
+      return bucket.resumeMultipartUpload(normalizedKey, result.UploadId)
     },
-    resumeMultipartUpload(
-      key,
-      uploadId: string,
-    ): {
-      uploadId: string
-      key: string
-      uploadPart: (partNumber: number, value: PutValue) => Promise<{ etag?: string }>
-      complete: (parts: MultipartPart[]) => Promise<unknown>
-      abort: () => Promise<void>
-    } {
+    resumeMultipartUpload(key, uploadId: string): R2MultipartUpload {
       const normalizedKey = normalizeKey(key)
 
       return {
@@ -327,10 +362,13 @@ export const createR2BucketFromEnv = (options?: BucketOptions): R2Bucket | null 
             }),
           )
 
-          return { etag: ETag }
+          return {
+            etag: ETag ?? '',
+            partNumber,
+          } satisfies R2UploadedPart
         },
         complete: async (parts: MultipartPart[]) => {
-          return client.send(
+          const result = await client.send(
             new CompleteMultipartUploadCommand({
               Bucket: bucketName,
               Key: normalizedKey,
@@ -343,6 +381,13 @@ export const createR2BucketFromEnv = (options?: BucketOptions): R2Bucket | null 
               },
             }),
           )
+
+          return {
+            etag: result.ETag ?? '',
+            key: normalizedKey,
+            size: 0,
+            writeHttpMetadata: () => {},
+          } satisfies R2Object
         },
         abort: async () => {
           await client.send(

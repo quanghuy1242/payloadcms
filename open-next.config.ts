@@ -4,5 +4,12 @@ const config = defineCloudflareConfig({})
 
 export default {
   ...config,
-  buildCommand: 'pnpm exec next build',
+  cloudflare: {
+    ...config.cloudflare,
+    // Payload's libsql stack trips the workerd condition path during OpenNext bundling.
+    // Keep this disabled until upstream OpenNext/Payload no longer needs the fallback.
+    useWorkerdCondition: false,
+  },
+  // OpenNext must use the same Turbopack build path as the Vercel-target Next build.
+  buildCommand: 'pnpm exec next build --turbopack',
 }

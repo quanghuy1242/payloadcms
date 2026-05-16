@@ -13,6 +13,7 @@ export { copyDataFromLocaleHandler } from '../../node_modules/@payloadcms/ui/dis
 export { getColumns } from '../../node_modules/@payloadcms/ui/dist/utilities/getColumns.js'
 export { getFolderResultsComponentAndData } from '../../node_modules/@payloadcms/ui/dist/utilities/getFolderResultsComponentAndData.js'
 export { handleLivePreview } from '../../node_modules/@payloadcms/ui/dist/utilities/handleLivePreview.js'
+export { handlePreview } from '../../node_modules/@payloadcms/ui/dist/utilities/handlePreview.js'
 export { renderFilters, renderTable } from '../../node_modules/@payloadcms/ui/dist/utilities/renderTable.js'
 export { resolveFilterOptions } from '../../node_modules/@payloadcms/ui/dist/utilities/resolveFilterOptions.js'
 export { upsertPreferences } from '../../node_modules/@payloadcms/ui/dist/utilities/upsertPreferences.js'
