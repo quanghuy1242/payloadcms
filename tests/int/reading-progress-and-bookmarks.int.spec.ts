@@ -536,10 +536,20 @@ describe('DeleteBookmark GraphQL resolver', () => {
 
 describe('Bookmarks GraphQL query resolver', () => {
   it('returns paginated bookmarks for the current user', async () => {
-    const findMock = vi.fn().mockResolvedValue({
-      docs: [{ id: 1 }, { id: 2 }],
-      totalDocs: 2,
-    })
+    const findMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        docs: [{ id: 1, contentType: 'book', book: 11 }, { id: 2, contentType: 'book', book: 12 }],
+        totalDocs: 2,
+      })
+      .mockResolvedValueOnce({
+        docs: [{ id: 11, title: 'Book 11' }, { id: 12, title: 'Book 12' }],
+        totalDocs: 2,
+      })
+      .mockResolvedValueOnce({
+        docs: [],
+        totalDocs: 0,
+      })
 
     const result = await bookmarksResolver(
       undefined,
@@ -560,16 +570,36 @@ describe('Bookmarks GraphQL query resolver', () => {
         where: { and: [{ user: { equals: 99 } }] },
         limit: 50,
         page: 1,
-        overrideAccess: true,
+        depth: 0,
+        overrideAccess: false,
+      }),
+    )
+    expect(findMock).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        collection: 'books',
+        where: { id: { in: ['11', '12'] } },
+        depth: 1,
+        overrideAccess: false,
       }),
     )
   })
 
   it('returns a single bookmark when contentType and contentId are provided', async () => {
-    const findMock = vi.fn().mockResolvedValue({
-      docs: [{ id: 1, chapter: 7 }],
-      totalDocs: 1,
-    })
+    const findMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        docs: [{ id: 1, contentType: 'chapter', chapter: 7 }],
+        totalDocs: 1,
+      })
+      .mockResolvedValueOnce({
+        docs: [],
+        totalDocs: 0,
+      })
+      .mockResolvedValueOnce({
+        docs: [{ id: 7, title: 'Chapter 7', slug: 'chapter-7' }],
+        totalDocs: 1,
+      })
 
     const result = await bookmarksResolver(
       undefined,
@@ -585,6 +615,7 @@ describe('Bookmarks GraphQL query resolver', () => {
     expect(result.docs).toHaveLength(1)
     expect(findMock).toHaveBeenCalledWith(
       expect.objectContaining({
+        collection: 'bookmarks',
         where: {
           and: [
             { user: { equals: 99 } },
@@ -593,13 +624,32 @@ describe('Bookmarks GraphQL query resolver', () => {
         },
       }),
     )
+    expect(findMock).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        collection: 'chapters',
+        where: { id: { in: ['7'] } },
+        depth: 1,
+        overrideAccess: false,
+      }),
+    )
   })
 
   it('returns paginated bookmarks when only contentType is provided', async () => {
-    const findMock = vi.fn().mockResolvedValue({
-      docs: [{ id: 1 }, { id: 2 }],
-      totalDocs: 2,
-    })
+    const findMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        docs: [{ id: 1, contentType: 'book', book: 9 }, { id: 2, contentType: 'chapter', chapter: 3 }],
+        totalDocs: 2,
+      })
+      .mockResolvedValueOnce({
+        docs: [{ id: 9, title: 'Book 9' }],
+        totalDocs: 1,
+      })
+      .mockResolvedValueOnce({
+        docs: [{ id: 3, title: 'Chapter 3', slug: 'chapter-3' }],
+        totalDocs: 1,
+      })
 
     const result = await bookmarksResolver(
       undefined,
@@ -623,10 +673,20 @@ describe('Bookmarks GraphQL query resolver', () => {
   })
 
   it('returns paginated bookmarks when only contentId is provided', async () => {
-    const findMock = vi.fn().mockResolvedValue({
-      docs: [{ id: 1 }],
-      totalDocs: 1,
-    })
+    const findMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        docs: [{ id: 1, contentType: 'book', book: 4 }],
+        totalDocs: 1,
+      })
+      .mockResolvedValueOnce({
+        docs: [{ id: 4, title: 'Book 4' }],
+        totalDocs: 1,
+      })
+      .mockResolvedValueOnce({
+        docs: [],
+        totalDocs: 0,
+      })
 
     const result = await bookmarksResolver(
       undefined,
@@ -642,11 +702,58 @@ describe('Bookmarks GraphQL query resolver', () => {
     expect(result.docs).toHaveLength(1)
     expect(findMock).toHaveBeenCalledWith(
       expect.objectContaining({
+        collection: 'bookmarks',
         where: { and: [{ user: { equals: 99 } }] },
         limit: 50,
         page: 1,
       }),
     )
+  })
+
+  it('hydrates readable relations for mixed bookmark docs', async () => {
+    const findMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        docs: [
+          { id: 1, contentType: 'book', book: 11 },
+          { id: 2, contentType: 'chapter', chapter: 21 },
+        ],
+        totalDocs: 2,
+      })
+      .mockResolvedValueOnce({
+        docs: [{ id: 11, title: 'Book 11', slug: 'book-11' }],
+        totalDocs: 1,
+      })
+      .mockResolvedValueOnce({
+        docs: [{ id: 21, title: 'Chapter 21', slug: 'chapter-21', book: { id: 11, title: 'Book 11' } }],
+        totalDocs: 1,
+      })
+
+    const result = await bookmarksResolver(
+      undefined,
+      {},
+      {
+        req: {
+          payload: { find: findMock },
+          user: { id: 99, role: 'user' },
+        },
+      },
+    )
+
+    expect(result.docs).toEqual([
+      expect.objectContaining({
+        id: 1,
+        contentType: 'book',
+        book: expect.objectContaining({ id: 11, title: 'Book 11' }),
+        chapter: null,
+      }),
+      expect.objectContaining({
+        id: 2,
+        contentType: 'chapter',
+        chapter: expect.objectContaining({ id: 21, title: 'Chapter 21' }),
+        book: null,
+      }),
+    ])
   })
 
   it('rejects invalid bookmark filters', async () => {

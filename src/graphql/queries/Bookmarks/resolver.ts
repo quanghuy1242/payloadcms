@@ -1,4 +1,4 @@
-import type { Payload } from 'payload'
+import type { Payload, PayloadRequest } from 'payload'
 
 import { getUserId } from '@/utils/access'
 import { normalizeEntityId } from '@/utils/identifiers'
@@ -16,12 +16,29 @@ interface BookmarksResult {
   totalDocs: number
 }
 
+interface BookmarkDoc {
+  book?: unknown
+  chapter?: unknown
+  contentType?: unknown
+  id?: unknown
+  [key: string]: unknown
+}
+
+type PayloadFinder = Pick<Payload, 'find'>
+
+interface BookmarksResolverContext {
+  req: {
+    payload?: Partial<PayloadFinder>
+    user?: unknown
+  }
+}
+
 export const bookmarksResolver = async (
   _: unknown,
   args: BookmarksArgs,
-  context: any,
+  context: BookmarksResolverContext,
 ): Promise<BookmarksResult> => {
-  const payload: Payload = context.req.payload
+  const req = context.req as PayloadRequest
   const user = context.req.user
 
   if (!user) {
@@ -32,6 +49,12 @@ export const bookmarksResolver = async (
   if (userId == null) {
     throw new Error('Unauthorized')
   }
+
+  const payload = context.req.payload
+  if (typeof payload?.find !== 'function') {
+    throw new Error('Payload request is unavailable')
+  }
+  const payloadFinder: PayloadFinder = { find: payload.find }
 
   const limit = Math.max(1, Math.min(args.limit ?? 50, 100))
   const page = Math.max(1, args.page ?? 1)
@@ -62,14 +85,128 @@ export const bookmarksResolver = async (
   const result = await payload.find({
     collection: 'bookmarks',
     where: { and: conditions },
-    depth: 1,
+    depth: 0,
     limit: hasContentFilter ? 1 : limit,
     page: hasContentFilter ? 1 : page,
-    overrideAccess: true,
+    overrideAccess: false,
+    req,
+  })
+
+  const docs = await hydrateBookmarkRelations({
+    docs: result.docs as unknown as BookmarkDoc[],
+    payload: payloadFinder,
+    req,
   })
 
   return {
-    docs: result.docs,
+    docs,
     totalDocs: result.totalDocs,
   }
+}
+
+async function hydrateBookmarkRelations({
+  docs,
+  payload,
+  req,
+}: {
+  docs: BookmarkDoc[]
+  payload: PayloadFinder
+  req: PayloadRequest
+}): Promise<BookmarkDoc[]> {
+  if (docs.length === 0) {
+    return docs
+  }
+
+  const bookIds = collectRelationIds(docs, 'book')
+  const chapterIds = collectRelationIds(docs, 'chapter')
+
+  const [bookMap, chapterMap] = await Promise.all([
+    loadRelationMap({
+      collection: 'books',
+      ids: bookIds,
+      payload,
+      req,
+    }),
+    loadRelationMap({
+      collection: 'chapters',
+      ids: chapterIds,
+      payload,
+      req,
+    }),
+  ])
+
+  return docs.map((doc) => {
+    if (doc.contentType === 'chapter') {
+      const chapterId = normalizeEntityId(doc.chapter)
+
+      return {
+        ...doc,
+        chapter: chapterId == null ? null : (chapterMap.get(String(chapterId)) ?? null),
+        book: null,
+      }
+    }
+
+    const bookId = normalizeEntityId(doc.book)
+
+    return {
+      ...doc,
+      book: bookId == null ? null : (bookMap.get(String(bookId)) ?? null),
+      chapter: null,
+    }
+  })
+}
+
+function collectRelationIds(docs: BookmarkDoc[], field: 'book' | 'chapter'): Array<string | number> {
+  const ids = new Set<string>()
+
+  for (const doc of docs) {
+    const normalizedId = normalizeEntityId(doc[field])
+
+    if (normalizedId != null) {
+      ids.add(String(normalizedId))
+    }
+  }
+
+  return Array.from(ids)
+}
+
+async function loadRelationMap({
+  collection,
+  ids,
+  payload,
+  req,
+}: {
+  collection: 'books' | 'chapters'
+  ids: Array<string | number>
+  payload: PayloadFinder
+  req: PayloadRequest
+}): Promise<Map<string, Record<string, unknown>>> {
+  if (ids.length === 0) {
+    return new Map()
+  }
+
+  const result = await payload.find({
+    collection,
+    where: {
+      id: {
+        in: ids,
+      },
+    },
+    depth: 1,
+    limit: ids.length,
+    overrideAccess: false,
+    req,
+  })
+
+  const relationMap = new Map<string, Record<string, unknown>>()
+
+  for (const doc of result.docs as unknown as Array<Record<string, unknown>>) {
+    const normalizedId = normalizeEntityId(doc.id)
+
+    if (normalizedId != null) {
+      relationMap.set(String(normalizedId), doc)
+    }
+  }
+
+  return relationMap
 }

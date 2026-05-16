@@ -21,7 +21,12 @@
     "promote:admin": "tsx scripts/promote-user.ts",
     "download:datocms": "tsx scripts/download-datocms-images.ts",
     "backfill:lowres": "tsx scripts/backfill-lowres.ts",
-    "epub:probe": "tsx scripts/epub-probe.ts"
+    "epub:probe": "tsx scripts/epub-probe.ts",
+    "dev:vinext": "vinext dev --port 3001",
+    "build:vinext": "vinext build",
+    "start:vinext": "vinext start",
+    "deploy:vinext": "vinext deploy",
+    "deploy:vinext:dry-run": "pnpm build:vinext && wrangler deploy --dry-run --config dist/server/wrangler.json"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1036.0",
@@ -52,12 +57,13 @@
     "libsql": "^0.5.29",
     "next": "15.4.10",
     "payload": "3.60.0",
-    "react": "19.1.0",
-    "react-dom": "19.1.0",
+    "react": "19.2.6",
+    "react-dom": "19.2.6",
     "slugify": "^1.6.9",
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.37.1",
     "@eslint/eslintrc": "^3.3.5",
     "@payloadcms/graphql": "3.60.0",
     "@playwright/test": "1.54.1",
@@ -67,17 +73,23 @@
     "@types/node": "^22.19.17",
     "@types/react": "19.1.8",
     "@types/react-dom": "19.1.6",
-    "@vitejs/plugin-react": "4.5.2",
+    "@vitejs/plugin-react": "6.0.2",
+    "@vitejs/plugin-rsc": "^0.5.26",
+    "esbuild": "^0.28.0",
     "eslint": "^9.39.4",
     "eslint-config-next": "15.4.4",
     "jsdom": "26.1.0",
     "playwright": "1.54.1",
     "playwright-core": "1.54.1",
     "prettier": "^3.8.3",
+    "react-server-dom-webpack": "^19.2.6",
     "tsx": "^4.21.0",
     "typescript": "5.7.3",
+    "vinext": "^0.0.50",
+    "vite": "^8.0.13",
     "vite-tsconfig-paths": "5.1.4",
-    "vitest": "3.2.3"
+    "vitest": "3.2.3",
+    "wrangler": "^4.92.0"
   },
   "packageManager": "pnpm@10.15.1",
   "engines": {
@@ -87,7 +99,8 @@
     "onlyBuiltDependencies": [
       "sharp",
       "esbuild",
-      "unrs-resolver"
+      "unrs-resolver",
+      "workerd"
     ]
   }
 }
