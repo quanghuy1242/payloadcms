@@ -52,8 +52,11 @@ import { MetaImageComponent as MetaImageComponent_a8a977ebc872c5d5ea7ee689724c08
 import { PreviewComponent as PreviewComponent_a8a977ebc872c5d5ea7ee689724c0860 } from '@payloadcms/plugin-seo/client'
 import { default as default_2f341c840ac97590f796719a63b02bee } from '../../../components/admin/BetterAuthLogout.tsx'
 import { default as default_eb2ccc2a31c57d79ed56e65807616fbd } from '../../../components/admin/BetterAuthLoginRedirect.tsx'
+import { R2ClientUploadHandler as R2ClientUploadHandler_85cc02ed84006fcc91d3aff39dda669d } from '@payloadcms/storage-r2/client'
 import { default as default_1fff117f43b92c2acfdea8617c91d240 } from '../../../components/admin/books/BookImportAdminView.tsx'
+import { CollectionCards as CollectionCards_f9c02e79a4aed9a3924487c0cd4cafb1 } from '@payloadcms/next/rsc'
 
+/** @type import('payload').ImportMap */
 export const importMap = {
   "@payloadcms/richtext-lexical/rsc#RscEntryLexicalCell": RscEntryLexicalCell_44fe37237e0ebf4470c9990d8cb7b07e,
   "@payloadcms/richtext-lexical/rsc#RscEntryLexicalField": RscEntryLexicalField_44fe37237e0ebf4470c9990d8cb7b07e,
@@ -109,5 +112,7 @@ export const importMap = {
   "@payloadcms/plugin-seo/client#PreviewComponent": PreviewComponent_a8a977ebc872c5d5ea7ee689724c0860,
   "./components/admin/BetterAuthLogout.tsx#default": default_2f341c840ac97590f796719a63b02bee,
   "./components/admin/BetterAuthLoginRedirect.tsx#default": default_eb2ccc2a31c57d79ed56e65807616fbd,
-  "./components/admin/books/BookImportAdminView.tsx#default": default_1fff117f43b92c2acfdea8617c91d240
+  "@payloadcms/storage-r2/client#R2ClientUploadHandler": R2ClientUploadHandler_85cc02ed84006fcc91d3aff39dda669d,
+  "./components/admin/books/BookImportAdminView.tsx#default": default_1fff117f43b92c2acfdea8617c91d240,
+  "@payloadcms/next/rsc#CollectionCards": CollectionCards_f9c02e79a4aed9a3924487c0cd4cafb1
 }
